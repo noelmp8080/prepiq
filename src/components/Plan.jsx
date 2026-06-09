@@ -1,43 +1,69 @@
+import { Shuffle } from 'lucide-react'
 import { recipeById } from '../data/recipes'
+import { useAppStore } from '../store/useAppStore'
 
-const PLAN = [
-  { day:'Mon', short:'M', ids:[1,  2]   },
-  { day:'Tue', short:'T', ids:[3,  4]   },
-  { day:'Wed', short:'W', ids:[5,  6]   },
-  { day:'Thu', short:'T', ids:[7,  8]   },
-  { day:'Fri', short:'F', ids:[9,  10]  },
-  { day:'Sat', short:'S', ids:[11, null]},
-  { day:'Sun', short:'S', ids:[12, null]},
-]
-const TODAY_IDX = 4 // Friday
+const MEAL_LABELS = ['Meal 1', 'Meal 2']
+const TODAY_NAME  = new Date().toLocaleDateString('en-US', { weekday:'short' })
 
-const MEAL_LABELS = ['Breakfast / Lunch', 'Dinner']
+const WEEK_START = (() => {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(d)
+  monday.setDate(d.getDate() + diff)
+  return monday
+})()
+
+function formatDateRange() {
+  const end = new Date(WEEK_START)
+  end.setDate(end.getDate() + 6)
+  const opts = { month:'short', day:'numeric' }
+  return `${WEEK_START.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
+}
 
 export default function Plan() {
-  const totalCal = day =>
-    day.ids.filter(Boolean).reduce((s, id) => s + (recipeById[id]?.cal || 0), 0)
+  const { weekPlan, shuffleWeekPlan } = useAppStore()
+
+  function totalCal(day) {
+    return day.ids.filter(Boolean).reduce((s, id) => s + (recipeById[id]?.cal || 0), 0)
+  }
+
+  function dayDate(i) {
+    const d = new Date(WEEK_START)
+    d.setDate(d.getDate() + i)
+    return d.getDate()
+  }
+
+  function isToday(day) {
+    return day.day.toLowerCase() === TODAY_NAME.toLowerCase()
+  }
 
   return (
     <div style={{ paddingBottom:'88px' }}>
       {/* Header */}
       <div style={{ background:'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding:'28px 20px 28px' }}>
-        <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', marginBottom:'4px' }}>Weekly Plan</h1>
-        <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500 }}>June 2 – 8, 2025</p>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'4px' }}>
+          <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', margin:0 }}>Weekly Plan</h1>
+          <button onClick={shuffleWeekPlan} style={{ display:'flex', alignItems:'center', gap:'5px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.2)', borderRadius:'12px', padding:'8px 12px', cursor:'pointer', color:'#fff', fontSize:'11px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
+            <Shuffle size={13} strokeWidth={2.5} /> Shuffle
+          </button>
+        </div>
+        <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500, marginBottom:'20px' }}>{formatDateRange()}</p>
 
         {/* Day strip */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'6px', marginTop:'20px' }}>
-          {PLAN.map((d, i) => {
-            const isToday = i === TODAY_IDX
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'6px' }}>
+          {weekPlan.map((d, i) => {
+            const today = isToday(d)
             return (
               <div key={d.day} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'6px' }}>
-                <span style={{ fontSize:'9px', fontWeight:700, color: isToday ? '#C4B5FD' : 'rgba(255,255,255,0.4)', letterSpacing:'.08em', textTransform:'uppercase' }}>{d.short}</span>
+                <span style={{ fontSize:'9px', fontWeight:700, color: today ? '#C4B5FD' : 'rgba(255,255,255,0.4)', letterSpacing:'.08em', textTransform:'uppercase' }}>{d.day[0]}</span>
                 <div style={{
                   width:'32px', height:'32px', borderRadius:'50%',
-                  background: isToday ? '#4F3FD4' : 'rgba(255,255,255,0.08)',
-                  border: isToday ? '2px solid #C4B5FD' : '2px solid transparent',
+                  background: today ? '#4F3FD4' : 'rgba(255,255,255,0.08)',
+                  border: today ? '2px solid #C4B5FD' : '2px solid transparent',
                   display:'flex', alignItems:'center', justifyContent:'center',
                 }}>
-                  <span style={{ fontSize:'13px', fontWeight:800, color: isToday ? '#fff' : 'rgba(255,255,255,0.6)' }}>{2 + i}</span>
+                  <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : 'rgba(255,255,255,0.6)' }}>{dayDate(i)}</span>
                 </div>
                 <span style={{ fontSize:'8px', fontWeight:600, color:'rgba(255,255,255,0.35)' }}>{totalCal(d)}</span>
               </div>
@@ -48,25 +74,23 @@ export default function Plan() {
 
       {/* Day cards */}
       <div style={{ padding:'16px' }}>
-        {PLAN.map((d, i) => {
-          const isToday = i === TODAY_IDX
+        {weekPlan.map((d, i) => {
+          const today = isToday(d)
           return (
-            <div key={d.day} style={{ marginBottom:'12px', background:'#fff', borderRadius:'20px', overflow:'hidden', boxShadow: isToday ? '0 4px 20px rgba(79,63,212,0.15)' : '0 2px 8px rgba(79,63,212,0.05)', border: isToday ? '2px solid rgba(79,63,212,0.25)' : '2px solid transparent' }}>
-              {/* Day header */}
+            <div key={d.day} style={{ marginBottom:'12px', background:'#fff', borderRadius:'20px', overflow:'hidden', boxShadow: today ? '0 4px 20px rgba(79,63,212,0.15)' : '0 2px 8px rgba(79,63,212,0.05)', border: today ? '2px solid rgba(79,63,212,0.25)' : '2px solid transparent' }}>
               <div style={{ padding:'14px 16px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(26,22,38,0.05)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                  <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isToday ? '#4F3FD4' : '#F0EEF8', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <span style={{ fontSize:'13px', fontWeight:800, color: isToday ? '#fff' : '#7B728E' }}>{2 + i}</span>
+                  <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: today ? '#4F3FD4' : '#F0EEF8', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : '#7B728E' }}>{dayDate(i)}</span>
                   </div>
                   <div>
                     <span style={{ fontSize:'14px', fontWeight:700, color:'#1A1626' }}>{d.day}</span>
-                    {isToday && <span style={{ marginLeft:'6px', fontSize:'9px', fontWeight:700, color:'#4F3FD4', background:'rgba(79,63,212,0.1)', padding:'2px 6px', borderRadius:'5px', letterSpacing:'.08em' }}>TODAY</span>}
+                    {today && <span style={{ marginLeft:'6px', fontSize:'9px', fontWeight:700, color:'#4F3FD4', background:'rgba(79,63,212,0.1)', padding:'2px 6px', borderRadius:'5px', letterSpacing:'.08em' }}>TODAY</span>}
                   </div>
                 </div>
-                <span style={{ fontSize:'12px', fontWeight:800, color: isToday ? '#4F3FD4' : '#7B728E', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
+                <span style={{ fontSize:'12px', fontWeight:800, color: today ? '#4F3FD4' : '#7B728E', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
               </div>
 
-              {/* Meals */}
               <div style={{ padding:'10px 16px 12px', display:'flex', flexDirection:'column', gap:'8px' }}>
                 {d.ids.map((id, j) => {
                   const recipe = id ? recipeById[id] : null

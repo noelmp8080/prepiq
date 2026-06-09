@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Heart } from 'lucide-react'
 import { recipes, filterRecipes } from '../data/recipes'
+import { useAppStore } from '../store/useAppStore'
 
 const FILTERS = [
   { label:'All',          value:'all' },
@@ -32,23 +33,15 @@ function getImg(id) {
 }
 
 export default function Recipes() {
+  const { favorites, toggleFavorite } = useAppStore()
   const [query,  setQuery]  = useState('')
   const [filter, setFilter] = useState('all')
-  const [liked,  setLiked]  = useState(new Set([2, 106]))
   const [page,   setPage]   = useState(1)
   const PER_PAGE = 20
 
-  const filtered = filterRecipes(recipes, { query, filter, favorites: liked })
+  const filtered = filterRecipes(recipes, { query, filter, favorites })
   const visible  = filtered.slice(0, page * PER_PAGE)
   const hasMore  = visible.length < filtered.length
-
-  function toggleLike(id) {
-    setLiked(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
 
   const sourceLabel = r => r.source === 'jalal' ? "Jalal's" : 'Meal Prep'
   const sourceColor = r => r.source === 'jalal' ? '#7B6EF5' : '#0DC8A0'
@@ -108,10 +101,10 @@ export default function Recipes() {
                 loading="lazy"
               />
               <button
-                onClick={e => { e.stopPropagation(); toggleLike(recipe.id) }}
+                onClick={e => { e.stopPropagation(); toggleFavorite(recipe.id) }}
                 style={{ position:'absolute', top:'8px', right:'8px', background:'rgba(255,255,255,0.9)', border:'none', borderRadius:'50%', width:'30px', height:'30px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}
               >
-                <Heart size={14} strokeWidth={2} color={liked.has(recipe.id) ? '#FF5C5C' : '#B4ADCA'} fill={liked.has(recipe.id) ? '#FF5C5C' : 'none'} />
+                <Heart size={14} strokeWidth={2} color={favorites.has(recipe.id) ? '#FF5C5C' : '#B4ADCA'} fill={favorites.has(recipe.id) ? '#FF5C5C' : 'none'} />
               </button>
               <span style={{ position:'absolute', bottom:'8px', left:'8px', background:sourceColor(recipe), color:'#fff', fontSize:'9px', fontWeight:700, padding:'3px 7px', borderRadius:'6px', letterSpacing:'.06em' }}>
                 {sourceLabel(recipe)}
@@ -139,7 +132,6 @@ export default function Recipes() {
         ))}
       </div>
 
-      {/* Load more */}
       {hasMore && (
         <div style={{ padding:'20px 16px' }}>
           <button
