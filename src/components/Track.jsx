@@ -186,16 +186,10 @@ function LogMealModal({ onClose }) {
 }
 
 export default function Track() {
-  const { mealLog, goals, removeLoggedMeal } = useAppStore()
+  const { mealLog, goals, consumed, removeLoggedMeal } = useAppStore()
   const [showModal, setShowModal] = useState(false)
 
   const meals = mealLog.map(l => ({ ...l, recipe: recipeById[l.recipeId] })).filter(m => m.recipe)
-  const total = {
-    cal:     meals.reduce((s,m) => s + m.recipe.cal,     0),
-    protein: meals.reduce((s,m) => s + m.recipe.protein, 0),
-    carbs:   meals.reduce((s,m) => s + m.recipe.carbs,   0),
-    fat:     meals.reduce((s,m) => s + m.recipe.fat,     0),
-  }
 
   const macros = [
     { label:'Protein', key:'protein', color:'#4F3FD4', unit:'g' },
@@ -232,18 +226,18 @@ export default function Track() {
               <div>
                 <p style={{ fontSize:'12px', color:'var(--ink4)', fontWeight:600, marginBottom:'2px' }}>Calories</p>
                 <div style={{ display:'flex', alignItems:'baseline', gap:'4px' }}>
-                  <span style={{ fontSize:'36px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.05em', lineHeight:1 }}>{total.cal}</span>
+                  <span style={{ fontSize:'36px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.05em', lineHeight:1 }}>{consumed.calories}</span>
                   <span style={{ fontSize:'14px', color:'var(--ink4)', fontWeight:500 }}>/ {goals.calories}</span>
                 </div>
               </div>
               <div style={{ textAlign:'right' }}>
                 <p style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500, marginBottom:'2px' }}>Remaining</p>
-                <p style={{ fontSize:'22px', fontWeight:800, color:'#0DC8A0', letterSpacing:'-.04em' }}>{Math.max(0, goals.calories - total.cal)}</p>
+                <p style={{ fontSize:'22px', fontWeight:800, color:'#0DC8A0', letterSpacing:'-.04em' }}>{Math.max(0, goals.calories - consumed.calories)}</p>
               </div>
             </div>
-            <Bar val={total.cal} goal={goals.calories} color='#4F3FD4' />
+            <Bar val={consumed.calories} goal={goals.calories} color='#4F3FD4' />
             <p style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500, marginTop:'6px', textAlign:'right' }}>
-              {goals.calories > 0 ? Math.round(total.cal / goals.calories * 100) : 0}% of daily goal
+              {goals.calories > 0 ? Math.round(consumed.calories / goals.calories * 100) : 0}% of daily goal
             </p>
           </div>
 
@@ -256,11 +250,11 @@ export default function Track() {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
                     <span style={{ fontSize:'12px', fontWeight:600, color:'var(--ink2)' }}>{m.label}</span>
                     <div style={{ display:'flex', alignItems:'baseline', gap:'3px' }}>
-                      <span style={{ fontSize:'16px', fontWeight:800, color:m.color, fontFamily:'DM Mono, monospace' }}>{total[m.key]}</span>
+                      <span style={{ fontSize:'16px', fontWeight:800, color:m.color, fontFamily:'DM Mono, monospace' }}>{consumed[m.key]}</span>
                       <span style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500 }}>/ {goals[m.key]}{m.unit}</span>
                     </div>
                   </div>
-                  <Bar val={total[m.key]} goal={goals[m.key]} color={m.color} />
+                  <Bar val={consumed[m.key]} goal={goals[m.key]} color={m.color} />
                 </div>
               ))}
             </div>

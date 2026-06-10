@@ -1,7 +1,9 @@
-import { Sun, Moon, ChevronRight, Plus, Utensils } from 'lucide-react'
-import { recipes, recipeById } from '../data/recipes'
+import { useState } from 'react'
+import { Sun, Moon, ChevronRight, Plus, Utensils, Settings as SettingsIcon } from 'lucide-react'
+import { recipeById } from '../data/recipes'
 import { useAppStore } from '../store/useAppStore'
 import { useTheme } from '../store/useTheme'
+import Settings from './Settings'
 
 const MEAL_IMGS = {
   1:   'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80',
@@ -27,14 +29,11 @@ function CalRing({ consumed, goal }) {
 const SLOT_EMOJI = { Breakfast:'🍳', Lunch:'🥗', Snack:'🍎', Dinner:'🍽️' }
 
 export default function Today({ onChange }) {
-  const { mealLog, goals } = useAppStore()
+  const { mealLog, goals, consumed } = useAppStore()
   const { theme, toggleTheme } = useTheme()
+  const [showSettings, setShowSettings] = useState(false)
 
-  const consumed = mealLog.reduce((s, m) => s + (recipeById[m.recipeId]?.cal || 0), 0)
-  const protein  = mealLog.reduce((s, m) => s + (recipeById[m.recipeId]?.protein || 0), 0)
-  const carbs    = mealLog.reduce((s, m) => s + (recipeById[m.recipeId]?.carbs || 0), 0)
-  const fat      = mealLog.reduce((s, m) => s + (recipeById[m.recipeId]?.fat || 0), 0)
-  const remaining = goals.calories - consumed
+  const remaining = goals.calories - consumed.calories
 
   const today = new Date()
   const dateLabel = today.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })
@@ -51,7 +50,7 @@ export default function Today({ onChange }) {
           <div>
             <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.6)', fontWeight:500, marginBottom:'4px' }}>Good morning</p>
             <h1 style={{ fontSize:'28px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', lineHeight:1.1, marginBottom:'4px' }}>{dateLabel}</h1>
-            <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.55)', fontWeight:500 }}>{consumed} of {goals.calories} cal today</p>
+            <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.55)', fontWeight:500 }}>{consumed.calories} of {goals.calories} cal today</p>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             {/* Theme toggle */}
@@ -63,6 +62,13 @@ export default function Today({ onChange }) {
                 ? <Sun  size={16} strokeWidth={2} color='rgba(255,255,255,0.8)' />
                 : <Moon size={16} strokeWidth={2} color='rgba(255,255,255,0.8)' />
               }
+            </button>
+            {/* Settings */}
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'50%', width:'36px', height:'36px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}
+            >
+              <SettingsIcon size={16} strokeWidth={2} color='rgba(255,255,255,0.8)' />
             </button>
             {/* Logged badge */}
             <div style={{ background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'16px', padding:'10px 14px', textAlign:'center' }}>
@@ -78,17 +84,17 @@ export default function Today({ onChange }) {
         <div style={{ background:'var(--card)', borderRadius:'24px', overflow:'hidden', boxShadow:'0 4px 24px rgba(79,63,212,0.12)' }}>
           <div style={{ padding:'20px', display:'flex', alignItems:'center', gap:'18px' }}>
             <div style={{ position:'relative', flexShrink:0 }}>
-              <CalRing consumed={consumed} goal={goals.calories} />
+              <CalRing consumed={consumed.calories} goal={goals.calories} />
               <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ fontSize:'20px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.04em', lineHeight:1 }}>{consumed}</span>
+                <span style={{ fontSize:'20px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.04em', lineHeight:1 }}>{consumed.calories}</span>
                 <span style={{ fontSize:'10px', color:'var(--ink4)', marginTop:'2px', fontWeight:500 }}>of {goals.calories}</span>
               </div>
             </div>
             <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'11px' }}>
               {[
-                { label:'Protein', val:`${protein}g`, pct:Math.round(protein/goals.protein*100), color:'#4F3FD4' },
-                { label:'Carbs',   val:`${carbs}g`,   pct:Math.round(carbs/goals.carbs*100),     color:'#0DC8A0' },
-                { label:'Fat',     val:`${fat}g`,     pct:Math.round(fat/goals.fat*100),          color:'#F5A623' },
+                { label:'Protein', val:`${consumed.protein}g`, pct:Math.round(consumed.protein/goals.protein*100), color:'#4F3FD4' },
+                { label:'Carbs',   val:`${consumed.carbs}g`,   pct:Math.round(consumed.carbs/goals.carbs*100),     color:'#0DC8A0' },
+                { label:'Fat',     val:`${consumed.fat}g`,     pct:Math.round(consumed.fat/goals.fat*100),          color:'#F5A623' },
               ].map(m => (
                 <div key={m.label} style={{ display:'grid', gridTemplateColumns:'52px 1fr 40px', alignItems:'center', gap:'8px' }}>
                   <span style={{ fontSize:'11px', color:'var(--ink3)', fontWeight:500 }}>{m.label}</span>
@@ -104,7 +110,7 @@ export default function Today({ onChange }) {
             {[
               { val:remaining < 0 ? 0 : remaining, label:'Cal left',  color:'#0DC8A0' },
               { val:mealLog.length,                 label:'Meals',     color:'#4F3FD4' },
-              { val:`${protein}g`,                  label:'Protein',   color:'#F5A623' },
+              { val:`${consumed.protein}g`,         label:'Protein',   color:'#F5A623' },
             ].map((s,i) => (
               <div key={i} style={{ padding:'13px 0', textAlign:'center', borderRight:i<2?`1px solid var(--border-c)`:undefined }}>
                 <div style={{ fontSize:'18px', fontWeight:800, color:s.color, letterSpacing:'-.03em' }}>{s.val}</div>
@@ -269,6 +275,7 @@ export default function Today({ onChange }) {
           </div>
         )}
       </div>
+      {showSettings && <Settings open={showSettings} onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

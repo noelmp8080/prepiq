@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
-import { recipes } from '../data/recipes'
+import { recipes, recipeById } from '../data/recipes'
 
 const AppStoreContext = createContext(null)
 
@@ -189,10 +189,18 @@ export function AppStoreProvider({ children }) {
 
   const signOutUser = useCallback(() => signOut(auth), [])
 
+  const consumed = {
+    calories: mealLog.reduce((sum, m) => sum + (recipeById[m.recipeId]?.cal || 0), 0),
+    protein:  mealLog.reduce((sum, m) => sum + (recipeById[m.recipeId]?.protein || 0), 0),
+    carbs:    mealLog.reduce((sum, m) => sum + (recipeById[m.recipeId]?.carbs || 0), 0),
+    fat:      mealLog.reduce((sum, m) => sum + (recipeById[m.recipeId]?.fat || 0), 0),
+  }
+
   const value = {
     user,
     goals,
     mealLog,
+    consumed,
     weekPlan,
     favorites,
     groceryChecks,
