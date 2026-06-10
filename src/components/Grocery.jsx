@@ -2,7 +2,6 @@ import { CheckSquare, Square, Trash2 } from 'lucide-react'
 import { recipeById } from '../data/recipes'
 import { useAppStore } from '../store/useAppStore'
 
-// Build grocery items from the week plan's recipes
 function buildGroceryItems(weekPlan) {
   const seen = new Set()
   const items = []
@@ -48,14 +47,14 @@ export default function Grocery() {
       <div style={{ padding:'16px' }}>
         {items.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 20px' }}>
-            <p style={{ fontSize:'14px', color:'#B4ADCA', fontWeight:500 }}>No items — set up your weekly plan first.</p>
+            <p style={{ fontSize:'14px', color:'var(--ink4)', fontWeight:500 }}>No items — set up your weekly plan first.</p>
           </div>
         ) : (
           <>
             {/* Check all */}
             <button
               onClick={() => done === items.length ? clearGrocery() : checkAllGrocery(allIds)}
-              style={{ width:'100%', padding:'13px', borderRadius:'16px', border:'1.5px solid rgba(79,63,212,0.2)', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#4F3FD4', fontFamily:'Plus Jakarta Sans, sans-serif', marginBottom:'12px' }}
+              style={{ width:'100%', padding:'13px', borderRadius:'16px', border:'1.5px solid rgba(79,63,212,0.2)', background:'var(--card)', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'#4F3FD4', fontFamily:'Plus Jakarta Sans, sans-serif', marginBottom:'12px' }}
             >
               {done === items.length ? 'Uncheck all' : `Check all (${items.length - done} remaining)`}
             </button>
@@ -67,15 +66,15 @@ export default function Grocery() {
                   <button
                     key={item.id}
                     onClick={() => toggleGroceryItem(item.id)}
-                    style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px 16px', background:'#fff', borderRadius:'16px', border:'none', cursor:'pointer', textAlign:'left', boxShadow:'0 1px 6px rgba(79,63,212,0.06)', fontFamily:'Plus Jakarta Sans, sans-serif', opacity: checked ? 0.55 : 1, transition:'opacity .15s' }}
+                    style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px 16px', background:'var(--card)', borderRadius:'16px', border:'none', cursor:'pointer', textAlign:'left', boxShadow:'0 1px 6px rgba(79,63,212,0.06)', fontFamily:'Plus Jakarta Sans, sans-serif', opacity: checked ? 0.55 : 1, transition:'opacity .15s' }}
                   >
                     {checked
                       ? <CheckSquare size={20} strokeWidth={2} color='#0DC8A0' />
                       : <Square      size={20} strokeWidth={2} color='#C4B5FD'  />
                     }
                     <div style={{ flex:1 }}>
-                      <p style={{ fontSize:'13px', fontWeight:700, color:'#1A1626', margin:'0 0 2px', textDecoration: checked ? 'line-through' : 'none' }}>{item.label}</p>
-                      <p style={{ fontSize:'10px', color:'#B4ADCA', fontWeight:500, margin:0 }}>{item.cal} cal · {item.protein}g protein · {item.source === 'jalal' ? "Jalal's" : 'Meal Prep'}</p>
+                      <p style={{ fontSize:'13px', fontWeight:700, color:'var(--ink)', margin:'0 0 2px', textDecoration: checked ? 'line-through' : 'none' }}>{item.label}</p>
+                      <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, margin:0 }}>{item.cal} cal · {item.protein}g protein · {item.source === 'jalal' ? "Jalal's" : 'Meal Prep'}</p>
                     </div>
                   </button>
                 )

@@ -12,7 +12,7 @@ export default function BottomNav({ active, onChange }) {
   return (
     <nav style={{
       position:'fixed', bottom:0, left:0, right:0,
-      background:'rgba(240,238,248,0.97)',
+      background:'var(--bg)',
       backdropFilter:'blur(20px)',
       borderTop:'1px solid rgba(79,63,212,0.08)',
       display:'flex', justifyContent:'space-around',
@@ -29,10 +29,10 @@ export default function BottomNav({ active, onChange }) {
             padding:'6px 0', fontFamily:'Plus Jakarta Sans, sans-serif',
           }}>
             {notify && !isActive && (
-              <span style={{ position:'absolute', top:'8px', right:'calc(50% - 16px)', width:'7px', height:'7px', borderRadius:'50%', background:'#FF5C5C', border:'2px solid #F0EEF8' }} />
+              <span style={{ position:'absolute', top:'8px', right:'calc(50% - 16px)', width:'7px', height:'7px', borderRadius:'50%', background:'#FF5C5C', border:'2px solid var(--bg)' }} />
             )}
-            <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} color={isActive ? '#4F3FD4' : '#B4ADCA'} />
-            <span style={{ fontSize:'9px', fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', color: isActive ? '#4F3FD4' : '#B4ADCA' }}>
+            <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} color={isActive ? '#4F3FD4' : 'var(--ink4)'} />
+            <span style={{ fontSize:'9px', fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', color: isActive ? '#4F3FD4' : 'var(--ink4)' }}>
               {label}
             </span>
             {isActive && <span style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:'20px', height:'3px', background:'#4F3FD4', borderRadius:'2px 2px 0 0' }} />}

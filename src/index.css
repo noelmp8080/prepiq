@@ -1,9 +1,39 @@
+[data-theme="dark"] {
+  --bg: #1A1626;
+  --bg2: #241E33;
+  --surface: #2D2640;
+  --surface2: #362E4D;
+  --card: #2D2640;
+  --card2: #362E4D;
+  --ink: #F0EEF8;
+  --ink2: #C4B5FD;
+  --ink3: #9B8EC4;
+  --ink4: #6B5E94;
+  --border-c: rgba(196,181,253,0.1);
+  --shadow: rgba(0,0,0,0.4);
+}
+
+[data-theme="light"] {
+  --bg: #F0EEF8;
+  --bg2: #E4E0F4;
+  --surface: #FFFFFF;
+  --surface2: #F6F5F8;
+  --card: #FFFFFF;
+  --card2: #F6F5F8;
+  --ink: #1A1626;
+  --ink2: #3D3650;
+  --ink3: #7B728E;
+  --ink4: #B4ADCA;
+  --border-c: rgba(26,22,38,0.08);
+  --shadow: rgba(79,63,212,0.1);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background: #F0EEF8;
-  color: #1A1626;
+  background: var(--bg);
+  color: var(--ink);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;

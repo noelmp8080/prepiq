@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Heart, Clock, Users } from 'lucide-react'
+import { Heart, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 
 const FOOD_IMGS = [
-  'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80',
-  'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80',
-  'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=800&q=80',
-  'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=800&q=80',
-  'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80',
-  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80',
-  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800&q=80',
-  'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=800&q=80',
+  'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80',
+  'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80',
+  'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&q=80',
+  'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=80',
+  'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=80',
+  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80',
+  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&q=80',
+  'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=400&q=80',
 ]
 
 function getImg(id) { return FOOD_IMGS[(id - 1) % FOOD_IMGS.length] }
@@ -20,21 +20,16 @@ const DAILY_GOALS = { cal: 1800, protein: 180, carbs: 200, fat: 60 }
 function generateDescription(recipe) {
   const t = recipe.tags
   const parts = []
-
-  if (t.includes('high-protein'))   parts.push('A high-protein meal perfect for meal prep')
-  else if (t.includes('under-400')) parts.push('A light, low-calorie meal')
-  else                               parts.push('A delicious, satisfying meal')
-
-  if      (t.includes('chicken'))   parts.push('featuring tender chicken')
-  else if (t.includes('beef'))      parts.push('featuring seasoned beef')
-  else if (t.includes('seafood'))   parts.push('featuring fresh seafood')
-
-  if      (t.includes('pasta'))      parts.push('served with pasta')
-  else if (t.includes('rice-bowls')) parts.push('served over rice')
-  else if (t.includes('handheld'))   parts.push('wrapped and ready to go')
-
+  if      (t.includes('high-protein'))   parts.push('A high-protein meal perfect for meal prep')
+  else if (t.includes('under-400'))      parts.push('A light, low-calorie meal')
+  else                                   parts.push('A delicious, satisfying meal')
+  if      (t.includes('chicken'))        parts.push('featuring tender chicken')
+  else if (t.includes('beef'))           parts.push('featuring seasoned beef')
+  else if (t.includes('seafood'))        parts.push('featuring fresh seafood')
+  if      (t.includes('pasta'))          parts.push('served with pasta')
+  else if (t.includes('rice-bowls'))     parts.push('served over rice')
+  else if (t.includes('handheld'))       parts.push('wrapped and ready to go')
   if (t.includes('low-fat') && parts.length < 3) parts.push('and kept low in fat')
-
   if (parts.length === 1) return parts[0] + '.'
   if (parts.length === 2) return `${parts[0]}, ${parts[1]}.`
   return `${parts[0]}, ${parts[1]}, ${parts[2]}.`
@@ -49,7 +44,7 @@ function prepTime(cal) {
 function MacroBar({ val, goal, color }) {
   const pct = Math.min(Math.round((val / goal) * 100) || 0, 100)
   return (
-    <div style={{ height: '4px', background: '#E4E0F4', borderRadius: '3px', overflow: 'hidden' }}>
+    <div style={{ height: '4px', background: 'var(--bg2)', borderRadius: '3px', overflow: 'hidden' }}>
       <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '3px' }} />
     </div>
   )
@@ -67,7 +62,7 @@ export default function RecipeSheet({ recipe, onClose }) {
 
   function handleClose() {
     setOpen(false)
-    setTimeout(onClose, 300)
+    setTimeout(onClose, 250)
   }
 
   function handleAddToday() {
@@ -81,130 +76,124 @@ export default function RecipeSheet({ recipe, onClose }) {
   const isFav = favorites.has(recipe.id)
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {/* Dark overlay */}
       <div
         onClick={handleClose}
         style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(0,0,0,0.55)',
           opacity: open ? 1 : 0,
-          transition: 'opacity 300ms ease',
+          transition: 'opacity 250ms ease',
         }}
       />
 
-      {/* Sheet */}
+      {/* Modal card */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        background: '#fff',
-        borderRadius: '24px 24px 0 0',
-        maxHeight: '88vh',
+        position: 'relative',
+        width: 'calc(100% - 32px)',
+        maxWidth: '420px',
+        maxHeight: '85vh',
+        background: 'var(--card)',
+        borderRadius: '24px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         display: 'flex',
         flexDirection: 'column',
-        transform: open ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
+        transform: open ? 'scale(1)' : 'scale(0.92)',
+        opacity: open ? 1 : 0,
+        transition: 'transform 250ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 250ms ease',
+        zIndex: 1,
       }}>
-        {/* Drag handle */}
-        <div
+        {/* Close button */}
+        <button
           onClick={handleClose}
-          style={{ padding: '12px 0 0', display: 'flex', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+          style={{
+            position: 'absolute', top: '12px', right: '12px',
+            background: 'var(--surface2)', border: 'none',
+            borderRadius: '50%', width: '32px', height: '32px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 2, flexShrink: 0,
+          }}
         >
-          <div style={{ width: '36px', height: '4px', borderRadius: '2px', background: '#E4E0F4' }} />
-        </div>
+          <X size={15} strokeWidth={2.5} color='var(--ink3)' />
+        </button>
 
-        {/* Scrollable content */}
+        {/* Scrollable area */}
         <div style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',
+          borderRadius: '24px 24px 0 0',
         }}>
-          {/* Hero image */}
-          <div style={{ position: 'relative', marginTop: '12px' }}>
-            <img
-              src={getImg(recipe.id)}
-              alt={recipe.name}
-              style={{ width: '100%', height: '220px', objectFit: 'cover', display: 'block' }}
-            />
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top,rgba(26,22,38,0.35) 0%,transparent 55%)' }} />
-            <button
-              onClick={() => toggleFavorite(recipe.id)}
-              style={{
-                position: 'absolute', top: '12px', right: '12px',
-                background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%',
-                width: '36px', height: '36px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              }}
-            >
-              <Heart size={16} strokeWidth={2} color={isFav ? '#FF5C5C' : '#B4ADCA'} fill={isFav ? '#FF5C5C' : 'none'} />
-            </button>
-          </div>
-
-          {/* Header */}
-          <div style={{ padding: '20px 20px 16px' }}>
-            <span style={{
-              display: 'inline-block',
-              background: sourceColor, color: '#fff',
-              fontSize: '9px', fontWeight: 700,
-              padding: '3px 8px', borderRadius: '6px',
-              letterSpacing: '.06em', marginBottom: '8px',
-            }}>
-              {sourceLabel}
-            </span>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1A1626', letterSpacing: '-.03em', margin: '0 0 14px', lineHeight: 1.2 }}>
-              {recipe.name}
-            </h2>
-            {/* Macro pills */}
-            <div style={{ display: 'flex', gap: '7px' }}>
-              {[
-                { label: String(recipe.cal),      sub: 'cal',     bg: 'rgba(79,63,212,0.07)',  color: '#4F3FD4' },
-                { label: `${recipe.protein}g`,    sub: 'protein', bg: 'rgba(79,63,212,0.07)',  color: '#4F3FD4' },
-                { label: `${recipe.carbs}g`,      sub: 'carbs',   bg: 'rgba(13,200,160,0.09)', color: '#0DC8A0' },
-                { label: `${recipe.fat}g`,        sub: 'fat',     bg: 'rgba(245,166,35,0.09)', color: '#F5A623' },
-              ].map(m => (
-                <div key={m.sub} style={{ flex: 1, background: m.bg, borderRadius: '12px', padding: '8px 4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: m.color, letterSpacing: '-.03em', lineHeight: 1 }}>{m.label}</div>
-                  <div style={{ fontSize: '9px', color: '#B4ADCA', fontWeight: 600, marginTop: '2px' }}>{m.sub}</div>
-                </div>
-              ))}
+          {/* Top section: 2-column layout */}
+          <div style={{ padding: '20px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+            {/* Left: image */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <img
+                src={getImg(recipe.id)}
+                alt={recipe.name}
+                style={{ width: '120px', height: '120px', borderRadius: '16px', objectFit: 'cover', display: 'block' }}
+              />
+              <button
+                onClick={() => toggleFavorite(recipe.id)}
+                style={{
+                  position: 'absolute', top: '7px', right: '7px',
+                  background: 'rgba(255,255,255,0.92)', border: 'none',
+                  borderRadius: '50%', width: '26px', height: '26px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', boxShadow: '0 1px 6px rgba(0,0,0,0.15)',
+                }}
+              >
+                <Heart size={12} strokeWidth={2} color={isFav ? '#FF5C5C' : '#B4ADCA'} fill={isFav ? '#FF5C5C' : 'none'} />
+              </button>
             </div>
-          </div>
 
-          {/* About */}
-          <div style={{ padding: '0 20px 20px' }}>
-            <p style={{ fontSize: '13px', color: '#7B728E', fontWeight: 500, lineHeight: 1.6, margin: '0 0 14px' }}>
-              {generateDescription(recipe)}
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '9px', background: 'rgba(79,63,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Clock size={14} strokeWidth={2} color='#4F3FD4' />
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1626', lineHeight: 1.2 }}>{prepTime(recipe.cal)}</div>
-                  <div style={{ fontSize: '10px', color: '#B4ADCA', fontWeight: 500 }}>Prep time</div>
-                </div>
+            {/* Right: info column */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '7px', minWidth: 0, paddingTop: '2px' }}>
+              <span style={{
+                display: 'inline-block', alignSelf: 'flex-start',
+                background: sourceColor, color: '#fff',
+                fontSize: '9px', fontWeight: 700,
+                padding: '3px 7px', borderRadius: '5px',
+                letterSpacing: '.06em',
+              }}>
+                {sourceLabel}
+              </span>
+              <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.03em', margin: 0, lineHeight: 1.2, paddingRight: '28px' }}>
+                {recipe.name}
+              </h2>
+              <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: 'var(--ink4)', fontWeight: 500 }}>
+                <span>⏱ {prepTime(recipe.cal)}</span>
+                <span>👥 4 servings</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <div style={{ width: '30px', height: '30px', borderRadius: '9px', background: 'rgba(13,200,160,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Users size={14} strokeWidth={2} color='#0DC8A0' />
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#1A1626', lineHeight: 1.2 }}>4 servings</div>
-                  <div style={{ fontSize: '10px', color: '#B4ADCA', fontWeight: 500 }}>Serves</div>
-                </div>
+              {/* 4 macro pills */}
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                {[
+                  { label: String(recipe.cal),   sub: 'cal', bg: 'rgba(79,63,212,0.08)',  color: '#4F3FD4' },
+                  { label: `${recipe.protein}g`, sub: 'P',   bg: 'rgba(79,63,212,0.08)',  color: '#4F3FD4' },
+                  { label: `${recipe.carbs}g`,   sub: 'C',   bg: 'rgba(13,200,160,0.09)', color: '#0DC8A0' },
+                  { label: `${recipe.fat}g`,     sub: 'F',   bg: 'rgba(245,166,35,0.09)', color: '#F5A623' },
+                ].map(m => (
+                  <div key={m.sub} style={{ background: m.bg, borderRadius: '8px', padding: '4px 7px', display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: m.color, letterSpacing: '-.02em', lineHeight: 1 }}>{m.label}</span>
+                    <span style={{ fontSize: '9px', color: 'var(--ink4)', fontWeight: 600 }}>{m.sub}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Nutrition breakdown card */}
-          <div style={{ margin: '0 16px 28px', background: 'rgba(79,63,212,0.03)', border: '1px solid rgba(79,63,212,0.08)', borderRadius: '20px', padding: '18px' }}>
-            <p style={{ fontSize: '9px', fontWeight: 700, color: '#B4ADCA', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 16px' }}>
+          {/* Divider */}
+          <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 20px' }} />
+
+          {/* Nutrition section */}
+          <div style={{ padding: '16px 20px 0' }}>
+            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
               Nutrition per serving
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {[
                 { label: 'Calories', value: recipe.cal,     unit: '',  goal: DAILY_GOALS.cal,     color: '#4F3FD4', dotBg: 'rgba(79,63,212,0.12)'  },
                 { label: 'Protein',  value: recipe.protein, unit: 'g', goal: DAILY_GOALS.protein, color: '#4F3FD4', dotBg: 'rgba(79,63,212,0.12)'  },
@@ -212,16 +201,16 @@ export default function RecipeSheet({ recipe, onClose }) {
                 { label: 'Fat',      value: recipe.fat,     unit: 'g', goal: DAILY_GOALS.fat,     color: '#F5A623', dotBg: 'rgba(245,166,35,0.12)' },
               ].map(row => (
                 <div key={row.label}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: row.dotBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: row.color }} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: row.dotBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: row.color }} />
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#3D3650' }}>{row.label}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink2)' }}>{row.label}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 800, color: row.color, fontFamily: 'DM Mono, monospace' }}>{row.value}{row.unit}</span>
-                      <span style={{ fontSize: '10px', color: '#B4ADCA', fontWeight: 500 }}>/ {row.goal}{row.unit}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: row.color, fontFamily: 'DM Mono, monospace' }}>{row.value}{row.unit}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--ink4)', fontWeight: 500 }}>/ {row.goal}{row.unit}</span>
                     </div>
                   </div>
                   <MacroBar val={row.value} goal={row.goal} color={row.color} />
@@ -229,24 +218,32 @@ export default function RecipeSheet({ recipe, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* Description */}
+          <div style={{ padding: '16px 20px 24px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--ink3)', fontWeight: 500, lineHeight: 1.6, margin: 0 }}>
+              {generateDescription(recipe)}
+            </p>
+          </div>
         </div>
 
-        {/* Action buttons — outside scroll area, above safe-area */}
+        {/* Action buttons */}
         <div style={{
           flexShrink: 0,
           padding: '12px 16px',
           paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
-          background: '#fff',
-          borderTop: '1px solid rgba(26,22,38,0.06)',
+          background: 'var(--card)',
+          borderTop: '1px solid var(--border-c)',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',
+          borderRadius: '0 0 24px 24px',
         }}>
           <button
             onClick={handleAddToday}
             style={{
-              width: '100%', padding: '15px', borderRadius: '16px', border: 'none',
-              cursor: 'pointer', fontSize: '15px', fontWeight: 700,
+              width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
+              cursor: 'pointer', fontSize: '14px', fontWeight: 700,
               fontFamily: 'Plus Jakarta Sans, sans-serif',
               background: added ? '#0DC8A0' : 'linear-gradient(135deg,#4F3FD4 0%,#7B6EF5 100%)',
               color: '#fff',
@@ -259,9 +256,9 @@ export default function RecipeSheet({ recipe, onClose }) {
           <button
             onClick={handleClose}
             style={{
-              width: '100%', padding: '13px', borderRadius: '16px',
-              border: '1.5px solid #0DC8A0', background: '#fff',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 700,
+              width: '100%', padding: '12px', borderRadius: '14px',
+              border: '1.5px solid #0DC8A0', background: 'transparent',
+              cursor: 'pointer', fontSize: '13px', fontWeight: 700,
               fontFamily: 'Plus Jakarta Sans, sans-serif', color: '#0DC8A0',
             }}
           >

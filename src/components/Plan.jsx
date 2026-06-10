@@ -77,37 +77,37 @@ export default function Plan() {
         {weekPlan.map((d, i) => {
           const today = isToday(d)
           return (
-            <div key={d.day} style={{ marginBottom:'12px', background:'#fff', borderRadius:'20px', overflow:'hidden', boxShadow: today ? '0 4px 20px rgba(79,63,212,0.15)' : '0 2px 8px rgba(79,63,212,0.05)', border: today ? '2px solid rgba(79,63,212,0.25)' : '2px solid transparent' }}>
-              <div style={{ padding:'14px 16px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(26,22,38,0.05)' }}>
+            <div key={d.day} style={{ marginBottom:'12px', background:'var(--card)', borderRadius:'20px', overflow:'hidden', boxShadow: today ? '0 4px 20px rgba(79,63,212,0.15)' : '0 2px 8px rgba(79,63,212,0.05)', border: today ? '2px solid rgba(79,63,212,0.25)' : '2px solid transparent' }}>
+              <div style={{ padding:'14px 16px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid var(--border-c)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                  <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: today ? '#4F3FD4' : '#F0EEF8', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : '#7B728E' }}>{dayDate(i)}</span>
+                  <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: today ? '#4F3FD4' : 'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : 'var(--ink3)' }}>{dayDate(i)}</span>
                   </div>
                   <div>
-                    <span style={{ fontSize:'14px', fontWeight:700, color:'#1A1626' }}>{d.day}</span>
+                    <span style={{ fontSize:'14px', fontWeight:700, color:'var(--ink)' }}>{d.day}</span>
                     {today && <span style={{ marginLeft:'6px', fontSize:'9px', fontWeight:700, color:'#4F3FD4', background:'rgba(79,63,212,0.1)', padding:'2px 6px', borderRadius:'5px', letterSpacing:'.08em' }}>TODAY</span>}
                   </div>
                 </div>
-                <span style={{ fontSize:'12px', fontWeight:800, color: today ? '#4F3FD4' : '#7B728E', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
+                <span style={{ fontSize:'12px', fontWeight:800, color: today ? '#4F3FD4' : 'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
               </div>
 
               <div style={{ padding:'10px 16px 12px', display:'flex', flexDirection:'column', gap:'8px' }}>
                 {d.ids.map((id, j) => {
                   const recipe = id ? recipeById[id] : null
                   if (!recipe) return (
-                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'rgba(240,238,248,0.6)', borderRadius:'12px', border:'1.5px dashed rgba(79,63,212,0.15)' }}>
-                      <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#E4E0F4', flexShrink:0 }} />
-                      <span style={{ fontSize:'12px', color:'#C4B5FD', fontWeight:500 }}>{MEAL_LABELS[j]} — empty</span>
+                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px', border:'1.5px dashed rgba(79,63,212,0.15)' }}>
+                      <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:'var(--bg2)', flexShrink:0 }} />
+                      <span style={{ fontSize:'12px', color:'var(--ink4)', fontWeight:500 }}>{MEAL_LABELS[j]} — empty</span>
                     </div>
                   )
                   return (
-                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'rgba(240,238,248,0.5)', borderRadius:'12px' }}>
+                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px' }}>
                       <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: j === 0 ? '#4F3FD4' : '#0DC8A0', flexShrink:0 }} />
                       <div style={{ flex:1 }}>
-                        <p style={{ fontSize:'12px', fontWeight:700, color:'#1A1626', letterSpacing:'-.01em', marginBottom:'2px' }}>{recipe.name}</p>
-                        <p style={{ fontSize:'10px', color:'#B4ADCA', fontWeight:500 }}>{recipe.protein}g protein · {recipe.cal} cal</p>
+                        <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', marginBottom:'2px' }}>{recipe.name}</p>
+                        <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500 }}>{recipe.protein}g protein · {recipe.cal} cal</p>
                       </div>
-                      <span style={{ fontSize:'13px', fontWeight:800, color:'#7B728E', fontFamily:'DM Mono, monospace' }}>{recipe.cal}</span>
+                      <span style={{ fontSize:'13px', fontWeight:800, color:'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{recipe.cal}</span>
                     </div>
                   )
                 })}

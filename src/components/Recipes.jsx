@@ -80,8 +80,8 @@ export default function Recipes() {
             style={{
               flexShrink:0, padding:'7px 14px', borderRadius:'20px', border:'none', cursor:'pointer',
               fontSize:'12px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif',
-              background: filter === f.value ? '#4F3FD4' : '#fff',
-              color:       filter === f.value ? '#fff'    : '#7B728E',
+              background: filter === f.value ? '#4F3FD4' : 'var(--card)',
+              color:       filter === f.value ? '#fff'    : 'var(--ink3)',
               boxShadow:   filter === f.value ? '0 2px 12px rgba(79,63,212,0.35)' : '0 1px 4px rgba(0,0,0,0.06)',
               transition:'all .15s',
             }}
@@ -97,7 +97,7 @@ export default function Recipes() {
           <div
             key={recipe.id}
             onClick={() => setSelectedRecipe(recipe)}
-            style={{ background:'#fff', borderRadius:'18px', overflow:'hidden', boxShadow:'0 2px 10px rgba(79,63,212,0.07)', cursor:'pointer' }}
+            style={{ background:'var(--card)', borderRadius:'18px', overflow:'hidden', boxShadow:'0 2px 10px rgba(79,63,212,0.07)', cursor:'pointer' }}
           >
             <div style={{ position:'relative' }}>
               <img
@@ -117,10 +117,10 @@ export default function Recipes() {
               </span>
             </div>
             <div style={{ padding:'10px 11px 12px' }}>
-              <p style={{ fontSize:'12px', fontWeight:700, color:'#1A1626', letterSpacing:'-.01em', lineHeight:1.35, marginBottom:'7px' }}>{recipe.name}</p>
+              <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', lineHeight:1.35, marginBottom:'7px' }}>{recipe.name}</p>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <span style={{ fontSize:'15px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.03em' }}>{recipe.cal}</span>
-                <span style={{ fontSize:'9px', color:'#B4ADCA', fontWeight:600 }}>cal</span>
+                <span style={{ fontSize:'9px', color:'var(--ink4)', fontWeight:600 }}>cal</span>
               </div>
               <div style={{ display:'flex', gap:'5px', marginTop:'5px' }}>
                 {[
@@ -128,7 +128,7 @@ export default function Recipes() {
                   { l:'C', v:recipe.carbs,   c:'#0DC8A0' },
                   { l:'F', v:recipe.fat,     c:'#F5A623' },
                 ].map(m => (
-                  <span key={m.l} style={{ fontSize:'9px', color:'#7B728E', fontWeight:600 }}>
+                  <span key={m.l} style={{ fontSize:'9px', color:'var(--ink3)', fontWeight:600 }}>
                     <span style={{ color:m.c }}>{m.v}g</span> {m.l}
                   </span>
                 ))}
@@ -142,20 +142,20 @@ export default function Recipes() {
         <div style={{ padding:'20px 16px' }}>
           <button
             onClick={() => setPage(p => p + 1)}
-            style={{ width:'100%', padding:'14px', background:'#fff', border:'1.5px solid rgba(79,63,212,0.2)', borderRadius:'16px', fontSize:'13px', fontWeight:700, color:'#4F3FD4', cursor:'pointer', fontFamily:'Plus Jakarta Sans, sans-serif' }}
+            style={{ width:'100%', padding:'14px', background:'var(--card)', border:'1.5px solid rgba(79,63,212,0.2)', borderRadius:'16px', fontSize:'13px', fontWeight:700, color:'#4F3FD4', cursor:'pointer', fontFamily:'Plus Jakarta Sans, sans-serif' }}
           >
             Load more · {filtered.length - visible.length} remaining
           </button>
         </div>
       )}
       {!hasMore && filtered.length > 0 && (
-        <p style={{ textAlign:'center', padding:'20px', fontSize:'12px', color:'#B4ADCA', fontWeight:500 }}>
+        <p style={{ textAlign:'center', padding:'20px', fontSize:'12px', color:'var(--ink4)', fontWeight:500 }}>
           All {filtered.length} recipes shown
         </p>
       )}
       {filtered.length === 0 && (
         <div style={{ textAlign:'center', padding:'40px 20px' }}>
-          <p style={{ fontSize:'14px', color:'#7B728E', fontWeight:500 }}>No recipes match your search</p>
+          <p style={{ fontSize:'14px', color:'var(--ink3)', fontWeight:500 }}>No recipes match your search</p>
         </div>
       )}
 

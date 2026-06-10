@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AppStoreProvider, useAppStore } from './store/useAppStore'
+import { ThemeProvider } from './store/useTheme'
 import BottomNav from './components/BottomNav'
 import Today    from './components/Today'
 import Plan     from './components/Plan'
@@ -13,11 +14,10 @@ function AppInner() {
   const [tab,      setTab]      = useState('today')
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
 
-  // user === undefined means Firebase is still initializing
   if (user === undefined) {
     return (
-      <div style={{ minHeight:'100vh', background:'#F0EEF8', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid #E4E0F4', borderTopColor:'#4F3FD4', animation:'spin 0.7s linear infinite' }} />
+      <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--bg2)', borderTopColor:'#4F3FD4', animation:'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     )
@@ -46,8 +46,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AppStoreProvider>
-      <AppInner />
-    </AppStoreProvider>
+    <ThemeProvider>
+      <AppStoreProvider>
+        <AppInner />
+      </AppStoreProvider>
+    </ThemeProvider>
   )
 }

@@ -58,14 +58,14 @@ export default function Auth({ onSkip }) {
 
   const inputStyle = {
     width: '100%', padding: '14px 16px', borderRadius: '14px',
-    border: '1.5px solid rgba(79,63,212,0.15)', outline: 'none',
-    fontSize: '15px', color: '#1A1626', background: '#F8F7FD',
+    border: '1.5px solid var(--border-c)', outline: 'none',
+    fontSize: '15px', color: 'var(--ink)', background: 'var(--surface2)',
     fontFamily: 'Plus Jakarta Sans, sans-serif',
     boxSizing: 'border-box',
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F0EEF8', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       {/* Gradient header */}
       <div style={{ background: 'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding: '56px 24px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
         <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
@@ -77,15 +77,15 @@ export default function Auth({ onSkip }) {
 
       {/* Card */}
       <div style={{ flex: 1, padding: '0 20px 32px', marginTop: '-24px', position: 'relative', zIndex: 10 }}>
-        <div style={{ background: '#fff', borderRadius: '24px', padding: '28px 24px', boxShadow: '0 4px 32px rgba(79,63,212,0.13)' }}>
+        <div style={{ background: 'var(--card)', borderRadius: '24px', padding: '28px 24px', boxShadow: '0 4px 32px rgba(79,63,212,0.13)' }}>
           {/* Mode toggle */}
-          <div style={{ display: 'flex', background: '#F0EEF8', borderRadius: '14px', padding: '4px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: '14px', padding: '4px', marginBottom: '24px' }}>
             {['signin', 'signup'].map(m => (
               <button key={m} onClick={() => { setMode(m); setError('') }} style={{
                 flex: 1, padding: '10px', borderRadius: '11px', border: 'none', cursor: 'pointer',
                 fontSize: '13px', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
-                background: mode === m ? '#fff' : 'transparent',
-                color:      mode === m ? '#4F3FD4' : '#B4ADCA',
+                background: mode === m ? 'var(--card)' : 'transparent',
+                color:      mode === m ? '#4F3FD4'     : 'var(--ink4)',
                 boxShadow:  mode === m ? '0 1px 6px rgba(79,63,212,0.12)' : 'none',
                 transition: 'all .15s',
               }}>
@@ -138,7 +138,7 @@ export default function Auth({ onSkip }) {
             onClick={onSkip}
             style={{
               display: 'block', width: '100%', marginTop: '20px', background: 'none', border: 'none',
-              cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#B4ADCA',
+              cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ink4)',
               fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center', padding: '8px 0',
             }}
           >
