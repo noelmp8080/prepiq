@@ -151,6 +151,9 @@ export default function Track() {
       <div style={{ paddingBottom:'88px' }}>
         {/* Header */}
         <div style={{ background:'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding:'28px 20px 28px' }}>
+          <p style={{ textAlign:'center', fontSize:'28px', fontWeight:800, letterSpacing:'-.04em', lineHeight:1, marginBottom:'16px', fontFamily:'Plus Jakarta Sans, sans-serif' }}>
+            <span style={{ color:'#fff' }}>Prep</span><span style={{ color:'#C4B5FD' }}>IQ</span>
+          </p>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div>
               <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', marginBottom:'4px' }}>Track</h1>
