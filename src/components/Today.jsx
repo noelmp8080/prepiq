@@ -44,6 +44,9 @@ export default function Today({ onChange }) {
       {/* Header */}
       <div style={{ background:'linear-gradient(160deg,#2D1B8C 0%,#4F3FD4 45%,#7B6EF5 100%)', padding:'28px 20px 32px', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:'-40px', right:'-40px', width:'180px', height:'180px', borderRadius:'50%', background:'rgba(255,255,255,0.04)' }} />
+        <p style={{ textAlign:'center', display:'block', fontSize:'36px', fontWeight:800, letterSpacing:'-.04em', lineHeight:1, padding:'12px 0 8px', fontFamily:'Plus Jakarta Sans, sans-serif', margin:0, position:'relative', zIndex:2 }}>
+          <span style={{ color:'#fff' }}>Prep</span><span style={{ color:'#C4B5FD' }}>IQ</span>
+        </p>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', position:'relative', zIndex:2 }}>
           <div>
             <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.6)', fontWeight:500, marginBottom:'4px' }}>Good morning</p>
