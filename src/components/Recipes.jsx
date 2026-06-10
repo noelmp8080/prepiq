@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Search, Heart } from 'lucide-react'
 import { recipes, filterRecipes } from '../data/recipes'
 import { useAppStore } from '../store/useAppStore'
+import RecipeSheet from './RecipeSheet'
 
 const FILTERS = [
   { label:'All',          value:'all' },
@@ -34,9 +35,10 @@ function getImg(id) {
 
 export default function Recipes() {
   const { favorites, toggleFavorite } = useAppStore()
-  const [query,  setQuery]  = useState('')
-  const [filter, setFilter] = useState('all')
-  const [page,   setPage]   = useState(1)
+  const [query,          setQuery]          = useState('')
+  const [filter,         setFilter]         = useState('all')
+  const [page,           setPage]           = useState(1)
+  const [selectedRecipe, setSelectedRecipe] = useState(null)
   const PER_PAGE = 20
 
   const filtered = filterRecipes(recipes, { query, filter, favorites })
@@ -92,7 +94,11 @@ export default function Recipes() {
       {/* Recipe grid */}
       <div style={{ padding:'16px 16px 0', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
         {visible.map(recipe => (
-          <div key={recipe.id} style={{ background:'#fff', borderRadius:'18px', overflow:'hidden', boxShadow:'0 2px 10px rgba(79,63,212,0.07)', cursor:'pointer' }}>
+          <div
+            key={recipe.id}
+            onClick={() => setSelectedRecipe(recipe)}
+            style={{ background:'#fff', borderRadius:'18px', overflow:'hidden', boxShadow:'0 2px 10px rgba(79,63,212,0.07)', cursor:'pointer' }}
+          >
             <div style={{ position:'relative' }}>
               <img
                 src={getImg(recipe.id)}
@@ -151,6 +157,13 @@ export default function Recipes() {
         <div style={{ textAlign:'center', padding:'40px 20px' }}>
           <p style={{ fontSize:'14px', color:'#7B728E', fontWeight:500 }}>No recipes match your search</p>
         </div>
+      )}
+
+      {selectedRecipe && (
+        <RecipeSheet
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+        />
       )}
     </div>
   )
