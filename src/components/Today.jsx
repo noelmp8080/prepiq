@@ -136,19 +136,77 @@ export default function Today({ onChange }) {
               const recipe = recipeById[meal.recipeId]
               if (!recipe) return null
               return (
-                <div key={meal.id} style={{ background:'var(--card)', borderRadius:'20px', overflow:'hidden', cursor:'pointer', boxShadow:'0 2px 12px rgba(79,63,212,0.07)', display:'flex', alignItems:'stretch' }}>
-                  <img src={MEAL_IMGS[meal.recipeId] || FALLBACK_IMG} alt={recipe.name} style={{ width:'80px', flexShrink:0, objectFit:'cover', display:'block', borderRadius:'20px 0 0 20px' }} />
-                  <div style={{ flex:1, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:'10px', fontWeight:700, color:'var(--ink3)', textTransform:'uppercase', letterSpacing:'.12em', marginBottom:'4px' }}>
-                        {SLOT_EMOJI[meal.slot] || '🍽️'} {meal.slot} · {meal.time}
+                <div style={{
+                  background: 'var(--card)',
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 12px var(--shadow)',
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  minHeight: '90px',
+                }}>
+                  {/* Left image */}
+                  <img
+                    src={MEAL_IMGS[meal.recipeId] || 'https://images.unsplash.com/photo-1547592180-85f173990554?w=200&q=80'}
+                    alt={recipe?.name}
+                    style={{
+                      width: '90px',
+                      flexShrink: 0,
+                      objectFit: 'cover',
+                      display: 'block',
+                      borderRadius: '20px 0 0 20px',
+                    }}
+                  />
+                  {/* Right content */}
+                  <div style={{
+                    flex: 1,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--ink3)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '.12em',
+                        marginBottom: '4px',
+                      }}>
+                        {meal.slot} · {meal.time}
                       </div>
-                      <p style={{ fontSize:'14px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.02em', marginBottom:'3px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{recipe.name}</p>
-                      <p style={{ fontSize:'11px', color:'var(--ink3)', fontWeight:500 }}>{recipe.protein}g pro · {recipe.carbs}g carbs · {recipe.fat}g fat</p>
+                      <div style={{
+                        fontSize: '15px',
+                        fontWeight: 700,
+                        color: 'var(--ink)',
+                        letterSpacing: '-.02em',
+                        marginBottom: '4px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {recipe?.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--ink3)', fontWeight: 500 }}>
+                        {recipe?.protein}g pro · {recipe?.carbs}g carbs · {recipe?.fat}g fat
+                      </div>
                     </div>
-                    <div style={{ textAlign:'right', flexShrink:0, marginLeft:'8px' }}>
-                      <div style={{ fontSize:'22px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.04em', lineHeight:1 }}>{recipe.cal}</div>
-                      <div style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, marginTop:'2px' }}>cal</div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{
+                        fontSize: '24px',
+                        fontWeight: 800,
+                        color: '#4F3FD4',
+                        letterSpacing: '-.04em',
+                        lineHeight: 1,
+                      }}>
+                        {recipe?.cal}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--ink3)', fontWeight: 500, marginTop: '2px' }}>
+                        cal
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -156,17 +214,54 @@ export default function Today({ onChange }) {
             })}
 
             {/* Empty slot prompt */}
-            <div style={{ background:'var(--surface2)', border:'1.5px dashed rgba(79,63,212,0.2)', borderRadius:'20px', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'stretch' }} onClick={() => onChange?.('track')}>
-              <div style={{ width:'80px', flexShrink:0, background:'rgba(79,63,212,0.08)', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'20px 0 0 20px' }}>
+            <div style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1.5px dashed rgba(79,63,212,0.25)',
+              borderRadius: '20px',
+              display: 'flex',
+              alignItems: 'stretch',
+              minHeight: '90px',
+              cursor: 'pointer',
+              overflow: 'hidden',
+            }} onClick={() => onChange?.('track')}>
+              {/* Left placeholder */}
+              <div style={{
+                width: '90px',
+                flexShrink: 0,
+                background: 'rgba(79,63,212,0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '20px 0 0 20px',
+              }}>
                 <Utensils size={28} strokeWidth={1.5} color='#4F3FD4' />
               </div>
-              <div style={{ flex:1, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              {/* Right content */}
+              <div style={{
+                flex: 1,
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
                 <div>
-                  <div style={{ fontSize:'10px', fontWeight:700, color:'var(--ink3)', textTransform:'uppercase', letterSpacing:'.12em', marginBottom:'4px' }}>🍽️ Dinner · 7:00pm</div>
-                  <p style={{ fontSize:'14px', fontWeight:600, color:'var(--ink3)', marginBottom:'3px' }}>Log another meal</p>
-                  <p style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500 }}>{remaining < 0 ? 0 : remaining} cal remaining</p>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink3)', marginBottom: '2px' }}>
+                    Dinner · 7:00pm
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--ink4)', fontWeight: 500 }}>
+                    {remaining} cal remaining
+                  </div>
                 </div>
-                <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:'#4F3FD4', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: '#4F3FD4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
                   <Plus size={18} strokeWidth={2.5} color='#fff' />
                 </div>
               </div>
