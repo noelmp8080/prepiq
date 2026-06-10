@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Heart, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
+import { getIngredients } from '../data/ingredients'
 
 const FOOD_IMGS = [
   'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80',
@@ -16,6 +17,16 @@ const FOOD_IMGS = [
 function getImg(id) { return FOOD_IMGS[(id - 1) % FOOD_IMGS.length] }
 
 const DAILY_GOALS = { cal: 1800, protein: 180, carbs: 200, fat: 60 }
+
+const CATEGORY_COLORS = {
+  protein:   '#4F3FD4',
+  carbs:     '#F5A623',
+  sauce:     '#0DC8A0',
+  veg:       '#52D9A0',
+  aromatics: '#9B8EC4',
+  seasoning: 'var(--ink4)',
+  garnish:   '#48CAE4',
+}
 
 function generateDescription(recipe) {
   const t = recipe.tags
@@ -71,9 +82,10 @@ export default function RecipeSheet({ recipe, onClose }) {
     setTimeout(handleClose, 900)
   }
 
-  const sourceLabel = recipe.source === 'jalal' ? "Jalal's" : 'Meal Prep'
-  const sourceColor = recipe.source === 'jalal' ? '#7B6EF5' : '#0DC8A0'
-  const isFav = favorites.has(recipe.id)
+  const sourceLabel  = recipe.source === 'jalal' ? "Jalal's" : 'Meal Prep'
+  const sourceColor  = recipe.source === 'jalal' ? '#7B6EF5' : '#0DC8A0'
+  const isFav        = favorites.has(recipe.id)
+  const ingredients  = getIngredients(recipe)
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -220,10 +232,36 @@ export default function RecipeSheet({ recipe, onClose }) {
           </div>
 
           {/* Description */}
-          <div style={{ padding: '16px 20px 24px' }}>
+          <div style={{ padding: '16px 20px 0' }}>
             <p style={{ fontSize: '13px', color: 'var(--ink3)', fontWeight: 500, lineHeight: 1.6, margin: 0 }}>
               {generateDescription(recipe)}
             </p>
+          </div>
+
+          {/* Ingredients */}
+          <div style={{ padding: '20px 20px 28px' }}>
+            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 3px' }}>
+              Ingredients
+            </p>
+            <p style={{ fontSize: '11px', color: 'var(--ink4)', fontWeight: 500, margin: '0 0 12px' }}>
+              Makes 4 servings
+            </p>
+            <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
+              {ingredients.map((ing, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: CATEGORY_COLORS[ing.category] || 'var(--ink4)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3 }}>{ing.item}</span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: 'var(--ink3)', fontFamily: 'DM Mono, monospace', flexShrink: 0, marginLeft: '10px', textAlign: 'right' }}>{ing.amount}</span>
+                  </div>
+                  {i < ingredients.length - 1 && (
+                    <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
