@@ -6,6 +6,17 @@ import { useAppStore } from '../store/useAppStore'
 const SLOTS = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 const SLOT_EMOJI = { Breakfast:'🍳', Lunch:'🥗', Dinner:'🍽️', Snack:'🍎' }
 
+const FOOD_IMGS = [
+  'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=120&q=70',
+  'https://images.unsplash.com/photo-1547592180-85f173990554?w=120&q=70',
+  'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=120&q=70',
+  'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=120&q=70',
+  'https://images.unsplash.com/photo-1544025162-d76694265947?w=120&q=70',
+  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=120&q=70',
+  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=120&q=70',
+  'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=120&q=70',
+]
+
 function Bar({ val, goal, color }) {
   const pct = Math.min(Math.round((val / goal) * 100) || 0, 100)
   return (
@@ -66,13 +77,61 @@ function LogMealModal({ onClose }) {
             {/* Recipe list */}
             <div style={{ overflowY:'auto', flex:1, WebkitOverflowScrolling:'touch' }}>
               {filtered.slice(0, 60).map(r => (
-                <button key={r.id} onClick={() => setSelected(r)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px', background:'none', border:'none', cursor:'pointer', borderBottom:'1px solid var(--border-c)', fontFamily:'Plus Jakarta Sans, sans-serif', textAlign:'left' }}>
-                  <div>
-                    <p style={{ fontSize:'13px', fontWeight:700, color:'var(--ink)', margin:'0 0 2px', letterSpacing:'-.01em' }}>{r.name}</p>
-                    <p style={{ fontSize:'10px', color:'var(--ink4)', margin:0, fontWeight:500 }}>{r.protein}g P · {r.carbs}g C · {r.fat}g F</p>
+                <div
+                  key={r.id}
+                  onClick={() => setSelected(r)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px 16px',
+                    cursor: 'pointer',
+                    borderBottom: '1px solid var(--border-c)',
+                    transition: 'background .15s',
+                  }}
+                >
+                  {/* Food image */}
+                  <img
+                    src={FOOD_IMGS[r.id % FOOD_IMGS.length]}
+                    alt={r.name}
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '12px',
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                    }}
+                  />
+                  {/* Recipe info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: 'var(--ink)',
+                      letterSpacing: '-.01em',
+                      marginBottom: '3px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {r.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--ink3)', fontWeight: 500 }}>
+                      {r.protein}g pro · {r.carbs}g carbs · {r.fat}g fat
+                    </div>
                   </div>
-                  <span style={{ fontSize:'15px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.03em', flexShrink:0, marginLeft:'12px' }}>{r.cal} cal</span>
-                </button>
+                  {/* Calorie badge */}
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: 800,
+                    color: '#4F3FD4',
+                    letterSpacing: '-.02em',
+                    flexShrink: 0,
+                  }}>
+                    {r.cal}
+                    <span style={{ fontSize: '10px', fontWeight: 500, color: 'var(--ink3)', marginLeft: '2px' }}>cal</span>
+                  </div>
+                </div>
               ))}
             </div>
           </>
