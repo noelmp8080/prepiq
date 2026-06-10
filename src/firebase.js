@@ -11,6 +11,15 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
+// Warn loudly in dev if env vars didn't load
+if (import.meta.env.DEV && !firebaseConfig.apiKey) {
+  console.error(
+    '[PrepIQ] Firebase API key is undefined.\n' +
+    'Make sure .env exists at the project root with VITE_FIREBASE_API_KEY set,\n' +
+    'and restart the dev server after any .env changes.'
+  )
+}
+
 const app = initializeApp(firebaseConfig)
 export const db   = getFirestore(app)
 export const auth = getAuth(app)

@@ -1,6 +1,35 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 
+function friendlyError(err) {
+  const code = err?.code || ''
+  switch (code) {
+    case 'auth/invalid-api-key':
+    case 'auth/api-key-not-valid':
+      return `[${code}] The Firebase API key in .env is invalid or has been regenerated. Go to Firebase Console → Project Settings → General → Web apps and copy the current apiKey value into .env, then restart the dev server.`
+    case 'auth/invalid-credential':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return `[${code}] Incorrect email or password.`
+    case 'auth/email-already-in-use':
+      return `[${code}] This email is already registered. Try signing in instead.`
+    case 'auth/weak-password':
+      return `[${code}] Password must be at least 6 characters.`
+    case 'auth/invalid-email':
+      return `[${code}] Invalid email address.`
+    case 'auth/operation-not-allowed':
+      return `[${code}] Email/Password sign-in is not enabled. Go to Firebase Console → Authentication → Sign-in method → Email/Password and enable it.`
+    case 'auth/unauthorized-domain':
+      return `[${code}] This domain is not authorized. Go to Firebase Console → Authentication → Settings → Authorized domains and add localhost and your network IP.`
+    case 'auth/network-request-failed':
+      return `[${code}] Network error — check your internet connection.`
+    case 'auth/too-many-requests':
+      return `[${code}] Too many attempts. Please wait a few minutes and try again.`
+    default:
+      return code ? `[${code}] ${err.message}` : err.message
+  }
+}
+
 export default function Auth({ onSkip }) {
   const { signIn, signUp } = useAppStore()
   const [mode,     setMode]     = useState('signin')
@@ -20,12 +49,8 @@ export default function Auth({ onSkip }) {
         await signUp(email, password)
       }
     } catch (err) {
-      const msg = err.code === 'auth/invalid-credential'    ? 'Incorrect email or password.'
-                : err.code === 'auth/email-already-in-use'  ? 'Email already in use.'
-                : err.code === 'auth/weak-password'          ? 'Password must be at least 6 characters.'
-                : err.code === 'auth/invalid-email'          ? 'Invalid email address.'
-                : err.message
-      setError(msg)
+      console.error('[Auth] Firebase error:', err.code, err.message)
+      setError(friendlyError(err))
     } finally {
       setLoading(false)
     }
@@ -55,7 +80,7 @@ export default function Auth({ onSkip }) {
         <div style={{ background: '#fff', borderRadius: '24px', padding: '28px 24px', boxShadow: '0 4px 32px rgba(79,63,212,0.13)' }}>
           {/* Mode toggle */}
           <div style={{ display: 'flex', background: '#F0EEF8', borderRadius: '14px', padding: '4px', marginBottom: '24px' }}>
-            {['signin','signup'].map(m => (
+            {['signin', 'signup'].map(m => (
               <button key={m} onClick={() => { setMode(m); setError('') }} style={{
                 flex: 1, padding: '10px', borderRadius: '11px', border: 'none', cursor: 'pointer',
                 fontSize: '13px', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -88,16 +113,17 @@ export default function Auth({ onSkip }) {
             />
 
             {error && (
-              <p style={{ fontSize: '13px', color: '#E53E3E', fontWeight: 500, margin: '0 0 4px', padding: '10px 14px', background: 'rgba(229,62,62,0.07)', borderRadius: '10px' }}>
+              <div style={{ fontSize: '12px', color: '#C53030', fontWeight: 500, padding: '10px 14px', background: 'rgba(197,48,48,0.07)', borderRadius: '10px', lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {error}
-              </p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
               style={{
-                width: '100%', padding: '15px', borderRadius: '16px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                width: '100%', padding: '15px', borderRadius: '16px', border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 fontSize: '15px', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
                 background: loading ? '#C4B5FD' : '#4F3FD4', color: '#fff',
                 boxShadow: '0 4px 16px rgba(79,63,212,0.35)', marginTop: '4px',
