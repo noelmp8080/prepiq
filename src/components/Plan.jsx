@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Shuffle } from 'lucide-react'
 import { recipeById } from '../data/recipes'
 import { useAppStore } from '../store/useAppStore'
+import RecipeSheet from './RecipeSheet'
 
 const MEAL_LABELS = ['Meal 1', 'Meal 2']
 const TODAY_NAME  = new Date().toLocaleDateString('en-US', { weekday:'short' })
@@ -23,6 +25,7 @@ function formatDateRange() {
 
 export default function Plan() {
   const { weekPlan, shuffleWeekPlan } = useAppStore()
+  const [selectedRecipe, setSelectedRecipe] = useState(null)
 
   function totalCal(day) {
     return day.ids.filter(Boolean).reduce((s, id) => s + (recipeById[id]?.cal || 0), 0)
@@ -104,7 +107,11 @@ export default function Plan() {
                     </div>
                   )
                   return (
-                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px' }}>
+                    <div
+                      key={j}
+                      onClick={() => setSelectedRecipe(recipe)}
+                      style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px', cursor:'pointer' }}
+                    >
                       <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: j === 0 ? '#4F3FD4' : '#0DC8A0', flexShrink:0 }} />
                       <div style={{ flex:1 }}>
                         <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', marginBottom:'2px' }}>{recipe.name}</p>
@@ -119,6 +126,13 @@ export default function Plan() {
           )
         })}
       </div>
+
+      {selectedRecipe && (
+        <RecipeSheet
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+        />
+      )}
     </div>
   )
 }

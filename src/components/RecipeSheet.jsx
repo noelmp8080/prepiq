@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Heart, X } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
 import { getIngredients } from '../data/ingredients'
+import { getRecipeDetails } from '../data/recipeDetails'
 
 const FOOD_IMGS = [
   'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=80',
@@ -85,7 +86,15 @@ export default function RecipeSheet({ recipe, onClose }) {
   const sourceLabel  = recipe.source === 'jalal' ? "Jalal's" : 'Meal Prep'
   const sourceColor  = recipe.source === 'jalal' ? '#7B6EF5' : '#0DC8A0'
   const isFav        = favorites.has(recipe.id)
-  const ingredients  = getIngredients(recipe)
+
+  const details      = getRecipeDetails(recipe)
+  const fakeIngredients = details ? null : getIngredients(recipe)
+  const servingsText = details?.servings
+    ? `Makes ${details.servings} serving${details.servings !== 1 ? 's' : ''}`
+    : 'Makes 4 servings'
+  const servingsPill = details?.servings
+    ? `👥 ${details.servings} serving${details.servings !== 1 ? 's' : ''}`
+    : '👥 4 servings'
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -178,7 +187,7 @@ export default function RecipeSheet({ recipe, onClose }) {
               </h2>
               <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: 'var(--ink4)', fontWeight: 500 }}>
                 <span>⏱ {prepTime(recipe.cal)}</span>
-                <span>👥 4 servings</span>
+                <span>{servingsPill}</span>
               </div>
               {/* 4 macro pills */}
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
@@ -239,30 +248,91 @@ export default function RecipeSheet({ recipe, onClose }) {
           </div>
 
           {/* Ingredients */}
-          <div style={{ padding: '20px 20px 28px' }}>
+          <div style={{ padding: '20px 20px 0' }}>
             <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 3px' }}>
               Ingredients
             </p>
             <p style={{ fontSize: '11px', color: 'var(--ink4)', fontWeight: 500, margin: '0 0 12px' }}>
-              Makes 4 servings
+              {servingsText}
             </p>
-            <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
-              {ingredients.map((ing, i) => (
-                <div key={i}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: CATEGORY_COLORS[ing.category] || 'var(--ink4)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3 }}>{ing.item}</span>
+
+            {details ? (
+              /* Real ingredients: plain string array from the cookbook */
+              <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
+                {details.ingredients.map((ing, i) => {
+                  const isLabel = ing.startsWith('(') || ing.endsWith(')')
+                  return (
+                    <div key={i}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px' }}>
+                        {isLabel ? (
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink4)', lineHeight: 1.3, fontStyle: 'italic', flex: 1 }}>
+                            {ing}
+                          </span>
+                        ) : (
+                          <>
+                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4F3FD4', flexShrink: 0 }} />
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3, flex: 1 }}>{ing}</span>
+                          </>
+                        )}
+                      </div>
+                      {i < details.ingredients.length - 1 && (
+                        <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
+                      )}
                     </div>
-                    <span style={{ fontSize: '12px', color: 'var(--ink3)', fontFamily: 'DM Mono, monospace', flexShrink: 0, marginLeft: '10px', textAlign: 'right' }}>{ing.amount}</span>
+                  )
+                })}
+              </div>
+            ) : (
+              /* Generated ingredients fallback */
+              <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
+                {fakeIngredients.map((ing, i) => (
+                  <div key={i}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: CATEGORY_COLORS[ing.category] || 'var(--ink4)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3 }}>{ing.item}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--ink3)', fontFamily: 'DM Mono, monospace', flexShrink: 0, marginLeft: '10px', textAlign: 'right' }}>{ing.amount}</span>
+                    </div>
+                    {i < fakeIngredients.length - 1 && (
+                      <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
+                    )}
                   </div>
-                  {i < ingredients.length - 1 && (
-                    <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Instructions — only when real steps exist */}
+          {details && details.steps && details.steps.length > 0 && (
+            <div style={{ padding: '20px 20px 28px' }}>
+              <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
+                Instructions
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {details.steps.map((step, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{
+                      flexShrink: 0,
+                      width: '22px', height: '22px', borderRadius: '8px',
+                      background: 'rgba(79,63,212,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#4F3FD4', lineHeight: 1 }}>{i + 1}</span>
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'var(--ink2)', fontWeight: 500, lineHeight: 1.6, margin: 0, flex: 1 }}>
+                      {step}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom padding when no instructions */}
+          {(!details || !details.steps || details.steps.length === 0) && (
+            <div style={{ height: '28px' }} />
+          )}
         </div>
 
         {/* Action buttons */}
