@@ -25,3 +25,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
+
+# Source cookbook PDFs — large + copyrighted, never commit
+source-pdfs/
+
+# Extraction scratch output (regenerable from PDFs)
+tools/extracted/

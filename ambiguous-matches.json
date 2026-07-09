@@ -1,0 +1,806 @@
+[
+  {
+    "id": 44,
+    "name": "Teriyaki Chicken Rice Bowl",
+    "candidateKeys": [
+      "mealprep::chicken teriyaki fried rice",
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice"
+    ]
+  },
+  {
+    "id": 45,
+    "name": "Garlic Butter Chicken Pasta",
+    "candidateKeys": [
+      "mealprep::creamy butter chicken pasta",
+      "jalal::butter chicken pasta meal prep",
+      "mealprep::honey butter chicken alfredo pasta",
+      "mealprep::garlic herb chicken"
+    ]
+  },
+  {
+    "id": 46,
+    "name": "Crispy Chicken Tacos",
+    "candidateKeys": [
+      "mealprep::crispy tandoori chicken chips",
+      "mealprep::crispy orange chicken noodles",
+      "mealprep::chicken shawarma crispy fries",
+      "mealprep::crispy sticky orange chicken"
+    ]
+  },
+  {
+    "id": 47,
+    "name": "Smoky BBQ Pulled Chicken",
+    "candidateKeys": [
+      "mealprep::korean bbq chicken"
+    ]
+  },
+  {
+    "id": 48,
+    "name": "Thai Green Curry Chicken",
+    "candidateKeys": [
+      "jalal::healthy thai green curry"
+    ]
+  },
+  {
+    "id": 49,
+    "name": "Chicken Shawarma Rice Bowl",
+    "candidateKeys": [
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::butter chicken shawarma rice bowls",
+      "mealprep::chicken shawarma",
+      "jalal::delicious shawarma bowl"
+    ]
+  },
+  {
+    "id": 51,
+    "name": "Lemon Herb Grilled Chicken",
+    "candidateKeys": [
+      "mealprep::garlic herb chicken"
+    ]
+  },
+  {
+    "id": 53,
+    "name": "Honey Mustard Chicken Wrap",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::honey chipotle chicken"
+    ]
+  },
+  {
+    "id": 54,
+    "name": "Cajun Chicken Pasta",
+    "candidateKeys": [
+      "mealprep::creamy cajun chicken rice",
+      "mealprep::creamy butter chicken pasta",
+      "mealprep::garlic herb cajun chicken"
+    ]
+  },
+  {
+    "id": 55,
+    "name": "Chicken Satay Rice",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice",
+      "jalal::one pot chicken rice",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 58,
+    "name": "Sticky Korean Chicken Rice",
+    "candidateKeys": [
+      "mealprep::korean bbq chicken rice bowls",
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice",
+      "mealprep::korean fried chicken"
+    ]
+  },
+  {
+    "id": 59,
+    "name": "Chicken & Egg Fried Rice",
+    "candidateKeys": [
+      "mealprep::chicken teriyaki fried rice",
+      "mealprep::crispy garlic chicken fried rice",
+      "mealprep::sweet sour chicken fried rice",
+      "jalal::honey chicken rice"
+    ]
+  },
+  {
+    "id": 60,
+    "name": "Pesto Chicken Pasta",
+    "candidateKeys": [
+      "jalal::high protein pesto pasta",
+      "mealprep::creamy butter chicken pasta"
+    ]
+  },
+  {
+    "id": 61,
+    "name": "Chipotle Chicken Bowl",
+    "candidateKeys": [
+      "mealprep::honey chipotle chicken"
+    ]
+  },
+  {
+    "id": 63,
+    "name": "Spicy Chicken Ramen",
+    "candidateKeys": [
+      "mealprep::peri peri chicken spicy rice"
+    ]
+  },
+  {
+    "id": 65,
+    "name": "Creamy Peri Peri Chicken",
+    "candidateKeys": [
+      "mealprep::creamy tuscan chicken",
+      "mealprep::creamy chicken alfredo",
+      "jalal::high protein creamy chicken",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 66,
+    "name": "Harissa Chicken Couscous",
+    "candidateKeys": [
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 68,
+    "name": "Teriyaki Salmon Bowl",
+    "candidateKeys": [
+      "jalal::salmon power bowl",
+      "jalal::fresh salmon bowl"
+    ]
+  },
+  {
+    "id": 70,
+    "name": "Prawn Fried Rice",
+    "candidateKeys": [
+      "jalal::breakfast fried rice",
+      "jalal::high protein fried rice",
+      "jalal::crispy salmon fried rice",
+      "mealprep::teriyaki beef fried rice"
+    ]
+  },
+  {
+    "id": 71,
+    "name": "Beef Bulgogi Rice Bowl",
+    "candidateKeys": [
+      "mealprep::beef bulgogi kimchi fried rice"
+    ]
+  },
+  {
+    "id": 73,
+    "name": "Beef Stir Fry Noodles",
+    "candidateKeys": [
+      "jalal::chinese beef stir fry",
+      "jalal::steak stir fry",
+      "jalal::tuna stir fry",
+      "mealprep::mongolian beef noodles"
+    ]
+  },
+  {
+    "id": 74,
+    "name": "Ground Beef Tacos",
+    "candidateKeys": [
+      "mealprep::chipotle ground beef",
+      "mealprep::taco ground beef",
+      "mealprep::korean ground beef",
+      "mealprep::teriyaki ground beef"
+    ]
+  },
+  {
+    "id": 75,
+    "name": "Beef & Broccoli Rice",
+    "candidateKeys": [
+      "mealprep::korean beef rice bowls",
+      "mealprep::teriyaki beef fried rice",
+      "mealprep::korean beef fried rice"
+    ]
+  },
+  {
+    "id": 78,
+    "name": "Stuffed Bell Peppers",
+    "candidateKeys": [
+      "jalal::lean stuffed peppers"
+    ]
+  },
+  {
+    "id": 79,
+    "name": "Turkish Beef Wrap",
+    "candidateKeys": [
+      "mealprep::turkish garlic beef pasta"
+    ]
+  },
+  {
+    "id": 86,
+    "name": "Tofu Stir Fry",
+    "candidateKeys": [
+      "jalal::steak stir fry",
+      "jalal::tuna stir fry",
+      "jalal::delicious chicken stir fry",
+      "jalal::chinese beef stir fry"
+    ]
+  },
+  {
+    "id": 88,
+    "name": "Quinoa Power Bowl",
+    "candidateKeys": [
+      "jalal::salmon power bowl"
+    ]
+  },
+  {
+    "id": 93,
+    "name": "Protein French Toast",
+    "candidateKeys": [
+      "jalal::cheesecake french toast",
+      "jalal::french toast muffins",
+      "jalal::cream stuffed french toast"
+    ]
+  },
+  {
+    "id": 95,
+    "name": "Overnight Oats High Protein",
+    "candidateKeys": [
+      "jalal::high protein shawarma",
+      "jalal::high protein lasagna",
+      "jalal::high protein kebab",
+      "jalal::high protein quesadilla"
+    ]
+  },
+  {
+    "id": 96,
+    "name": "Banana Protein Smoothie",
+    "candidateKeys": [
+      "jalal::bangin protein smoothie"
+    ]
+  },
+  {
+    "id": 103,
+    "name": "Chicken Meal Prep Bowls",
+    "candidateKeys": [
+      "jalal::butter chicken pasta meal prep",
+      "mealprep::chicken gyros bowls"
+    ]
+  },
+  {
+    "id": 105,
+    "name": "High Protein Smoothie Bowl",
+    "candidateKeys": [
+      "jalal::high protein shawarma",
+      "jalal::high protein lasagna",
+      "jalal::high protein kebab",
+      "jalal::high protein quesadilla"
+    ]
+  },
+  {
+    "id": 116,
+    "name": "Smash Burger Bowls",
+    "candidateKeys": [
+      "jalal::double smash burger"
+    ]
+  },
+  {
+    "id": 119,
+    "name": "Spicy Korean Beef Rice",
+    "candidateKeys": [
+      "mealprep::korean beef rice bowls",
+      "mealprep::korean beef fried rice",
+      "mealprep::korean ground beef"
+    ]
+  },
+  {
+    "id": 120,
+    "name": "Buffalo Chicken Loaded Fries",
+    "candidateKeys": [
+      "mealprep::chicken shawarma loaded fries",
+      "mealprep::butter chicken loaded fries",
+      "mealprep::dynamite chicken loaded fries",
+      "jalal::loaded fries"
+    ]
+  },
+  {
+    "id": 124,
+    "name": "Pulled Chicken Burrito Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls"
+    ]
+  },
+  {
+    "id": 125,
+    "name": "Creamy Pesto Chicken Pasta",
+    "candidateKeys": [
+      "mealprep::creamy butter chicken pasta",
+      "mealprep::creamy spicy chipotle chicken pasta",
+      "jalal::creamy rasta pasta",
+      "jalal::creamy shrimp pasta"
+    ]
+  },
+  {
+    "id": 126,
+    "name": "BBQ Brisket Rice Bowls",
+    "candidateKeys": [
+      "mealprep::korean bbq chicken rice bowls"
+    ]
+  },
+  {
+    "id": 127,
+    "name": "Thai Basil Chicken",
+    "candidateKeys": [
+      "mealprep::chicken pad thai noodles"
+    ]
+  },
+  {
+    "id": 128,
+    "name": "Garlic Shrimp Pasta",
+    "candidateKeys": [
+      "jalal::creamy shrimp pasta",
+      "mealprep::turkish garlic beef pasta",
+      "mealprep::creamy garlic beef pasta",
+      "mealprep::garlic shrimp fried rice"
+    ]
+  },
+  {
+    "id": 130,
+    "name": "Honey Sriracha Salmon",
+    "candidateKeys": [
+      "jalal::honey salmon rice",
+      "jalal::honey sriracha crispy tenders"
+    ]
+  },
+  {
+    "id": 131,
+    "name": "Peri Peri Chicken Thighs & Rice",
+    "candidateKeys": [
+      "mealprep::peri peri chicken spicy rice",
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice"
+    ]
+  },
+  {
+    "id": 132,
+    "name": "Creamy Chicken Carbonara",
+    "candidateKeys": [
+      "mealprep::creamy tuscan chicken",
+      "mealprep::creamy chicken alfredo",
+      "jalal::high protein creamy chicken",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 135,
+    "name": "Gochujang Chicken Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls",
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::orange chicken rice bowls",
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 139,
+    "name": "Chicken Souvlaki Meal Prep",
+    "candidateKeys": [
+      "jalal::butter chicken pasta meal prep"
+    ]
+  },
+  {
+    "id": 140,
+    "name": "Beef Burrito Bowls",
+    "candidateKeys": [
+      "mealprep::chipotle beef potato bowls",
+      "mealprep::korean bbq beef bowls",
+      "mealprep::korean beef rice bowls"
+    ]
+  },
+  {
+    "id": 141,
+    "name": "Chicken Marsala Pasta",
+    "candidateKeys": [
+      "mealprep::creamy butter chicken pasta"
+    ]
+  },
+  {
+    "id": 143,
+    "name": "Cajun Shrimp & Rice",
+    "candidateKeys": [
+      "mealprep::creamy cajun chicken rice",
+      "mealprep::garlic shrimp fried rice"
+    ]
+  },
+  {
+    "id": 145,
+    "name": "Lemon Garlic Chicken Thighs",
+    "candidateKeys": [
+      "mealprep::garlic herb chicken"
+    ]
+  },
+  {
+    "id": 146,
+    "name": "Smoky Chipotle Beef Tacos",
+    "candidateKeys": [
+      "mealprep::chipotle ground beef"
+    ]
+  },
+  {
+    "id": 147,
+    "name": "Creamy Mushroom Chicken",
+    "candidateKeys": [
+      "mealprep::creamy tuscan chicken",
+      "mealprep::creamy chicken alfredo",
+      "jalal::high protein creamy chicken",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 151,
+    "name": "Jerk Chicken & Rice",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice",
+      "jalal::one pot chicken rice",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 152,
+    "name": "Creamy Tomato Chicken Pasta",
+    "candidateKeys": [
+      "mealprep::creamy butter chicken pasta",
+      "mealprep::creamy spicy chipotle chicken pasta",
+      "jalal::delicious tomato chicken",
+      "jalal::creamy rasta pasta"
+    ]
+  },
+  {
+    "id": 153,
+    "name": "Szechuan Beef Noodles",
+    "candidateKeys": [
+      "mealprep::mongolian beef noodles",
+      "mealprep::crispy spicy beef noodles"
+    ]
+  },
+  {
+    "id": 158,
+    "name": "Steak Fajita Bowls",
+    "candidateKeys": [
+      "mealprep::chipotle steak bowls",
+      "mealprep::creamy steak fajita pasta"
+    ]
+  },
+  {
+    "id": 160,
+    "name": "Chicken Tzatziki Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls",
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::orange chicken rice bowls",
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 162,
+    "name": "BBQ Pulled Chicken Rice",
+    "candidateKeys": [
+      "mealprep::korean bbq chicken rice bowls",
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice",
+      "mealprep::korean bbq chicken"
+    ]
+  },
+  {
+    "id": 163,
+    "name": "Creamy Beef Pasta Bake",
+    "candidateKeys": [
+      "mealprep::creamy garlic beef pasta",
+      "jalal::high protein creamy beef pasta",
+      "jalal::creamy rasta pasta",
+      "jalal::creamy shrimp pasta"
+    ]
+  },
+  {
+    "id": 165,
+    "name": "Harissa Chicken Meal Prep",
+    "candidateKeys": [
+      "jalal::butter chicken pasta meal prep"
+    ]
+  },
+  {
+    "id": 166,
+    "name": "Beef & Sweet Potato Hash",
+    "candidateKeys": [
+      "jalal::sweet potato pancakes"
+    ]
+  },
+  {
+    "id": 167,
+    "name": "Garlic Parmesan Chicken",
+    "candidateKeys": [
+      "jalal::garlic parmesan fries",
+      "mealprep::honey bbq chicken garlic parmesan potatoes",
+      "mealprep::garlic herb chicken",
+      "jalal::crispy garlic parmesan wings"
+    ]
+  },
+  {
+    "id": 168,
+    "name": "Chicken Gyro Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls",
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::orange chicken rice bowls",
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 169,
+    "name": "Spicy Peanut Noodles",
+    "candidateKeys": [
+      "mealprep::chilli peanut chicken noodles",
+      "mealprep::crispy spicy beef noodles"
+    ]
+  },
+  {
+    "id": 170,
+    "name": "Chicken & Vegetable Stir Fry",
+    "candidateKeys": [
+      "jalal::delicious chicken stir fry",
+      "jalal::steak stir fry",
+      "jalal::tuna stir fry"
+    ]
+  },
+  {
+    "id": 171,
+    "name": "Beef Larb Bowls",
+    "candidateKeys": [
+      "mealprep::chipotle beef potato bowls",
+      "mealprep::korean bbq beef bowls",
+      "mealprep::korean beef rice bowls"
+    ]
+  },
+  {
+    "id": 173,
+    "name": "Smoked Paprika Chicken Rice",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice"
+    ]
+  },
+  {
+    "id": 174,
+    "name": "Crispy Honey Chilli Beef",
+    "candidateKeys": [
+      "mealprep::beef chilli"
+    ]
+  },
+  {
+    "id": 175,
+    "name": "Lemon Pepper Shrimp Pasta",
+    "candidateKeys": [
+      "jalal::creamy shrimp pasta"
+    ]
+  },
+  {
+    "id": 176,
+    "name": "Garlic Butter Steak & Asparagus",
+    "candidateKeys": [
+      "mealprep::garlic butter steak bites",
+      "mealprep::creamy garlic butter steak bites"
+    ]
+  },
+  {
+    "id": 177,
+    "name": "Pineapple Chicken Fried Rice",
+    "candidateKeys": [
+      "mealprep::chicken teriyaki fried rice",
+      "mealprep::crispy garlic chicken fried rice",
+      "mealprep::sweet sour chicken fried rice",
+      "jalal::honey chicken rice"
+    ]
+  },
+  {
+    "id": 179,
+    "name": "Chicken Enchilada Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls",
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::orange chicken rice bowls",
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 182,
+    "name": "Creamy Spinach Chicken",
+    "candidateKeys": [
+      "mealprep::creamy tuscan chicken",
+      "mealprep::creamy chicken alfredo",
+      "jalal::high protein creamy chicken",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 183,
+    "name": "Honey Glazed Chicken Thighs",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::honey chipotle chicken"
+    ]
+  },
+  {
+    "id": 184,
+    "name": "Beef Ragu Pasta",
+    "candidateKeys": [
+      "mealprep::turkish garlic beef pasta",
+      "mealprep::creamy garlic beef pasta"
+    ]
+  },
+  {
+    "id": 186,
+    "name": "Thai Peanut Chicken",
+    "candidateKeys": [
+      "mealprep::chilli peanut chicken noodles",
+      "mealprep::chicken pad thai noodles"
+    ]
+  },
+  {
+    "id": 187,
+    "name": "Beef Chilli Con Carne",
+    "candidateKeys": [
+      "mealprep::beef chilli"
+    ]
+  },
+  {
+    "id": 189,
+    "name": "Honey Garlic Beef Stir Fry",
+    "candidateKeys": [
+      "jalal::honey garlic shrimp stir fry",
+      "jalal::chinese beef stir fry"
+    ]
+  },
+  {
+    "id": 190,
+    "name": "Chicken Piccata Pasta",
+    "candidateKeys": [
+      "mealprep::creamy butter chicken pasta"
+    ]
+  },
+  {
+    "id": 193,
+    "name": "Chicken Katsu Rice",
+    "candidateKeys": [
+      "jalal::honey chicken rice",
+      "mealprep::chicken fajita rice",
+      "jalal::one pot chicken rice",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 195,
+    "name": "Mushroom & Beef Pasta",
+    "candidateKeys": [
+      "mealprep::turkish garlic beef pasta",
+      "mealprep::creamy garlic beef pasta"
+    ]
+  },
+  {
+    "id": 196,
+    "name": "Chicken Mole Bowls",
+    "candidateKeys": [
+      "mealprep::chicken gyros bowls",
+      "mealprep::chicken shawarma rice bowls",
+      "mealprep::orange chicken rice bowls",
+      "mealprep::harissa chicken rice bowls"
+    ]
+  },
+  {
+    "id": 197,
+    "name": "Creamy Chicken Gnocchi",
+    "candidateKeys": [
+      "mealprep::creamy tuscan chicken",
+      "mealprep::creamy chicken alfredo",
+      "jalal::high protein creamy chicken",
+      "mealprep::creamy cajun chicken rice"
+    ]
+  },
+  {
+    "id": 202,
+    "name": "Prawn Pad Thai",
+    "candidateKeys": [
+      "mealprep::chicken pad thai noodles"
+    ]
+  },
+  {
+    "id": 203,
+    "name": "Crispy Beef Tacos",
+    "candidateKeys": [
+      "jalal::cheesy beef bolognese tacos",
+      "mealprep::crispy spicy beef noodles"
+    ]
+  },
+  {
+    "id": 204,
+    "name": "Teriyaki Beef Bowls",
+    "candidateKeys": [
+      "mealprep::teriyaki ground beef",
+      "mealprep::chipotle beef potato bowls",
+      "mealprep::korean bbq beef bowls",
+      "mealprep::korean beef rice bowls"
+    ]
+  },
+  {
+    "id": 205,
+    "name": "Chicken & Corn Chowder",
+    "candidateKeys": [
+      "mealprep::street corn chicken bowls"
+    ]
+  },
+  {
+    "id": 206,
+    "name": "Blackened Salmon Pasta",
+    "candidateKeys": [
+      "jalal::creamy salmon pasta"
+    ]
+  },
+  {
+    "id": 211,
+    "name": "Spicy Beef Bibimbap",
+    "candidateKeys": [
+      "mealprep::crispy spicy beef noodles"
+    ]
+  },
+  {
+    "id": 212,
+    "name": "Coconut Lime Chicken",
+    "candidateKeys": [
+      "mealprep::chilli lime chicken"
+    ]
+  },
+  {
+    "id": 214,
+    "name": "Lamb Shawarma Bowls",
+    "candidateKeys": [
+      "mealprep::chicken shawarma rice bowls"
+    ]
+  },
+  {
+    "id": 215,
+    "name": "Chicken Piccata Meal Prep",
+    "candidateKeys": [
+      "jalal::butter chicken pasta meal prep"
+    ]
+  },
+  {
+    "id": 216,
+    "name": "Szechuan Chicken Noodles",
+    "candidateKeys": [
+      "mealprep::chilli peanut chicken noodles",
+      "mealprep::crispy orange chicken noodles",
+      "mealprep::chicken chow mein noodles",
+      "mealprep::chicken pad thai noodles"
+    ]
+  },
+  {
+    "id": 217,
+    "name": "Baked Lemon Herb Chicken",
+    "candidateKeys": [
+      "mealprep::garlic herb chicken"
+    ]
+  },
+  {
+    "id": 218,
+    "name": "Crispy Orange Beef",
+    "candidateKeys": [
+      "mealprep::crispy spicy beef noodles",
+      "mealprep::crispy orange chicken noodles",
+      "mealprep::crispy sticky orange chicken"
+    ]
+  },
+  {
+    "id": 220,
+    "name": "Honey Mustard Salmon",
+    "candidateKeys": [
+      "jalal::honey salmon rice"
+    ]
+  }
+]

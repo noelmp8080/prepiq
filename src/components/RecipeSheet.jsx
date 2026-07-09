@@ -303,12 +303,12 @@ export default function RecipeSheet({ recipe, onClose }) {
             )}
           </div>
 
-          {/* Instructions — only when real steps exist */}
-          {details && details.steps && details.steps.length > 0 && (
-            <div style={{ padding: '20px 20px 28px' }}>
-              <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
-                Instructions
-              </p>
+          {/* Instructions — always rendered; placeholder shown when steps are missing */}
+          <div style={{ padding: '20px 20px 28px' }}>
+            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
+              Instructions
+            </p>
+            {details && details.steps && details.steps.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {details.steps.map((step, i) => (
                   <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
@@ -326,13 +326,12 @@ export default function RecipeSheet({ recipe, onClose }) {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Bottom padding when no instructions */}
-          {(!details || !details.steps || details.steps.length === 0) && (
-            <div style={{ height: '28px' }} />
-          )}
+            ) : (
+              <p style={{ fontSize: '13px', color: 'var(--ink4)', fontStyle: 'italic', margin: 0 }}>
+                Instructions coming soon
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Action buttons */}

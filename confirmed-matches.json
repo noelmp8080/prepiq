@@ -1,0 +1,107 @@
+[
+  {
+    "id": 43,
+    "name": "High Protein Peri Peri Pasta",
+    "matchedKey": "jalal::high protein peri peri chicken pasta",
+    "stepsCount": 6,
+    "firstStep": "Slice the chicken breasts into thinner fillets. Season both sides generously with oregano, paprika, garlic powder, chili"
+  },
+  {
+    "id": 52,
+    "name": "Chicken Gyros",
+    "matchedKey": "mealprep::chicken gyros bowls",
+    "stepsCount": 7,
+    "firstStep": "Slice the chicken breast cutlets and boneless thighs into halves. Marinate with minced garlic, Gyros spice mix, olive oi"
+  },
+  {
+    "id": 56,
+    "name": "Loaded Chicken Nachos",
+    "matchedKey": "jalal::loaded nachos",
+    "stepsCount": 5,
+    "firstStep": "Take 2 tortilla wraps and cut them into triangle-shaped pieces using a knife. Place the pieces on a baking tray, spray w"
+  },
+  {
+    "id": 76,
+    "name": "Spaghetti Bolognese",
+    "matchedKey": "jalal::healthy spaghetti bolognese",
+    "stepsCount": 6,
+    "firstStep": "Dice the onion, carrots, celery, and garlic into small pieces and set aside. These will be used as the base of the sauce"
+  },
+  {
+    "id": 80,
+    "name": "Beef Shawarma Bowl",
+    "matchedKey": "mealprep::beef shawarma",
+    "stepsCount": 3,
+    "firstStep": ": MARINATE THE BEEF Thinly slice the sirloin beef into extra thin strips. Place in a large mixing bowl and add 2.5 servi"
+  },
+  {
+    "id": 83,
+    "name": "High Protein Egg Fried Rice",
+    "matchedKey": "jalal::high protein fried rice",
+    "stepsCount": 5,
+    "firstStep": "Cube the chicken breast and marinate with olive oil, garlic powder, onion powder, black pepper, and soy sauce. Mix until"
+  },
+  {
+    "id": 117,
+    "name": "Teriyaki Chicken & Rice",
+    "matchedKey": "mealprep::chicken teriyaki fried rice",
+    "stepsCount": 6,
+    "firstStep": "Slice the chicken breast into bite-sized cubes, then add soy sauce, all-purpose seasoning, and olive oil. Mix thoroughly"
+  },
+  {
+    "id": 118,
+    "name": "Creamy Garlic Tuscan Chicken",
+    "matchedKey": "mealprep::creamy tuscan chicken",
+    "stepsCount": 5,
+    "firstStep": "Slice the chicken breasts into cubes and place them in a bowl. Add minced garlic, dried basil, chili flakes, salt, smoke"
+  },
+  {
+    "id": 121,
+    "name": "Cajun Chicken & Rice",
+    "matchedKey": "mealprep::creamy cajun chicken rice",
+    "stepsCount": 7,
+    "firstStep": "Butterfly the chicken breasts into thinner halves. Season with 1.5 servings of Cajun spice mix and olive oil. Mix until "
+  },
+  {
+    "id": 123,
+    "name": "Sticky Sesame Chicken",
+    "matchedKey": "jalal::sesame chicken",
+    "stepsCount": 5,
+    "firstStep": "Cut the chicken into cubes and season with garlic, soy sauce, Chinese 5 spice, and paprika. Mix thoroughly until the chi"
+  },
+  {
+    "id": 129,
+    "name": "Chicken Tikka Masala & Rice",
+    "matchedKey": "mealprep::chicken tikka masala veggie garlic rice",
+    "stepsCount": 6,
+    "firstStep": "Cut the chicken breast into cubes. In a mixing bowl, combine the chicken with yogurt, tikka masala spice mix, fresh minc"
+  },
+  {
+    "id": 138,
+    "name": "Honey Garlic Salmon & Rice",
+    "matchedKey": "jalal::honey salmon rice",
+    "stepsCount": 5,
+    "firstStep": "In a bowl, combine all the marinade ingredients and mix thoroughly until smooth and well blended."
+  },
+  {
+    "id": 144,
+    "name": "Korean Ground Beef Bowls",
+    "matchedKey": "mealprep::korean ground beef",
+    "stepsCount": 2,
+    "firstStep": ": MAKE THE KOREAN MARINADE z STEP 3: ADD THE MARINADE & STORE In a mixing bowl, combine light soy sauce, dark soy Lower "
+  },
+  {
+    "id": 149,
+    "name": "Butter Chicken Meal Prep",
+    "matchedKey": "jalal::butter chicken pasta meal prep",
+    "stepsCount": 6,
+    "firstStep": "Cut the chicken into cubes and marinate with spices, lemon juice, and yogurt. Mix well and let it sit for at least 30 mi"
+  },
+  {
+    "id": 155,
+    "name": "Chicken Shawarma Plate",
+    "matchedKey": "mealprep::chicken shawarma",
+    "stepsCount": 3,
+    "firstStep": "Place the boneless, skinless chicken thighs into and pickle juice. Mix until smooth and creamy, then a large mixing bowl"
+  }
+]

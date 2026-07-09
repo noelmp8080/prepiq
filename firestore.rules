@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// PrepIQ production security rules
+// Ownership model (verified against src/store/useAppStore.jsx):
+// ALL app data lives under users/{uid}/... — the uid path segment is the owner.
+// Paths in use: profile/goals, profile/favorites, logs/{date},
+// weekPlan/current, grocery/checks.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A signed-in user can read and write ONLY documents inside their
+    // own users/{userId}/ subtree. The recursive wildcard covers every
+    // subcollection PrepIQ uses today (profile, logs, weekPlan, grocery)
+    // and any per-user subcollection added later.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+
+    // No other match blocks exist, so everything outside users/{uid}/
+    // is denied by default — including unauthenticated access, other
+    // users' subtrees, and any top-level collection.
+  }
+}

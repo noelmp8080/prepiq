@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Play Puerto Rican Dominoes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFDFC;
+    --warm:#FFFDF7;
+    --ink:#1B2A30;
+    --ink-soft:#56686F;
+    --aqua:#159C95;
+    --aqua-deep:#0E7C76;
+    --aqua-soft:#E6F6F4;
+    --coral:#F76C53;
+    --coral-soft:#FFEDE8;
+    --gold:#F2B23E;
+    --sand:#FBF3E1;
+    --ivory:#FCFAF2;
+    --line:rgba(27,42,48,0.10);
+    --shadow:0 8px 26px rgba(27,42,48,0.07);
+    --shadow-sm:0 3px 12px rgba(27,42,48,0.06);
+    --display:'Quicksand','Trebuchet MS',system-ui,sans-serif;
+    --body:'Nunito Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    font-family:var(--body);
+    color:var(--ink);
+    line-height:1.62;
+    background:
+      radial-gradient(1100px 460px at 50% -120px, #E8F6F3 0%, rgba(232,246,243,0) 70%),
+      linear-gradient(180deg,#F4FBF9 0%, var(--paper) 26%);
+    background-attachment:fixed;
+  }
+
+  .wrap{max-width:840px;margin:0 auto;padding:0 22px 72px;}
+
+  /* ---------- Hero ---------- */
+  .hero{text-align:center;padding:62px 0 8px;}
+  .eyebrow{
+    font-family:var(--display);
+    font-weight:600;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    font-size:.72rem;
+    color:var(--aqua-deep);
+    margin:0 0 18px;
+  }
+  .hero h1{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:clamp(2.1rem,6.4vw,3.4rem);
+    line-height:1.06;
+    letter-spacing:-.01em;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .hero .es{
+    font-family:var(--display);
+    font-weight:500;
+    font-size:clamp(1rem,2.6vw,1.25rem);
+    color:var(--coral);
+    margin:0 0 22px;
+  }
+  .hero p.lede{
+    max-width:540px;
+    margin:0 auto 30px;
+    color:var(--ink-soft);
+    font-size:1.06rem;
+  }
+  .hero-tile{margin:6px auto 0;display:block;filter:drop-shadow(0 14px 26px rgba(27,42,48,0.14));}
+
+  /* ---------- At a glance ---------- */
+  .glance{
+    display:flex;flex-wrap:wrap;justify-content:center;gap:10px;
+    margin:34px 0 8px;
+  }
+  .chip{
+    display:inline-flex;align-items:baseline;gap:7px;
+    background:#fff;border:1px solid var(--line);border-radius:999px;
+    padding:9px 16px;box-shadow:var(--shadow-sm);
+  }
+  .chip b{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--aqua-deep);}
+  .chip span{font-size:.86rem;color:var(--ink-soft);}
+
+  /* ---------- Divider ---------- */
+  .divider{display:flex;align-items:center;justify-content:center;gap:0;margin:40px 0 6px;opacity:.85;}
+  .divider svg{display:block;}
+
+  /* ---------- Section heads ---------- */
+  .sec-head{margin:30px 0 18px;}
+  .sec-head .kicker{
+    font-family:var(--display);font-weight:600;text-transform:uppercase;
+    letter-spacing:.18em;font-size:.7rem;color:var(--coral);margin:0 0 4px;
+  }
+  .sec-head h2{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(1.4rem,3.4vw,1.7rem);margin:0;letter-spacing:-.01em;
+  }
+
+  /* ---------- Step cards ---------- */
+  .steps{display:flex;flex-direction:column;gap:16px;}
+  .step{
+    display:flex;gap:20px;align-items:flex-start;
+    background:#fff;border:1px solid var(--line);border-radius:20px;
+    padding:22px 24px;box-shadow:var(--shadow);
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .step:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgba(27,42,48,0.10);}
+  .pip{flex:0 0 auto;margin-top:2px;}
+  .step-body{min-width:0;}
+  .step-body h3{
+    font-family:var(--display);font-weight:700;font-size:1.16rem;
+    margin:2px 0 8px;color:var(--ink);
+  }
+  .step-body ul{margin:0;padding-left:0;list-style:none;}
+  .step-body li{position:relative;padding-left:22px;margin:7px 0;color:var(--ink);}
+  .step-body li::before{
+    content:"";position:absolute;left:4px;top:.62em;
+    width:7px;height:7px;border-radius:50%;background:var(--aqua);
+  }
+  .step-body li b{font-weight:700;}
+  .term{
+    font-family:var(--display);font-weight:600;
+    color:var(--aqua-deep);font-style:normal;
+  }
+
+  /* ---------- Glossary ---------- */
+  .glossary{
+    background:linear-gradient(180deg,#FFF7F4 0%, #fff 100%);
+    border:1px solid var(--coral-soft);border-radius:22px;
+    padding:26px 26px 10px;box-shadow:var(--shadow);
+  }
+  .gl-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 28px;}
+  .gl{padding:12px 0;border-bottom:1px dashed var(--line);}
+  .gl:last-child,.gl:nth-last-child(2){border-bottom:none;}
+  .gl dt{
+    font-family:var(--display);font-weight:700;color:var(--coral);
+    font-size:1.02rem;margin-bottom:1px;
+  }
+  .gl dd{margin:0;color:var(--ink-soft);font-size:.94rem;}
+
+  /* ---------- Tips ---------- */
+  .tips{
+    background:var(--aqua-soft);border:1px solid rgba(21,156,149,0.16);
+    border-radius:22px;padding:24px 26px;box-shadow:var(--shadow-sm);
+  }
+  .tips ul{margin:0;padding-left:0;list-style:none;}
+  .tips li{position:relative;padding-left:30px;margin:11px 0;}
+  .tips li::before{
+    content:"";position:absolute;left:0;top:.18em;width:18px;height:18px;
+    border-radius:5px;background:#fff;border:1.5px solid var(--aqua);
+    box-shadow:inset 0 0 0 3px #fff, inset 0 0 0 4.5px var(--aqua);
+  }
+  .tips li b{font-family:var(--display);font-weight:700;}
+
+  /* ---------- House rules note ---------- */
+  .note{
+    display:flex;gap:16px;align-items:flex-start;
+    background:var(--sand);border:1px solid rgba(242,178,62,0.28);
+    border-radius:18px;padding:20px 22px;margin-top:26px;
+  }
+  .note .star{flex:0 0 auto;margin-top:1px;}
+  .note p{margin:0;color:#6b5a30;}
+  .note b{font-family:var(--display);font-weight:700;color:#8a6d1f;}
+
+  /* ---------- Footer ---------- */
+  footer{text-align:center;margin-top:54px;color:var(--ink-soft);}
+  footer .sign{
+    font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--ink);
+    margin:14px 0 4px;
+  }
+  footer .small{font-size:.86rem;}
+
+  /* ---------- Motion / a11y ---------- */
+  a:focus-visible,.chip:focus-visible{outline:2px solid var(--aqua-deep);outline-offset:3px;}
+  @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  .reveal{animation:rise .6s ease both;}
+  .hero .eyebrow{animation-delay:.02s;}
+  .hero h1{animation-delay:.08s;}
+  .hero .es{animation-delay:.14s;}
+  .hero .lede{animation-delay:.2s;}
+  .hero-tile{animation-delay:.26s;}
+  .glance{animation-delay:.32s;}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{animation:none;}
+    .step{transition:none;}
+  }
+
+  @media (max-width:560px){
+    .step{padding:18px;gap:15px;}
+    .gl-grid{grid-template-columns:1fr;}
+    .gl:nth-last-child(2){border-bottom:1px dashed var(--line);}
+    .hero{padding-top:46px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO -->
+  <header class="hero">
+    <p class="eyebrow reveal">Picnic-ready guide</p>
+    <h1 class="reveal">How to Play<br>Puerto Rican Dominoes</h1>
+    <p class="es reveal">Dominó Puertorriqueño</p>
+    <p class="lede reveal">Four players, twenty-eight tiles, two teams, and a whole lot of friendly trash talk. Here's everything you need to hold your own at the table.</p>
+
+    <!-- Hero double-six tile -->
+    <svg class="hero-tile reveal" width="186" height="98" viewBox="0 0 186 98" role="img" aria-label="A double-six domino tile, the tile that opens the game.">
+      <rect x="3" y="3" width="180" height="92" rx="18" fill="#FCFAF2" stroke="rgba(27,42,48,0.12)" stroke-width="1.5"/>
+      <line x1="93" y1="16" x2="93" y2="82" stroke="rgba(27,42,48,0.18)" stroke-width="3" stroke-linecap="round"/>
+      <g fill="#1B2A30">
+        <!-- left six -->
+        <circle cx="33" cy="27" r="7"/><circle cx="63" cy="27" r="7"/>
+        <circle cx="33" cy="49" r="7"/><circle cx="63" cy="49" r="7"/>
+        <circle cx="33" cy="71" r="7"/><circle cx="63" cy="71" r="7"/>
+        <!-- right six -->
+        <circle cx="123" cy="27" r="7"/><circle cx="153" cy="27" r="7"/>
+        <circle cx="123" cy="49" r="7"/><circle cx="153" cy="49" r="7"/>
+        <circle cx="123" cy="71" r="7"/><circle cx="153" cy="71" r="7"/>
+      </g>
+    </svg>
+
+    <!-- AT A GLANCE -->
+    <div class="glance reveal">
+      <span class="chip"><b>4</b><span>players</span></span>
+      <span class="chip"><b>2</b><span>teams</span></span>
+      <span class="chip"><b>28</b><span>tiles</span></span>
+      <span class="chip"><b>200</b><span>to win</span></span>
+    </div>
+  </header>
+
+  <!-- divider -->
+  <div class="divider" aria-hidden="true">
+    <svg width="150" height="16" viewBox="0 0 150 16">
+      <line x1="6" y1="8" x2="144" y2="8" stroke="rgba(27,42,48,0.16)" stroke-width="1.5" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <rect x="63" y="2" width="24" height="12" rx="3" fill="#FCFAF2" stroke="rgba(27,42,48,0.18)"/>
+      <line x1="75" y1="4" x2="75" y2="12" stroke="rgba(27,42,48,0.2)"/>
+      <circle cx="69" cy="8" r="1.7" fill="#1B2A30"/>
+      <circle cx="81" cy="6" r="1.7" fill="#1B2A30"/><circle cx="81" cy="10" r="1.7" fill="#1B2A30"/>
+    </svg>
+  </div>
+
+  <!-- STEPS -->
+  <main>
+  <div class="sec-head">
+    <p class="kicker">Six steps to the table</p>
+    <h2>The game, start to finish</h2>
+  </div>
+
+  <div class="steps">
+
+    <!-- 1 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="17" cy="17" r="3.4" fill="#F76C53"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>Gather your set &amp; your teams</h3>
+        <ul>
+          <li>Grab a <b>double-six set</b> — 28 tiles (<span class="term">fichas</span>), running from the double-blank up to the double-six.</li>
+          <li>Four players form <b>two teams of two</b>. Partners sit <b>across</b> from each other, never side by side.</li>
+          <li>Any flat surface works. A picnic table is perfect.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="11" cy="11" r="3.1" fill="#1B2A30"/><circle cx="23" cy="23" r="3.1" fill="#1B2A30"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>Shuffle &amp; deal</h3>
+        <ul>
+          <li>Turn every tile face down and swirl them around to mix — the table calls this <span class="term">dar agua</span> ("giving them water").</li>
+          <li>Each player takes <b>7 tiles</b> and stands them up so only they can see them.</li>
+          <li>All 28 get dealt — <b>there's no draw pile</b>. What you're holding is what you've got to work with.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="10" cy="10" r="3.1" fill="#1B2A30"/><circle cx="17" cy="17" r="3.1" fill="#1B2A30"/><circle cx="24" cy="24" r="3.1" fill="#1B2A30"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>The opening move <span class="term">(la salida)</span></h3>
+        <ul>
+          <li><b>First round of the match:</b> whoever holds the <b>double-six (6&nbsp;|&nbsp;6)</b> lays it down to begin.</li>
+          <li>After that, the <b>winner of the last round</b> opens the next one and may lead any tile.</li>
+          <li>Play passes one seat at a time in the <b>same direction</b> around the table. Pick a direction and keep it all game.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 4 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="11" cy="11" r="3.1" fill="#1B2A30"/><circle cx="23" cy="11" r="3.1" fill="#1B2A30"/><circle cx="11" cy="23" r="3.1" fill="#1B2A30"/><circle cx="23" cy="23" r="3.1" fill="#1B2A30"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>Take turns matching the ends</h3>
+        <ul>
+          <li>On your turn, add <b>one tile</b> to either open end of the line, matching number to number — a 5 touches a 5.</li>
+          <li>Doubles are usually set crosswise, but they still just match their number.</li>
+          <li>Can't match either end? You <b>pass</b> — knock the table once (<span class="term">paso</span>) and play moves on.</li>
+          <li>You can't draw and you can't skip for fun: <b>if you have a legal play, you must play it.</b></li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 5 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="11" cy="11" r="3.1" fill="#1B2A30"/><circle cx="23" cy="11" r="3.1" fill="#1B2A30"/><circle cx="17" cy="17" r="3.1" fill="#1B2A30"/><circle cx="11" cy="23" r="3.1" fill="#1B2A30"/><circle cx="23" cy="23" r="3.1" fill="#1B2A30"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>Win the round</h3>
+        <ul>
+          <li><b><span class="term">¡Dominó!</span></b> — the first player to lay down their last tile wins the round for their team.</li>
+          <li><b>Locked board <span class="term">(tranque)</span>:</b> if nobody can play and the line is stuck, everyone flips their tiles and counts the pips left in hand. The team with the <b>fewer total pips</b> wins the round.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 6 -->
+    <article class="step">
+      <span class="pip" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 34 34"><rect x="1.5" y="1.5" width="31" height="31" rx="8" fill="#FCFAF2" stroke="rgba(27,42,48,0.10)"/><circle cx="11" cy="9" r="3" fill="#1B2A30"/><circle cx="23" cy="9" r="3" fill="#1B2A30"/><circle cx="11" cy="17" r="3" fill="#1B2A30"/><circle cx="23" cy="17" r="3" fill="#1B2A30"/><circle cx="11" cy="25" r="3" fill="#1B2A30"/><circle cx="23" cy="25" r="3" fill="#1B2A30"/></svg>
+      </span>
+      <div class="step-body">
+        <h3>Keep score to 200</h3>
+        <ul>
+          <li>The winning team scores the <b>total pips left in both opponents' hands</b>.</li>
+          <li>First team to <b>200 points</b> takes the match. (Plenty of families play to 100 — agree before you start.)</li>
+          <li>Hold the other team at zero for the whole match and you've handed them a <span class="term">zapato</span> — bragging rights for the rest of the picnic.</li>
+        </ul>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- divider -->
+  <div class="divider" aria-hidden="true">
+    <svg width="150" height="16" viewBox="0 0 150 16">
+      <line x1="6" y1="8" x2="144" y2="8" stroke="rgba(27,42,48,0.16)" stroke-width="1.5" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <rect x="63" y="2" width="24" height="12" rx="3" fill="#FCFAF2" stroke="rgba(27,42,48,0.18)"/>
+      <line x1="75" y1="4" x2="75" y2="12" stroke="rgba(27,42,48,0.2)"/>
+      <circle cx="69" cy="6" r="1.7" fill="#1B2A30"/><circle cx="69" cy="10" r="1.7" fill="#1B2A30"/>
+      <circle cx="81" cy="6" r="1.7" fill="#1B2A30"/><circle cx="81" cy="10" r="1.7" fill="#1B2A30"/>
+    </svg>
+  </div>
+
+  <!-- GLOSSARY -->
+  <div class="sec-head">
+    <p class="kicker">Say it at the table</p>
+    <h2>Talk like a boricua</h2>
+  </div>
+  <div class="glossary">
+    <dl class="gl-grid">
+      <div class="gl"><dt>La salida</dt><dd>The opening play that starts a round.</dd></div>
+      <div class="gl"><dt>Paso</dt><dd>Knocking when you can't match — you pass.</dd></div>
+      <div class="gl"><dt>Tranque</dt><dd>A locked board nobody can play on.</dd></div>
+      <div class="gl"><dt>Capicú</dt><dd>Winning with a tile that fit on <em>either</em> end — the flashiest way to close.</dd></div>
+      <div class="gl"><dt>Data</dt><dd>Feeding a number you know the other team can't follow.</dd></div>
+      <div class="gl"><dt>Zapato</dt><dd>A shutout — the other team never scored a point.</dd></div>
+    </dl>
+  </div>
+
+  <!-- TIPS -->
+  <div class="sec-head">
+    <p class="kicker">Hold your own</p>
+    <h2>Table-smart tips</h2>
+  </div>
+  <div class="tips">
+    <ul>
+      <li><b>Count what's down.</b> Keep a rough tally of how many of each number have been played — it tells you what's still hiding in hands.</li>
+      <li><b>Read your partner's passes.</b> When they knock on a number, don't reopen that end for the opponents, and lean toward the suits your partner keeps feeding.</li>
+      <li><b>Don't get stuck with a heavy double.</b> Holding the 6&nbsp;|&nbsp;6 with few other sixes? Play it early before it strands you.</li>
+      <li><b>Keep both ends friendly.</b> Try to leave the line showing numbers you can still answer next turn.</li>
+      <li><b>Your face is a tile too.</b> Every pass leaks information to the whole table — including the other team.</li>
+    </ul>
+  </div>
+
+  <!-- HOUSE RULES -->
+  <div class="note">
+    <svg class="star" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 2.5l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L13 18l-6.1 3.4 1.4-6.8L3.2 9.9l6.9-.7z" fill="none" stroke="#F2B23E" stroke-width="2" stroke-linejoin="round"/></svg>
+    <p><b>Settle the house rules first.</b> Every family plays a little differently — the target score (100 vs 200), whether a <span class="term">capicú</span> earns bonus points, and exactly how a locked board scores. Agree on it before the first tile drops and save yourself the picnic argument.</p>
+  </div>
+
+  </main>
+
+  <footer>
+    <div class="divider" aria-hidden="true" style="margin-bottom:0;">
+      <svg width="60" height="16" viewBox="0 0 60 16"><rect x="18" y="2" width="24" height="12" rx="3" fill="#FCFAF2" stroke="rgba(27,42,48,0.18)"/><line x1="30" y1="4" x2="30" y2="12" stroke="rgba(27,42,48,0.2)"/><circle cx="24" cy="8" r="1.8" fill="#1B2A30"/><circle cx="36" cy="6" r="1.8" fill="#1B2A30"/><circle cx="36" cy="10" r="1.8" fill="#1B2A30"/></svg>
+    </div>
+    <p class="sign">Now go win the table.</p>
+    <p class="small">¡Buena suerte — y que gane el mejor!</p>
+  </footer>
+
+</div>
+</body>
+</html>

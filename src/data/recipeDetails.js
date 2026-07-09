@@ -1,42 +1,25 @@
+// PrepIQ recipe-details join.
+//
+// Cards are wired to content by an EXPLICIT id -> key map (recipeDetailKeys.js),
+// NOT by name-normalization. This removes the silent break that happened whenever
+// a card's display name drifted from its extracted name. A card with no mapping
+// returns null, and the UI shows its graceful placeholder.
+
 import detailsData from './prepiq-recipe-details.json'
-import { recipes } from './recipes'
-
-// Normalize function exactly as specified in _meta.normalize_js
-// Using RegExp constructor so unicode escapes survive the source encoding
-const COMBINING = new RegExp('[\\u0300-\\u036f]', 'g')
-
-const normalize = s =>
-  s.normalize('NFKD')
-   .replace(COMBINING, '')
-   .toLowerCase()
-   .replace(/\bv\d+\b/g, '')
-   .replace(/\b(and|&)\b/g, ' ')
-   .replace(/[^a-z0-9 ]/g, ' ')
-   .replace(/\s+/g, ' ')
-   .trim()
+import { detailKeys } from './recipeDetailKeys'
 
 const jsonRecipes = detailsData.recipes
 const detailsMap = new Map()
 
-for (const recipe of recipes) {
-  const key = `${recipe.source}::${normalize(recipe.name)}`
-  if (jsonRecipes[key]) {
-    detailsMap.set(recipe.id, jsonRecipes[key])
-    continue
-  }
-  // Fallback: try the other source
-  const altSource = recipe.source === 'jalal' ? 'mealprep' : 'jalal'
-  const altKey = `${altSource}::${normalize(recipe.name)}`
-  if (jsonRecipes[altKey]) {
-    detailsMap.set(recipe.id, jsonRecipes[altKey])
-  }
+for (const [id, key] of Object.entries(detailKeys)) {
+  const entry = jsonRecipes[key]
+  if (entry) detailsMap.set(Number(id), entry)
 }
 
 if (import.meta.env.DEV) {
-  const matched = detailsMap.size
-  const unmatched = recipes.filter(r => !detailsMap.has(r.id)).map(r => r.name)
-  console.log(`[recipeDetails] ${matched}/${recipes.length} matched`)
-  if (unmatched.length) console.log('[recipeDetails] unmatched:', unmatched)
+  console.log(`[recipeDetails] ${detailsMap.size}/220 cards wired to real content`)
+  const badKeys = Object.entries(detailKeys).filter(([, k]) => !jsonRecipes[k])
+  if (badKeys.length) console.warn('[recipeDetails] mapped keys not found in JSON:', badKeys)
 }
 
 export function getRecipeDetails(recipe) {
