@@ -17,7 +17,7 @@ for (const [id, key] of Object.entries(detailKeys)) {
 }
 
 if (import.meta.env.DEV) {
-  console.log(`[recipeDetails] ${detailsMap.size}/220 cards wired to real content`)
+  console.log(`[recipeDetails] ${detailsMap.size}/${Object.keys(detailKeys).length} cards wired to real content`)
   const badKeys = Object.entries(detailKeys).filter(([, k]) => !jsonRecipes[k])
   if (badKeys.length) console.warn('[recipeDetails] mapped keys not found in JSON:', badKeys)
 }

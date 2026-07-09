@@ -68,7 +68,7 @@ export default function Recipes() {
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setPage(1) }}
-            placeholder="Search 220 recipes..."
+            placeholder={`Search ${recipes.length} recipes...`}
             style={{ flex:1, background:'none', border:'none', outline:'none', fontSize:'14px', color:'#fff', fontFamily:'Plus Jakarta Sans, sans-serif' }}
           />
         </div>

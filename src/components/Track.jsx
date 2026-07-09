@@ -68,7 +68,7 @@ function LogMealModal({ onClose }) {
                   autoFocus
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  placeholder="Search 220 recipes…"
+                  placeholder={`Search ${recipes.length} recipes…`}
                   style={{ flex:1, background:'none', border:'none', outline:'none', fontSize:'14px', color:'var(--ink)', fontFamily:'Plus Jakarta Sans, sans-serif' }}
                 />
               </div>
