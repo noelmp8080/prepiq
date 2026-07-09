@@ -101,7 +101,9 @@ const lines = catalog.map(({ id, key }) => {
   if (m == null || m.cal == null) nullMacros++
   const name = titleCase(entry.name)
   const tags = deriveTags(name, m)
-  return `  { id:${id}, name:${JSON.stringify(name)}, cal:${m.cal}, protein:${m.protein}, carbs:${m.carbs}, fat:${m.fat}, source:"${book}", tags:[${tags.map(t => `'${t}'`).join(',')}] },`
+  // hero photo extracted from the recipe's PDF page (tools/extract-photos.py)
+  const img = fs.existsSync(`public/recipes/${id}.webp`) ? `, image:"/recipes/${id}.webp"` : ''
+  return `  { id:${id}, name:${JSON.stringify(name)}, cal:${m.cal}, protein:${m.protein}, carbs:${m.carbs}, fat:${m.fat}, source:"${book}", tags:[${tags.map(t => `'${t}'`).join(',')}]${img} },`
 })
 
 const recipesJs = `// PrepIQ recipe catalog — every entry is a real recipe from the source books:

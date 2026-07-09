@@ -18,20 +18,10 @@ const FILTERS = [
   { label:'Favorites',    value:'favorites' },
 ]
 
-const FOOD_IMGS = [
-  'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&q=75',
-  'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=75',
-  'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&q=75',
-  'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400&q=75',
-  'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=75',
-  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=75',
-  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&q=75',
-  'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=400&q=75',
-]
-
-function getImg(id) {
-  return FOOD_IMGS[(id - 1) % FOOD_IMGS.length]
-}
+// Per-recipe hero photos extracted from the source cookbooks (public/recipes/).
+// Missing photo -> neutral placeholder, so a gap is visible rather than disguised.
+const PLACEHOLDER = '/recipes/_placeholder.svg'
+const getImg = recipe => recipe.image || PLACEHOLDER
 
 export default function Recipes() {
   const { favorites, toggleFavorite } = useAppStore()
@@ -104,7 +94,7 @@ export default function Recipes() {
           >
             <div style={{ position:'relative' }}>
               <img
-                src={getImg(recipe.id)}
+                src={getImg(recipe)}
                 alt={recipe.name}
                 style={{ width:'100%', height:'110px', objectFit:'cover', display:'block' }}
                 loading="lazy"
