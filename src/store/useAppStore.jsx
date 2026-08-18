@@ -6,6 +6,20 @@ import { recipes, recipeById } from '../data/recipes'
 
 const AppStoreContext = createContext(null)
 
+/* KNOWN BUG, NOT FIXED HERE — tracked separately.
+ *
+ * Two faults in one line:
+ *
+ *   1. toISOString() is UTC. West of Greenwich the date rolls over
+ *      before local midnight, so evening meals land on tomorrow's log.
+ *   2. It is computed ONCE at module load. The app is a PWA and stays
+ *      open; leave it running past midnight and every write still goes
+ *      to the day it was opened on.
+ *
+ * The fix is local date parts plus a value that re-derives, not a
+ * module constant. Deliberately out of scope for the grocery fix —
+ * it moves where `logs/{date}` writes land, which is a data question
+ * that deserves its own change. */
 const TODAY = new Date().toISOString().slice(0, 10)
 
 const DEFAULT_GOALS = { calories: 1800, protein: 180, carbs: 200, fat: 60 }
@@ -38,6 +52,7 @@ export function AppStoreProvider({ children }) {
   const [weekPlan,      setWeekPlan]      = useState(DEFAULT_WEEK_PLAN)
   const [favorites,     setFavorites]     = useState(new Set())
   const [groceryChecks, setGroceryChecks] = useState(new Set())
+  const [syncError,     setSyncError]     = useState(null)
 
   // Load from localStorage (offline/no-auth path)
   function loadFromLS() {
@@ -110,10 +125,41 @@ export function AppStoreProvider({ children }) {
     saveLS('prepiq_favorites', setToArray(value))
     if (uid) setDoc(doc(db, 'users', uid, 'profile', 'favorites'), { ids: setToArray(value) }).catch(console.error)
   }
+  /* THE ONE WRITE THAT IS NOT FIRE-AND-FORGET.
+   *
+   * Every write in this file saves to localStorage first and Firestore
+   * second. When the Firestore half failed, `.catch(console.error)`
+   * swallowed it — and the two stores then disagree in the direction
+   * that loses the change: loadFromFirestore resolves the cloud value
+   * FIRST and only falls back to localStorage when the document is
+   * missing or the field is nullish. An empty array is neither. So a
+   * failed write left localStorage saying "cleared", Firestore holding
+   * the old ids, and the next load quietly restoring them.
+   *
+   * The local write still happens optimistically and is NOT rolled back
+   * on failure: discarding what the user just did, to match a server
+   * that may only be offline, is the worse of the two wrongs. What
+   * changes is that the disagreement is now visible while it exists.
+   *
+   * THE OTHER FOUR WRITERS STILL SWALLOW. writeGoals, writeLog,
+   * writePlan and writeFavs have the identical `.catch(console.error)`
+   * and the identical resolve-cloud-first load path. They are the same
+   * bug and are scoped separately rather than swept in here. */
   function writeGroc(uid, value) {
     saveLS('prepiq_grocery', setToArray(value))
-    if (uid) setDoc(doc(db, 'users', uid, 'grocery', 'checks'), { ids: setToArray(value) }).catch(console.error)
+    if (!uid) return
+    setDoc(doc(db, 'users', uid, 'grocery', 'checks'), { ids: setToArray(value) })
+      .then(() => setSyncError(null))
+      .catch(err => {
+        console.error('[writeGroc]', err)
+        setSyncError({
+          what: 'grocery checks',
+          detail: err?.code ? `[${err.code}] ${err.message}` : String(err?.message ?? err),
+        })
+      })
   }
+
+  const dismissSyncError = useCallback(() => setSyncError(null), [])
 
   const updateGoals = useCallback((newGoals) => {
     setGoalsState(newGoals)
@@ -204,6 +250,8 @@ export function AppStoreProvider({ children }) {
     weekPlan,
     favorites,
     groceryChecks,
+    syncError,
+    dismissSyncError,
     updateGoals,
     logMeal,
     removeLoggedMeal,
