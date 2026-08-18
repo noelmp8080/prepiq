@@ -1,4 +1,4 @@
-import { CheckSquare, Square, Trash2 } from 'lucide-react'
+import { CheckSquare, Square } from 'lucide-react'
 import { recipeById } from '../data/recipes'
 import { useAppStore } from '../store/useAppStore'
 
@@ -17,7 +17,8 @@ function buildGroceryItems(weekPlan) {
 }
 
 export default function Grocery() {
-  const { weekPlan, groceryChecks, toggleGroceryItem, checkAllGrocery, clearGrocery } = useAppStore()
+  const { weekPlan, groceryChecks, toggleGroceryItem, checkAllGrocery, clearGrocery,
+          syncError, dismissSyncError } = useAppStore()
 
   const items  = buildGroceryItems(weekPlan)
   const allIds = items.map(i => i.id)
@@ -31,14 +32,19 @@ export default function Grocery() {
         <p style={{ textAlign:'center', display:'block', fontSize:'36px', fontWeight:800, letterSpacing:'-.04em', lineHeight:1, padding:'12px 0 8px', fontFamily:'Plus Jakarta Sans, sans-serif', margin:0 }}>
           <span style={{ color:'#fff' }}>Prep</span><span style={{ color:'#C4B5FD' }}>IQ</span>
         </p>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'12px' }}>
-          <div>
-            <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', margin:'0 0 4px' }}>Grocery List</h1>
-            <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500, margin:0 }}>From your weekly plan · {done}/{items.length} checked</p>
-          </div>
-          <button onClick={clearGrocery} style={{ display:'flex', alignItems:'center', gap:'5px', background:'rgba(255,255,255,0.1)', border:'1.5px solid rgba(255,255,255,0.15)', borderRadius:'12px', padding:'8px 12px', cursor:'pointer', color:'rgba(255,255,255,0.7)', fontSize:'11px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
-            <Trash2 size={12} strokeWidth={2.5} /> Clear
-          </button>
+        {/* THE HEADER'S "Clear" BUTTON IS GONE, not relabelled.
+            It called clearGrocery — which empties the CHECKS, never the
+            list — under a trash icon, so it read as "delete these items".
+            It cannot delete them: the list is derived from weekPlan on
+            every render (see buildGroceryItems) and nothing stores it.
+
+            Relabelling it would have produced two identical controls on
+            one screen, because the button below already calls the same
+            function under the honest label "Uncheck all". One control,
+            named for what it does. */}
+        <div style={{ marginBottom:'12px' }}>
+          <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', margin:'0 0 4px' }}>Grocery List</h1>
+          <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500, margin:0 }}>From your weekly plan · {done}/{items.length} checked</p>
         </div>
 
         {/* Progress bar */}
@@ -48,6 +54,21 @@ export default function Grocery() {
       </div>
 
       <div style={{ padding:'16px' }}>
+        {/* OUTSIDE the empty/non-empty branch: a failed sync is worth
+            saying whether or not there is a list to show. Colours match
+            Auth's error block — one error look in the app, not two. */}
+        {syncError && (
+          <div role="alert" style={{ display:'flex', alignItems:'flex-start', gap:'10px', fontSize:'12px', color:'#C53030', fontWeight:500, padding:'10px 14px', background:'rgba(197,48,48,0.07)', borderRadius:'10px', lineHeight:1.5, wordBreak:'break-word', marginBottom:'12px' }}>
+            <span style={{ flex:1 }}>
+              Saved on this device only — your {syncError.what} did not reach your account, so this change may be undone next time the app loads.
+              <span style={{ display:'block', opacity:0.75, marginTop:'4px' }}>{syncError.detail}</span>
+            </span>
+            <button onClick={dismissSyncError} aria-label="Dismiss" style={{ background:'none', border:'none', cursor:'pointer', color:'#C53030', fontSize:'12px', fontWeight:700, padding:0, fontFamily:'Plus Jakarta Sans, sans-serif', flexShrink:0 }}>
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {items.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 20px' }}>
             <p style={{ fontSize:'14px', color:'var(--ink4)', fontWeight:500 }}>No items — set up your weekly plan first.</p>
