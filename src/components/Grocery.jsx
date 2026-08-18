@@ -17,8 +17,7 @@ function buildGroceryItems(weekPlan) {
 }
 
 export default function Grocery() {
-  const { weekPlan, groceryChecks, toggleGroceryItem, checkAllGrocery, clearGrocery,
-          syncError, dismissSyncError } = useAppStore()
+  const { weekPlan, groceryChecks, toggleGroceryItem, checkAllGrocery, clearGrocery } = useAppStore()
 
   const items  = buildGroceryItems(weekPlan)
   const allIds = items.map(i => i.id)
@@ -54,21 +53,9 @@ export default function Grocery() {
       </div>
 
       <div style={{ padding:'16px' }}>
-        {/* OUTSIDE the empty/non-empty branch: a failed sync is worth
-            saying whether or not there is a list to show. Colours match
-            Auth's error block — one error look in the app, not two. */}
-        {syncError && (
-          <div role="alert" style={{ display:'flex', alignItems:'flex-start', gap:'10px', fontSize:'12px', color:'#C53030', fontWeight:500, padding:'10px 14px', background:'rgba(197,48,48,0.07)', borderRadius:'10px', lineHeight:1.5, wordBreak:'break-word', marginBottom:'12px' }}>
-            <span style={{ flex:1 }}>
-              Saved on this device only — your {syncError.what} did not reach your account, so this change may be undone next time the app loads.
-              <span style={{ display:'block', opacity:0.75, marginTop:'4px' }}>{syncError.detail}</span>
-            </span>
-            <button onClick={dismissSyncError} aria-label="Dismiss" style={{ background:'none', border:'none', cursor:'pointer', color:'#C53030', fontSize:'12px', fontWeight:700, padding:0, fontFamily:'Plus Jakarta Sans, sans-serif', flexShrink:0 }}>
-              Dismiss
-            </button>
-          </div>
-        )}
-
+        {/* The sync-failure banner moved to SyncErrorBanner, rendered
+            app-wide in App.jsx — all five writers report now, and four
+            of them fail on other screens. */}
         {items.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 20px' }}>
             <p style={{ fontSize:'14px', color:'var(--ink4)', fontWeight:500 }}>No items — set up your weekly plan first.</p>
