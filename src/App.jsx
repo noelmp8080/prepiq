@@ -8,6 +8,7 @@ import Recipes  from './components/Recipes'
 import Grocery  from './components/Grocery'
 import Track    from './components/Track'
 import Auth     from './components/Auth'
+import SyncErrorBanner from './components/SyncErrorBanner'
 
 function AppInner() {
   const { user } = useAppStore()
@@ -39,6 +40,10 @@ function AppInner() {
       {tab === 'recipes' && <Recipes />}
       {tab === 'grocery' && <Grocery />}
       {tab === 'track'   && <Track />}
+      {/* App-wide: a failed cloud write can happen on any screen, and
+          the writer that costs the most (the weekly plan) fails on
+          Plan, not here. */}
+      <SyncErrorBanner />
       <BottomNav active={tab} onChange={setTab} />
     </>
   )

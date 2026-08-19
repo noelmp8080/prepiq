@@ -3,24 +3,9 @@ import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndP
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
+import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS } from './storeLogic'
 
 const AppStoreContext = createContext(null)
-
-/* KNOWN BUG, NOT FIXED HERE — tracked separately.
- *
- * Two faults in one line:
- *
- *   1. toISOString() is UTC. West of Greenwich the date rolls over
- *      before local midnight, so evening meals land on tomorrow's log.
- *   2. It is computed ONCE at module load. The app is a PWA and stays
- *      open; leave it running past midnight and every write still goes
- *      to the day it was opened on.
- *
- * The fix is local date parts plus a value that re-derives, not a
- * module constant. Deliberately out of scope for the grocery fix —
- * it moves where `logs/{date}` writes land, which is a data question
- * that deserves its own change. */
-const TODAY = new Date().toISOString().slice(0, 10)
 
 const DEFAULT_GOALS = { calories: 1800, protein: 180, carbs: 200, fat: 60 }
 
@@ -30,21 +15,6 @@ const DEFAULT_WEEK_PLAN = (() => {
   return days.map((day, i) => ({ day, ids: SEED[i] }))
 })()
 
-function loadLS(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    if (raw == null) return fallback
-    return JSON.parse(raw)
-  } catch { return fallback }
-}
-
-function saveLS(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
-}
-
-function setToArray(s) { return [...s] }
-function arrayToSet(a) { return new Set(Array.isArray(a) ? a : []) }
-
 export function AppStoreProvider({ children }) {
   const [user,          setUser]          = useState(undefined)   // undefined = loading
   const [goals,         setGoalsState]    = useState(DEFAULT_GOALS)
@@ -52,23 +22,31 @@ export function AppStoreProvider({ children }) {
   const [weekPlan,      setWeekPlan]      = useState(DEFAULT_WEEK_PLAN)
   const [favorites,     setFavorites]     = useState(new Set())
   const [groceryChecks, setGroceryChecks] = useState(new Set())
-  const [syncError,     setSyncError]     = useState(null)
+  /* { [what]: detail } — one slot per writer, so a successful write
+     never clears another writer's failure. */
+  const [syncErrors,    setSyncErrors]    = useState({})
+  /* WHICH DAY `mealLog` BELONGS TO. Not cosmetic: without it, an app
+     left open past midnight would append tonight's meals to yesterday's
+     loaded log and write the result under today's date, merging two
+     days. Reading todayISO() at write time alone would have introduced
+     exactly that. */
+  const [logDate,       setLogDate]       = useState(todayISO)
 
   // Load from localStorage (offline/no-auth path)
-  function loadFromLS() {
+  function loadFromLS(date) {
     setGoalsState(loadLS('prepiq_goals', DEFAULT_GOALS))
-    setMealLog(loadLS(`prepiq_log_${TODAY}`, []))
+    setMealLog(loadLS(`prepiq_log_${date}`, []))
     setWeekPlan(loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
     setFavorites(arrayToSet(loadLS('prepiq_favorites', [])))
     setGroceryChecks(arrayToSet(loadLS('prepiq_grocery', [])))
   }
 
   // Load from Firestore
-  async function loadFromFirestore(uid) {
+  async function loadFromFirestore(uid, date) {
     try {
       const [goalsSnap, logSnap, planSnap, favSnap, grocSnap] = await Promise.all([
         getDoc(doc(db, 'users', uid, 'profile', 'goals')),
-        getDoc(doc(db, 'users', uid, 'logs', TODAY)),
+        getDoc(doc(db, 'users', uid, 'logs', date)),
         getDoc(doc(db, 'users', uid, 'weekPlan', 'current')),
         getDoc(doc(db, 'users', uid, 'profile', 'favorites')),
         getDoc(doc(db, 'users', uid, 'grocery', 'checks')),
@@ -79,11 +57,11 @@ export function AppStoreProvider({ children }) {
       const f = favSnap.exists()   ? favSnap.data().ids    : null
       const c = grocSnap.exists()  ? grocSnap.data().ids   : null
 
-      const resolvedGoals = g ?? loadLS('prepiq_goals', DEFAULT_GOALS)
-      const resolvedLog   = l ?? loadLS(`prepiq_log_${TODAY}`, [])
-      const resolvedPlan  = p ?? loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN)
-      const resolvedFavs  = f ?? loadLS('prepiq_favorites', [])
-      const resolvedGroc  = c ?? loadLS('prepiq_grocery', [])
+      const resolvedGoals = resolveField(g, () => loadLS('prepiq_goals', DEFAULT_GOALS))
+      const resolvedLog   = resolveField(l, () => loadLS(`prepiq_log_${date}`, []))
+      const resolvedPlan  = resolveField(p, () => loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
+      const resolvedFavs  = resolveField(f, () => loadLS('prepiq_favorites', []))
+      const resolvedGroc  = resolveField(c, () => loadLS('prepiq_grocery', []))
 
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
@@ -92,79 +70,155 @@ export function AppStoreProvider({ children }) {
       setGroceryChecks(arrayToSet(resolvedGroc))
     } catch (e) {
       console.error('[loadFromFirestore]', e)
-      loadFromLS()
+      loadFromLS(date)
     }
   }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
+      const date = todayISO()
+      setLogDate(date)
       if (u) {
-        await loadFromFirestore(u.uid)
+        await loadFromFirestore(u.uid, date)
       } else {
-        loadFromLS()
+        loadFromLS(date)
       }
     })
     return unsub
   }, [])
 
-  // Write helpers
-  function writeGoals(uid, value) {
-    saveLS('prepiq_goals', value)
-    if (uid) setDoc(doc(db, 'users', uid, 'profile', 'goals'), value).catch(console.error)
-  }
-  function writeLog(uid, value) {
-    saveLS(`prepiq_log_${TODAY}`, value)
-    if (uid) setDoc(doc(db, 'users', uid, 'logs', TODAY), { meals: value }).catch(console.error)
-  }
-  function writePlan(uid, value) {
-    saveLS('prepiq_weekplan', value)
-    if (uid) setDoc(doc(db, 'users', uid, 'weekPlan', 'current'), { days: value }).catch(console.error)
-  }
-  function writeFavs(uid, value) {
-    saveLS('prepiq_favorites', setToArray(value))
-    if (uid) setDoc(doc(db, 'users', uid, 'profile', 'favorites'), { ids: setToArray(value) }).catch(console.error)
-  }
-  /* THE ONE WRITE THAT IS NOT FIRE-AND-FORGET.
+  /* MIDNIGHT, WITH THE APP STILL OPEN.
    *
-   * Every write in this file saves to localStorage first and Firestore
-   * second. When the Firestore half failed, `.catch(console.error)`
-   * swallowed it — and the two stores then disagree in the direction
-   * that loses the change: loadFromFirestore resolves the cloud value
-   * FIRST and only falls back to localStorage when the document is
-   * missing or the field is nullish. An empty array is neither. So a
-   * failed write left localStorage saying "cleared", Firestore holding
-   * the old ids, and the next load quietly restoring them.
+   * Reading todayISO() at write time fixes where a write lands but
+   * creates a worse fault on its own: `mealLog` would still hold
+   * yesterday's meals, and the next log would write that whole array
+   * under today's date — merging two days into one. So the day the log
+   * belongs to is tracked, and when it moves the log is re-read for the
+   * new day.
    *
-   * The local write still happens optimistically and is NOT rolled back
-   * on failure: discarding what the user just did, to match a server
-   * that may only be offline, is the worse of the two wrongs. What
-   * changes is that the disagreement is now visible while it exists.
+   * Three triggers, because a PWA is usually not in the foreground when
+   * midnight passes: coming back to visibility, regaining focus, and a
+   * minute tick for the case where it is simply left on screen. The
+   * check is a string comparison against state, so the frequent
+   * triggers cost nothing on the days nothing happens.
    *
-   * THE OTHER FOUR WRITERS STILL SWALLOW. writeGoals, writeLog,
-   * writePlan and writeFavs have the identical `.catch(console.error)`
-   * and the identical resolve-cloud-first load path. They are the same
-   * bug and are scoped separately rather than swept in here. */
-  function writeGroc(uid, value) {
-    saveLS('prepiq_grocery', setToArray(value))
+   * Only the LOG is re-read. Goals, plan, favourites and grocery checks
+   * are not per-day. */
+  useEffect(() => {
+    const check = () => {
+      const now = todayISO()
+      if (!dayChanged(logDate, now)) return
+      setLogDate(now)
+      const local = () => loadLS(`prepiq_log_${now}`, [])
+      if (!user) { setMealLog(local()); return }
+      getDoc(doc(db, 'users', user.uid, 'logs', now))
+        .then(s => setMealLog(resolveField(s.exists() ? s.data().meals : null, local)))
+        .catch(e => { console.error('[dayRollover]', e); setMealLog(local()) })
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') check() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', check)
+    const tick = setInterval(check, 60_000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', check)
+      clearInterval(tick)
+    }
+  }, [logDate, user])
+
+  /* WRITES ARE LOCAL-FIRST, CLOUD-SECOND, AND NO LONGER SILENT.
+   *
+   * Every write saves to localStorage and then to Firestore. When the
+   * Firestore half failed, `.catch(console.error)` swallowed it — and
+   * the two stores then disagree in the direction that LOSES the
+   * change: loadFromFirestore resolves the cloud value FIRST and falls
+   * back to localStorage only when the document is missing or the field
+   * is nullish. An empty array is neither. So a failed write left the
+   * device saying "saved", the cloud holding the old value, and the
+   * next load quietly restoring it.
+   *
+   * ALL FIVE WRITERS GO THROUGH ONE PATH. Grocery checks were fixed
+   * first because that is where it was noticed, but the plan is the one
+   * that costs something: losing a week of meals and having it reappear
+   * on reload with no explanation. Five copies of the same catch is how
+   * four of them stayed silent after the fifth was fixed.
+   *
+   * THE LOCAL WRITE IS NOT ROLLED BACK on failure. Discarding what the
+   * user just did, to match a server that may only be offline, is the
+   * worse of the two wrongs. What changes is that the disagreement is
+   * visible while it lasts.
+   *
+   * KEYED BY `what`, not a single slot. A successful goals write must
+   * not clear a failed plan write — that would hide the exact failure
+   * this exists to show. Each writer clears only its own key. */
+  const cloudWrite = useCallback((uid, segments, payload, what) => {
+    /* Signed out is not a failure — the local write already happened and
+       is the whole store in that mode. Returning before doc() also keeps
+       a ref from being built against a uid that does not exist. */
     if (!uid) return
-    setDoc(doc(db, 'users', uid, 'grocery', 'checks'), { ids: setToArray(value) })
-      .then(() => setSyncError(null))
+    setDoc(doc(db, 'users', uid, ...segments), payload)
+      .then(() => setSyncErrors(prev => {
+        if (!(what in prev)) return prev          // same object back: no re-render
+        const next = { ...prev }
+        delete next[what]
+        return next
+      }))
       .catch(err => {
-        console.error('[writeGroc]', err)
-        setSyncError({
-          what: 'grocery checks',
-          detail: err?.code ? `[${err.code}] ${err.message}` : String(err?.message ?? err),
-        })
+        console.error(`[cloudWrite:${what}]`, err)
+        const detail = err?.code ? `[${err.code}] ${err.message}` : String(err?.message ?? err)
+        setSyncErrors(prev => ({ ...prev, [what]: detail }))
       })
-  }
+  }, [])
 
-  const dismissSyncError = useCallback(() => setSyncError(null), [])
+  const writeGoals = useCallback((uid, value) => {
+    saveLS('prepiq_goals', value)
+    cloudWrite(uid, ['profile', 'goals'], value, 'goals')
+  }, [cloudWrite])
 
+  /* The date is PASSED IN rather than read from a module constant — see
+     todayISO. A write must land on the day it was made. */
+  const writeLog = useCallback((uid, value, date) => {
+    saveLS(`prepiq_log_${date}`, value)
+    cloudWrite(uid, ['logs', date], { meals: value }, "today's log")
+  }, [cloudWrite])
+
+  const writePlan = useCallback((uid, value) => {
+    saveLS('prepiq_weekplan', value)
+    cloudWrite(uid, ['weekPlan', 'current'], { days: value }, 'weekly plan')
+  }, [cloudWrite])
+
+  const writeFavs = useCallback((uid, value) => {
+    saveLS('prepiq_favorites', setToArray(value))
+    cloudWrite(uid, ['profile', 'favorites'], { ids: setToArray(value) }, 'favourites')
+  }, [cloudWrite])
+
+  const writeGroc = useCallback((uid, value) => {
+    saveLS('prepiq_grocery', setToArray(value))
+    cloudWrite(uid, ['grocery', 'checks'], { ids: setToArray(value) }, 'grocery checks')
+  }, [cloudWrite])
+
+  const dismissSyncErrors = useCallback(() => setSyncErrors({}), [])
+
+  /* NO WRITES INSIDE STATE UPDATERS.
+   *
+   * Four of these used to compute the next value inside
+   * `setX(prev => …)` and fire the Firestore write from in there. A
+   * state updater must be pure: React may call it more than once for a
+   * single update, and under StrictMode in development it always does —
+   * so every toggle sent two identical setDoc calls. Idempotent, so it
+   * looked harmless, and billed twice while looking harmless.
+   *
+   * It stops being harmless the moment a write is not idempotent. An
+   * append, a counter, an arrayUnion, or the exclusion list the
+   * ingredient screen will need would all double.
+   *
+   * The next value is derived from the state in scope instead, and the
+   * dependency array names it. */
   const updateGoals = useCallback((newGoals) => {
     setGoalsState(newGoals)
     writeGoals(user?.uid, newGoals)
-  }, [user])
+  }, [user, writeGoals])
 
   const logMeal = useCallback((recipeId, slot) => {
     const entry = {
@@ -174,20 +228,16 @@ export function AppStoreProvider({ children }) {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       loggedAt: new Date().toISOString(),
     }
-    setMealLog(prev => {
-      const next = [...prev, entry]
-      writeLog(user?.uid, next)
-      return next
-    })
-  }, [user])
+    const next = [...mealLog, entry]
+    setMealLog(next)
+    writeLog(user?.uid, next, logDate)
+  }, [mealLog, logDate, user, writeLog])
 
   const removeLoggedMeal = useCallback((logId) => {
-    setMealLog(prev => {
-      const next = prev.filter(m => m.id !== logId)
-      writeLog(user?.uid, next)
-      return next
-    })
-  }, [user])
+    const next = mealLog.filter(m => m.id !== logId)
+    setMealLog(next)
+    writeLog(user?.uid, next, logDate)
+  }, [mealLog, logDate, user, writeLog])
 
   const shuffleWeekPlan = useCallback(() => {
     const shuffled = [...recipes].sort(() => Math.random() - 0.5)
@@ -195,37 +245,33 @@ export function AppStoreProvider({ children }) {
     const plan = days.map((day, i) => ({ day, ids: [shuffled[i * 2]?.id ?? null, shuffled[i * 2 + 1]?.id ?? null] }))
     setWeekPlan(plan)
     writePlan(user?.uid, plan)
-  }, [user])
+  }, [user, writePlan])
 
   const toggleFavorite = useCallback((recipeId) => {
-    setFavorites(prev => {
-      const next = new Set(prev)
-      next.has(recipeId) ? next.delete(recipeId) : next.add(recipeId)
-      writeFavs(user?.uid, next)
-      return next
-    })
-  }, [user])
+    const next = new Set(favorites)
+    next.has(recipeId) ? next.delete(recipeId) : next.add(recipeId)
+    setFavorites(next)
+    writeFavs(user?.uid, next)
+  }, [favorites, user, writeFavs])
 
   const toggleGroceryItem = useCallback((itemId) => {
-    setGroceryChecks(prev => {
-      const next = new Set(prev)
-      next.has(itemId) ? next.delete(itemId) : next.add(itemId)
-      writeGroc(user?.uid, next)
-      return next
-    })
-  }, [user])
+    const next = new Set(groceryChecks)
+    next.has(itemId) ? next.delete(itemId) : next.add(itemId)
+    setGroceryChecks(next)
+    writeGroc(user?.uid, next)
+  }, [groceryChecks, user, writeGroc])
 
   const checkAllGrocery = useCallback((allItemIds) => {
     const next = new Set(allItemIds)
     setGroceryChecks(next)
     writeGroc(user?.uid, next)
-  }, [user])
+  }, [user, writeGroc])
 
   const clearGrocery = useCallback(() => {
     const next = new Set()
     setGroceryChecks(next)
     writeGroc(user?.uid, next)
-  }, [user])
+  }, [user, writeGroc])
 
   const signIn = useCallback((email, password) =>
     signInWithEmailAndPassword(auth, email, password), [])
@@ -250,8 +296,9 @@ export function AppStoreProvider({ children }) {
     weekPlan,
     favorites,
     groceryChecks,
-    syncError,
-    dismissSyncError,
+    syncErrors,
+    dismissSyncErrors,
+    logDate,
     updateGoals,
     logMeal,
     removeLoggedMeal,
