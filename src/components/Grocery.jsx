@@ -126,7 +126,11 @@ export default function Grocery() {
 
       {/* Desktop is the same component in two columns. Nothing that makes
           the phone work is reversed here; the grid simply widens. */}
-      <div style={{
+      {/* data-grocery-list marks the region the no-reflow test watches.
+          The property being defended is that THE LIST does not move under
+          a thumb; the 72px header is fixed-height and its counter is
+          meant to change. */}
+      <div data-grocery-list style={{
         padding: '12px 16px', maxWidth: '720px', margin: '0 auto',
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         gap: '0 28px', alignItems: 'start',
