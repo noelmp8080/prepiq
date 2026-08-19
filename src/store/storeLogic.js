@@ -81,3 +81,99 @@ export function saveLS(key, value) {
     return false
   }
 }
+
+/* ── The grocery list ──────────────────────────────────────────────────
+ *
+ * Moved out of Grocery.jsx because this is where a silent wrong answer
+ * lives. The old version listed RECIPES — it built one row per meal and
+ * called them groceries — so the screen showed twelve dish names and no
+ * food. Everything below derives the actual shopping list from the
+ * generated catalog.
+ *
+ * MERGING IS A VIEW, NEVER A LOSS. One row per thing you buy, merged
+ * across meals and across sub-recipe sections, but every contributing
+ * meal and raw quantity line stays attached to the row so the expanded
+ * chip can answer "why" and "how much".
+ */
+
+/** One shopping row per item across the week's meals.
+ *
+ *  @param weekPlan  [{day, ids:[recipeId|null]}]
+ *  @param catalog   src/data/groceryCatalog.json
+ *  @param excluded  Set of item ids the user cleared. Ids, never names —
+ *                   the normaliser has changed on nearly every pass of
+ *                   this work and a name key would break each time.
+ */
+export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set()) {
+  const byCard = catalog.byCard || {}
+  const meta = catalog.items || {}
+  const rows = new Map()
+  const seenCards = new Set()
+
+  for (const day of weekPlan) {
+    for (const rid of day?.ids || []) {
+      if (!rid || seenCards.has(rid)) continue      // a repeated meal is one shop
+      seenCards.add(rid)
+      for (const entry of byCard[String(rid)] || []) {
+        if (excluded.has(entry.id)) continue
+        const info = meta[String(entry.id)]
+        if (!info) continue                          // retired id, no longer stocked
+        let row = rows.get(entry.id)
+        if (!row) {
+          row = { id: entry.id, name: info.name, section: info.section, meals: [], qty: [] }
+          rows.set(entry.id, row)
+        }
+        row.meals.push(rid)
+        for (const q of entry.qty || []) row.qty.push(q)
+      }
+    }
+  }
+  return [...rows.values()]
+}
+
+/** Group rows into the shop's walk order.
+ *
+ *  Order comes from the catalog, not from a constant here, so making it
+ *  a user preference later is a write rather than a refactor. Empty
+ *  sections are dropped except Other, which is always shown: an item the
+ *  map could not place is still an item you are buying.
+ */
+export function groupBySection(rows = [], catalog = {}) {
+  const order = catalog.sectionOrder || []
+  const hideWhenEmpty = new Set(catalog.hideWhenEmpty || [])
+  const collapsed = new Set(catalog.collapsedByDefault || [])
+  const bucket = new Map(order.map(s => [s, []]))
+  for (const r of rows) {
+    if (!bucket.has(r.section)) bucket.set(r.section, [])
+    bucket.get(r.section).push(r)
+  }
+  const out = []
+  for (const name of order) {
+    const items = (bucket.get(name) || [])
+      .sort((a, b) => b.meals.length - a.meals.length || a.name.localeCompare(b.name))
+    if (!items.length && hideWhenEmpty.has(name)) continue
+    out.push({ name, items, collapsed: collapsed.has(name) })
+  }
+  return out
+}
+
+/* CHECKS RE-KEY FROM `recipe_${id}` TO ITEM IDS, AND RESET.
+ *
+ * A check meant "I have the ingredients for Spicy Chicken Wraps". It
+ * cannot be mapped onto that recipe's nineteen ingredients without
+ * inventing data, so the old keys are dropped rather than migrated.
+ *
+ * The version marks which key space a stored set belongs to. A rollback
+ * reads v2 keys, finds none it recognises, and shows an unchecked list —
+ * an empty list rather than garbage. Writes REPLACE so old keys cannot
+ * linger and quietly inflate the count. */
+export const CHECKS_VERSION = 2
+
+export function readChecks(doc) {
+  if (!doc || doc.version !== CHECKS_VERSION) return new Set()
+  return new Set((doc.ids || []).filter(n => Number.isInteger(n)))
+}
+
+export function writeChecks(ids) {
+  return { version: CHECKS_VERSION, ids: [...ids].filter(Number.isInteger).sort((a, b) => a - b) }
+}

@@ -3,7 +3,8 @@ import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndP
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
-import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS } from './storeLogic'
+import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
+         readChecks, writeChecks } from './storeLogic'
 
 const AppStoreContext = createContext(null)
 
@@ -31,6 +32,11 @@ export function AppStoreProvider({ children }) {
      days. Reading todayISO() at write time alone would have introduced
      exactly that. */
   const [logDate,       setLogDate]       = useState(todayISO)
+  /* CLEARED ITEMS. "Clear" removes what you already have from the list;
+     the week plan still generates them, so the removal has to persist as
+     an exclusion. Keyed on catalog ids — never on a name, because the
+     normaliser has changed on nearly every pass of this work. */
+  const [groceryExcluded, setGroceryExcluded] = useState(new Set())
 
   // Load from localStorage (offline/no-auth path)
   function loadFromLS(date) {
@@ -38,36 +44,41 @@ export function AppStoreProvider({ children }) {
     setMealLog(loadLS(`prepiq_log_${date}`, []))
     setWeekPlan(loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
     setFavorites(arrayToSet(loadLS('prepiq_favorites', [])))
-    setGroceryChecks(arrayToSet(loadLS('prepiq_grocery', [])))
+    setGroceryChecks(readChecks(loadLS('prepiq_grocery', null)))
+    setGroceryExcluded(readChecks(loadLS('prepiq_grocery_excluded', null)))
   }
 
   // Load from Firestore
   async function loadFromFirestore(uid, date) {
     try {
-      const [goalsSnap, logSnap, planSnap, favSnap, grocSnap] = await Promise.all([
+      const [goalsSnap, logSnap, planSnap, favSnap, grocSnap, exclSnap] = await Promise.all([
         getDoc(doc(db, 'users', uid, 'profile', 'goals')),
         getDoc(doc(db, 'users', uid, 'logs', date)),
         getDoc(doc(db, 'users', uid, 'weekPlan', 'current')),
         getDoc(doc(db, 'users', uid, 'profile', 'favorites')),
         getDoc(doc(db, 'users', uid, 'grocery', 'checks')),
+        getDoc(doc(db, 'users', uid, 'grocery', 'excluded')),
       ])
       const g = goalsSnap.exists() ? goalsSnap.data() : null
       const l = logSnap.exists()   ? logSnap.data().meals  : null
       const p = planSnap.exists()  ? planSnap.data().days  : null
       const f = favSnap.exists()   ? favSnap.data().ids    : null
-      const c = grocSnap.exists()  ? grocSnap.data().ids   : null
+      const c = grocSnap.exists()  ? grocSnap.data()       : null
+      const x = exclSnap.exists()  ? exclSnap.data()       : null
 
       const resolvedGoals = resolveField(g, () => loadLS('prepiq_goals', DEFAULT_GOALS))
       const resolvedLog   = resolveField(l, () => loadLS(`prepiq_log_${date}`, []))
       const resolvedPlan  = resolveField(p, () => loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
       const resolvedFavs  = resolveField(f, () => loadLS('prepiq_favorites', []))
-      const resolvedGroc  = resolveField(c, () => loadLS('prepiq_grocery', []))
+      const resolvedGroc  = resolveField(c, () => loadLS('prepiq_grocery', null))
+      const resolvedExcl  = resolveField(x, () => loadLS('prepiq_grocery_excluded', null))
 
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
       setWeekPlan(resolvedPlan)
       setFavorites(arrayToSet(resolvedFavs))
-      setGroceryChecks(arrayToSet(resolvedGroc))
+      setGroceryChecks(readChecks(resolvedGroc))
+      setGroceryExcluded(readChecks(resolvedExcl))
     } catch (e) {
       console.error('[loadFromFirestore]', e)
       loadFromLS(date)
@@ -193,9 +204,18 @@ export function AppStoreProvider({ children }) {
     cloudWrite(uid, ['profile', 'favorites'], { ids: setToArray(value) }, 'favourites')
   }, [cloudWrite])
 
+  /* The write REPLACES rather than merges, so v1's `recipe_${id}` keys
+     cannot linger and quietly inflate the count. */
   const writeGroc = useCallback((uid, value) => {
-    saveLS('prepiq_grocery', setToArray(value))
-    cloudWrite(uid, ['grocery', 'checks'], { ids: setToArray(value) }, 'grocery checks')
+    const doc_ = writeChecks(value)
+    saveLS('prepiq_grocery', doc_)
+    cloudWrite(uid, ['grocery', 'checks'], doc_, 'grocery checks')
+  }, [cloudWrite])
+
+  const writeExcluded = useCallback((uid, value) => {
+    const doc_ = writeChecks(value)
+    saveLS('prepiq_grocery_excluded', doc_)
+    cloudWrite(uid, ['grocery', 'excluded'], doc_, 'cleared items')
   }, [cloudWrite])
 
   const dismissSyncErrors = useCallback(() => setSyncErrors({}), [])
@@ -267,11 +287,36 @@ export function AppStoreProvider({ children }) {
     writeGroc(user?.uid, next)
   }, [user, writeGroc])
 
+  /* CLEAR MOVES CHECKED ITEMS OFF THE LIST, it does not merely untick
+     them. That was the original bug: the button said Clear, emptied the
+     checkmarks, and left every row in place. */
   const clearGrocery = useCallback(() => {
-    const next = new Set()
-    setGroceryChecks(next)
-    writeGroc(user?.uid, next)
-  }, [user, writeGroc])
+    const nextExcl = new Set([...groceryExcluded, ...groceryChecks])
+    setGroceryExcluded(nextExcl)
+    writeExcluded(user?.uid, nextExcl)
+    const empty = new Set()
+    setGroceryChecks(empty)
+    writeGroc(user?.uid, empty)
+    return groceryChecks                       // for the undo toast
+  }, [groceryChecks, groceryExcluded, user, writeGroc, writeExcluded])
+
+  const undoClear = useCallback((restored) => {
+    const nextExcl = new Set(groceryExcluded)
+    for (const id of restored) nextExcl.delete(id)
+    setGroceryExcluded(nextExcl)
+    writeExcluded(user?.uid, nextExcl)
+    setGroceryChecks(new Set(restored))
+    writeGroc(user?.uid, new Set(restored))
+  }, [groceryExcluded, user, writeGroc, writeExcluded])
+
+  /* START A NEW LIST. weekPlan carries no week identity — no date, no
+     number, no revision — so nothing can reset exclusions automatically.
+     This control is required by the model rather than optional. */
+  const startNewGroceryList = useCallback(() => {
+    const empty = new Set()
+    setGroceryExcluded(empty); writeExcluded(user?.uid, empty)
+    setGroceryChecks(empty);   writeGroc(user?.uid, empty)
+  }, [user, writeGroc, writeExcluded])
 
   const signIn = useCallback((email, password) =>
     signInWithEmailAndPassword(auth, email, password), [])
@@ -296,6 +341,9 @@ export function AppStoreProvider({ children }) {
     weekPlan,
     favorites,
     groceryChecks,
+    groceryExcluded,
+    undoClear,
+    startNewGroceryList,
     syncErrors,
     dismissSyncErrors,
     logDate,
