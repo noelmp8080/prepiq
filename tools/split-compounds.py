@@ -334,8 +334,47 @@ def split_line(text):
     return rule, [f'{head} {p}'.strip() for p in parts]
 
 
+def check_named_lines_still_apply(D):
+    """Every EXCLUDE and HAND_SPLIT entry must still match a real line.
+
+       These are keyed on a card id and the EXACT text of a line. That is
+       deliberate — a pattern for "looks like an instruction" would
+       eventually eat a real ingredient, and naming lines cannot. But it
+       is also brittle in a way nothing was checking: change one comma in
+       the source, re-extract, and the entry quietly stops matching. No
+       error anywhere; "blend till smooth" simply reappears as an item on
+       a shopping list six months later.
+
+       So the same assertion the typo map gets. A named line that names
+       nothing is a lie about the source, and it fails the run rather
+       than sitting there excluding nothing.
+    """
+    present = {(cid, i['text']) for cid, v in D.items() for i in v['ingredients']}
+    stale_ex = sorted(k for k in EXCLUDE if k not in present)
+    stale_hs = sorted(k for k in HAND_SPLIT if k not in present)
+    if not (stale_ex or stale_hs):
+        return len(EXCLUDE), len(HAND_SPLIT)
+
+    print('NAMED LINES NO LONGER MATCH THE SOURCE:', file=sys.stderr)
+    for cid, text in stale_ex:
+        print(f'  EXCLUDE    card {cid}: {text[:70]!r}', file=sys.stderr)
+    for cid, text in stale_hs:
+        print(f'  HAND_SPLIT card {cid}: {text[:70]!r}', file=sys.stderr)
+    # Nearest surviving line on the same card, so the fix is obvious
+    # rather than a hunt through the extraction.
+    for cid, text in stale_ex + stale_hs:
+        near = [t for c, t in present if c == cid and t[:12].lower() == text[:12].lower()]
+        if near:
+            print(f'  card {cid} now reads: {near[0][:70]!r}', file=sys.stderr)
+    raise SystemExit(
+        f'{len(stale_ex) + len(stale_hs)} named line(s) match nothing. Update or '
+        'remove them — an exclusion that excludes nothing puts the junk it '
+        'was written for back on the list, silently.')
+
+
 def main():
     D = json.load(io.open(SRC, encoding='utf-8'))
+    n_ex, n_hs = check_named_lines_still_apply(D)
     rules, flags, excluded = Counter(), Counter(), 0
     examples, flagged_lines = {}, []
     out = {}
