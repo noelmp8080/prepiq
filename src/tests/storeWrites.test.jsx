@@ -86,7 +86,7 @@ describe('every writer lands on its own document', () => {
     await act(async () => { box.store.updateGoals({ calories: 2000 }) })
     await act(async () => { box.store.shuffleWeekPlan() })
     await act(async () => { box.store.toggleFavorite(7) })
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
     await act(async () => { box.store.logMeal(1, 'lunch') })
 
     const paths = pathsWritten()
@@ -109,13 +109,19 @@ describe('every writer lands on its own document', () => {
     const { box, unmount } = mountStore()
     await signIn(box)
 
-    await act(async () => { box.store.checkAllGrocery(['recipe_1', 'recipe_2']) })
+    await act(async () => { box.store.checkAllGrocery([1, 2]) })
     await act(async () => { box.store.toggleFavorite(7) })
     await act(async () => { box.store.shuffleWeekPlan() })
 
     /* Sets are serialised as arrays — Firestore cannot store a Set, and
-       a Set would arrive as {} with no error. */
-    expect(payloadFor(`users/${UID}/grocery/checks`)).toEqual({ ids: ['recipe_1', 'recipe_2'] })
+       a Set would arrive as {} with no error.
+
+       CHECKS ARE VERSIONED AND ID-KEYED NOW. They used to be
+       `recipe_${id}` strings, which could not be mapped onto a recipe's
+       nineteen ingredients without inventing data, so v2 resets rather
+       than migrates and the version marks which key space a stored
+       document belongs to. */
+    expect(payloadFor(`users/${UID}/grocery/checks`)).toEqual({ version: 2, ids: [1, 2] })
     expect(payloadFor(`users/${UID}/profile/favorites`)).toEqual({ ids: [7] })
     expect(payloadFor(`users/${UID}/weekPlan/current`).days).toHaveLength(7)
 
@@ -127,10 +133,10 @@ describe('every writer lands on its own document', () => {
     await act(async () => { await authCallback(null) })
     setDocMock.mockClear()
 
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
 
     expect(setDocMock).not.toHaveBeenCalled()
-    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual(['recipe_1'])
+    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual({ version: 2, ids: [1] })
     unmount()
   })
 })
@@ -143,7 +149,7 @@ describe('a failed write is reported, not swallowed', () => {
     await signIn(box)
 
     setDocMock.mockRejectedValue(Object.assign(new Error('Missing permissions'), { code: 'permission-denied' }))
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
 
     expect(box.store.syncErrors['grocery checks']).toContain('permission-denied')
     unmount()
@@ -154,10 +160,10 @@ describe('a failed write is reported, not swallowed', () => {
     await signIn(box)
 
     setDocMock.mockRejectedValue(new Error('offline'))
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
 
-    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual(['recipe_1'])
-    expect(box.store.groceryChecks.has('recipe_1')).toBe(true)
+    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual({ version: 2, ids: [1] })
+    expect(box.store.groceryChecks.has(1)).toBe(true)
     unmount()
   })
 
@@ -172,7 +178,7 @@ describe('a failed write is reported, not swallowed', () => {
     expect(box.store.syncErrors['weekly plan']).toBeTruthy()
 
     setDocMock.mockResolvedValue(undefined)
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
 
     expect(box.store.syncErrors['weekly plan'], 'the plan failure was cleared by an unrelated success').toBeTruthy()
     expect(box.store.syncErrors['grocery checks']).toBeUndefined()
@@ -184,7 +190,7 @@ describe('a failed write is reported, not swallowed', () => {
     await signIn(box)
 
     setDocMock.mockRejectedValue(new Error('offline'))
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
     expect(box.store.syncErrors['grocery checks']).toBeTruthy()
 
     setDocMock.mockResolvedValue(undefined)
@@ -198,7 +204,7 @@ describe('a failed write is reported, not swallowed', () => {
     await signIn(box)
 
     setDocMock.mockRejectedValue(new Error('offline'))
-    await act(async () => { box.store.checkAllGrocery(['recipe_1']) })
+    await act(async () => { box.store.checkAllGrocery([1]) })
     expect(Object.keys(box.store.syncErrors)).toHaveLength(1)
 
     await act(async () => { box.store.dismissSyncErrors() })
