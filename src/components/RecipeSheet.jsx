@@ -222,7 +222,7 @@ export default function RecipeSheet({ recipe, onClose }) {
                       <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink2)' }}>{row.label}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: row.color, fontFamily: 'DM Mono, monospace' }}>{row.value}{row.unit}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: row.color, fontFamily: 'DM Mono, monospace' }}>{row.value}{row.unit}</span>
                       <span style={{ fontSize: '10px', color: 'var(--ink4)', fontWeight: 500 }}>/ {row.goal}{row.unit}</span>
                     </div>
                   </div>

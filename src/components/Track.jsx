@@ -250,7 +250,7 @@ export default function Track() {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
                     <span style={{ fontSize:'12px', fontWeight:600, color:'var(--ink2)' }}>{m.label}</span>
                     <div style={{ display:'flex', alignItems:'baseline', gap:'3px' }}>
-                      <span style={{ fontSize:'16px', fontWeight:800, color:m.color, fontFamily:'DM Mono, monospace' }}>{consumed[m.key]}</span>
+                      <span style={{ fontSize:'16px', fontWeight:500, color:m.color, fontFamily:'DM Mono, monospace' }}>{consumed[m.key]}</span>
                       <span style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500 }}>/ {goals[m.key]}{m.unit}</span>
                     </div>
                   </div>
@@ -283,7 +283,7 @@ export default function Track() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'2px' }}>
                         <p style={{ fontSize:'13px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.recipe.name}</p>
-                        <span style={{ fontSize:'14px', fontWeight:800, color:'#4F3FD4', fontFamily:'DM Mono, monospace', flexShrink:0, marginLeft:'8px' }}>{m.recipe.cal}</span>
+                        <span style={{ fontSize:'14px', fontWeight:500, color:'#4F3FD4', fontFamily:'DM Mono, monospace', flexShrink:0, marginLeft:'8px' }}>{m.recipe.cal}</span>
                       </div>
                       <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, margin:0 }}>{m.slot} · {m.time} · {m.recipe.protein}g P · {m.recipe.carbs}g C · {m.recipe.fat}g F</p>
                     </div>

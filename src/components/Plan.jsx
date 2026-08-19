@@ -94,7 +94,7 @@ export default function Plan() {
                     {today && <span style={{ marginLeft:'6px', fontSize:'9px', fontWeight:700, color:'#4F3FD4', background:'rgba(79,63,212,0.1)', padding:'2px 6px', borderRadius:'5px', letterSpacing:'.08em' }}>TODAY</span>}
                   </div>
                 </div>
-                <span style={{ fontSize:'12px', fontWeight:800, color: today ? '#4F3FD4' : 'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
+                <span style={{ fontSize:'12px', fontWeight:500, color: today ? '#4F3FD4' : 'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
               </div>
 
               <div style={{ padding:'10px 16px 12px', display:'flex', flexDirection:'column', gap:'8px' }}>
@@ -117,7 +117,7 @@ export default function Plan() {
                         <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', marginBottom:'2px' }}>{recipe.name}</p>
                         <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500 }}>{recipe.protein}g protein · {recipe.cal} cal</p>
                       </div>
-                      <span style={{ fontSize:'13px', fontWeight:800, color:'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{recipe.cal}</span>
+                      <span style={{ fontSize:'13px', fontWeight:500, color:'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{recipe.cal}</span>
                     </div>
                   )
                 })}
