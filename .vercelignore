@@ -1,0 +1,14 @@
+# Vercel uploads the working directory, and it is not reading .gitignore
+# on this project's deploy path: the two source cookbooks are 298MB and
+# 139MB, each over the 100MB per-file limit, and the deploy failed on
+# them. Nothing here is needed to build the app.
+
+# 437MB of cookbooks. Read only by the extraction step, never by the app
+# — nothing in src/, index.html or vercel.json references them.
+source-pdfs/
+
+# The catalog pipeline. Runs on a laptop, not on a build server; the
+# result it produces is committed at src/data/groceryCatalog.json.
+tools/
+
+node_modules/

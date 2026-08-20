@@ -32,7 +32,12 @@ dist-ssr
 source-pdfs/
 
 # Extraction scratch output (regenerable from PDFs)
-tools/extracted/
+# Intermediate pipeline data — regenerated from the source PDFs.
+# ingredients.json is the ONE exception: it is the output of the only
+# step that needs the 437MB of cookbooks, so committing it lets the four
+# downstream scripts run on any clone. Derived data, not the source.
+tools/extracted/*
+!tools/extracted/ingredients.json
 
 # Python bytecode from the catalog pipeline in tools/
 __pycache__/
