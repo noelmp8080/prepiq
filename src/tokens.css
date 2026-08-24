@@ -3,22 +3,14 @@
  * Pasted from the redesign handoff (design/tokens.css). Every value here
  * is authoritative; do not round, substitute, or re-derive.
  *
- * THE ACCENT RAMP IS HARDCODED, NOT DERIVED, and that is deliberate.
- * The handoff describes the stops as the base accent shaded "+22% white"
- * / "-26% black". Only ONE of the five reproduces under linear RGB
- * mixing - the bottom inset shade, at .42. The rest miss:
+ * THE ACCENT RAMP IS SEVEN LITERALS. Do not regenerate it, and do not
+ * reintroduce a shade() helper to do so.
  *
- *   lift   +22% white -> #DAF554   spec #DDF667   blue out by 19
- *   drop   -26% black -> #9AB31B   spec #99B31B   red out by 1
- *   edge   +72% white -> #F2FBC2   spec #F2FCBE   green and blue out
- *
- * And no single mix factor produces drop: the three channels want .264,
- * .260 and .250 separately. The percentages in the handoff are
- * descriptive, not the prototype's actual maths, so deriving the ramp
- * would ship a subtly wrong accent.
- *
- * useTheme.jsx keeps a shade() helper for a CUSTOM accent, where an
- * approximation is the only option and no authoritative value exists.
+ * The published method and the published values disagree. Rather than
+ * restate the arithmetic here - which is exactly what would tempt the
+ * next reader to "just derive it" - the full comparison lives in
+ * DEVIATIONS.md under "The accent ramp". Read that before touching
+ * these seven values.
  *
  * SELF-HOSTED TYPE. The handoff specifies a Google Fonts <link>. This
  * app removed exactly that dependency: the grocery list is used standing
@@ -56,8 +48,8 @@
 
   /* ── Accent ────────────────────────────────────────────── */
   --pq-accent:            #D0F224;
-  --pq-accent-lift:       #DDF667;   /* accent + 22% white */
-  --pq-accent-drop:       #99B31B;   /* accent - 26% black */
+  --pq-accent-lift:       #DDF667;   /* literal - see DEVIATIONS.md */
+  --pq-accent-drop:       #99B31B;   /* literal - see DEVIATIONS.md */
   --pq-accent-edge:       #F2FCBE;   /* top inset highlight */
   --pq-accent-shade:      #798C15;   /* bottom inset shade */
   --pq-on-accent:         #131719;   /* text on accent fills */

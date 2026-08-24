@@ -42,7 +42,7 @@ must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
 | Block | Contents | Status |
 | --- | --- | --- |
 | — | Phase 1 — tokens | **Done** — `504c3ea` |
-| A | Phase 2 — shell, nav, logo, primitives | **In flight** |
+| A | Phase 2 — shell, nav, logo, primitives | **Done** |
 | B | Phase 3 — connected model + migrations | Not started |
 | C | Sheets, then Today / Plan / Recipes / Track | Not started |
 | D | Grocery | Not started |
@@ -55,14 +55,21 @@ and returning. Block C builds the sheets first.
 
 ---
 
-## Block A — shell, nav, logo, primitives *(in flight)*
+## Block A — shell, nav, logo, primitives *(done)*
 
 **Files:** `App.jsx`, `BottomNav.jsx`, new `Card.jsx`, new `Logo.jsx`, new sheet
 primitive.
 
-- Shell gradient on the **scroll container**, full scroll height. Content at the
-  top sits on lighter graphite than content at the bottom — this is what makes
-  the UI read as dimensional without photography.
+- Shell gradient on a **fixed layer behind a transparent scroller** — an
+  explicit `position:absolute; inset:0` element, sized in `dvh`, page ground
+  `#08090A` so overscroll reveals the ramp's ground. NOT
+  `background-attachment: fixed` on body, which is unreliable in iOS Safari and
+  this app lives on iPhone.
+
+  An earlier line here said "scroll container, full scroll height", inherited
+  from the handoff prose without checking the markup. That was wrong — see
+  DEVIATIONS.md, "The shell ramp". Block E swaps one token
+  (`--pq-shell-wide`, 168deg); the mechanism is unchanged.
 - Scroll containers reserve `padding-bottom: 92px`.
 - Bottom nav: 64px, 20px Lucide-style stroked icons, 9px/600/.10em mono labels,
   4px gap, accent active state at stroke-width 2.4 vs 1.8 inactive (`#8A938F`).
@@ -81,25 +88,28 @@ primitive.
   `groceryDay`, neither of which exists until block B. Stub with
   `TODO(phase-3)`. Carried forward below.
 
-**Verify:** shell gradient on **Recipes** (~260 rows), not Today. Confirm it
-spans full scroll height without repeating per viewport. If it reads flat at
-that length, that is a question for the design, not a bug to paper over.
+**Verify: CLOSED, not carried.** Under a fixed ramp the full gradient renders
+on every screen at any list length, so the "does it read flat at 260 rows"
+question cannot arise — that failure was specific to a document-height ramp,
+which is what the check found and removed.
 
 ### Open item from block A — RESOLVED
 
 `shade()` is deleted. Reading the implementation in the prototypes rather than
 inferring from outputs answered both halves:
 
-- The helper is linear RGB, the same maths measured in phase 1 — so the phase-1
-  conclusion that "the ramp is not derivable" was **wrong about the cause**.
-- A custom accent is not a feature. No call site overrides the prototype
-  default, the handoff never mentions a picker, and Settings holds only macro
-  goals and preference toggles. The helper had no user, so it is gone.
+- The helper is plain sRGB interpolation, no gamma linearisation.
+- A custom accent is not a feature. The prototype exposes `accent` as an
+  **editor prop with four options** — a design-tool affordance for trying
+  alternatives on the canvas, not a product feature. The handoff describes no
+  picker and Settings holds only macro goals and preference toggles. That is
+  why a derivable ramp existed at all, and why the helper is now gone.
 
-It also surfaced a genuine conflict: the prototype's own `shade()` on its own
-accent does **not** produce the values the README and `tokens.css` publish, on
-three of four derived stops. The hardcoded ramp stands either way; **which
-seven literals it should contain is an open question** — see `DEVIATIONS.md`.
+**The ramp is decided: ship the published hex.** Only one stop was ever in real
+dispute — `lift`, where `#DDF667` implies k≈0.30 against the 0.22 that the
+prose *and* the prototype source both state, so the README contradicts its own
+method. `drop` and `edge` differ by ±1 (ceil/floor against round) and `shade`
+is identical. Do not re-derive this; the table is in `DEVIATIONS.md`.
 
 ---
 
@@ -212,6 +222,9 @@ identical before and after a check, and no row below may move.
 
 ## Block E — iPad + desktop *(last)*
 
+The shell mechanism carries over unchanged: same fixed layer, swapping
+`--pq-shell` for `--pq-shell-wide` (168deg). Nothing else about it changes.
+
 84px collapsed rail / 224px expanded, user-toggleable on **both** wide surfaces,
 so rail width is a user choice rather than a function of screen size. Two panes
 on iPad, three columns on desktop where the data supports it. Nothing about the
@@ -233,6 +246,7 @@ Before calling any block done:
   Nothing below 44px on a touch surface.
 - Walk the derived chain by hand: change a meal on Plan -> Today updates ->
   grocery updates -> Track's planned list updates. No manual sync anywhere.
+- Confirm the full ramp is visible on every screen at any scroll depth.
 - Missing-photo fallback tiles at 36 / 48 / 56px, radius 7 / 9 / 10px. A
   mostly-photoless list must read as a calm column.
 - Build clean, no console errors, **works offline with the network disabled**.

@@ -44,9 +44,10 @@ and Settings holds only macro goal fields and preference toggles. A helper
 kept for a feature nobody asked for is a helper that will eventually be used
 to approximate a value already known exactly.
 
-Second, and unresolved — see the open question below.
+Second: the published values and the published method disagree on one stop.
+See "The accent ramp" below — decided, and not to be re-derived.
 
-**Approved:** yes, hardcoded ramp. The *values* are an open question.
+**Approved:** yes.
 
 ---
 
@@ -90,37 +91,129 @@ exclusion means "I already have this, for this shop" — transient, not a record
 
 ---
 
-## Open question — which accent ramp is correct
+## The accent ramp — decided, do not re-derive
 
-**Not yet decided. The shipped values are the handoff's.**
+**Decision: ship the published hex.** `#D0F224` / `#DDF667` / `#99B31B` /
+`#F2FCBE` / `#798C15` / `#131719` / `#0E1012`, as literals in `src/tokens.css`.
 
-The handoff's README and its `tokens.css` both give the ramp as literals. The
-prototype computes it at runtime from `#D0F224` with a linear-RGB `shade()`.
-Running the prototype's own function on the prototype's own accent does not
-produce the documented values:
+### Why there was a question at all
 
+The prototype holds **no literal hex for the ramp**. It computes all three
+accent gradients at runtime from a single base:
+
+```js
+const shade = (hex, k) => { ...  k > 0 ? v + (255 - v) * k : v * (1 + k) ... }
+accentGrad  = linear-gradient(150deg, shade(accent, 0.22), accent, shade(accent, -0.26))
+accentBar   = linear-gradient(90deg,  shade(accent, -0.22), accent, shade(accent, 0.18))
+accentRaise = inset ... shade(accent, 0.7) ... shade(accent, -0.42) ...
 ```
-              prototype renders   README / tokens.css
-shade(+0.22)  #DAF554             #DDF667      blue out by 19
-shade(-0.26)  #9AB31B             #99B31B      red out by 1
-shade(+0.70)  #F1FBBD             #F2FCBE      green and blue out by 1
-shade(-0.42)  #798C15             #798C15      match
+
+Plain sRGB interpolation — no gamma linearisation. Running it on the
+prototype's own accent against the values the README and its `tokens.css`
+publish:
+
+| Stop | k | Prototype renders | Published | Delta |
+| --- | --- | --- | --- | --- |
+| lift | +0.22 | `#DAF554` | `#DDF667` | **R+3 G+1 B+19 — real** |
+| drop | -0.26 | `#9AB31B` | `#99B31B` | R-1 — rounding |
+| edge | +0.70 | `#F1FBBD` | `#F2FCBE` | +1 each — rounding |
+| shade | -0.42 | `#798C15` | `#798C15` | identical |
+
+Three of four are rounding artifacts (ceil/floor against round). **Only `lift`
+is a genuine disagreement**, and it is not a transcription slip: `#DDF667`
+corresponds to k of roughly 0.30, not the 0.22 that the README prose *and* the
+prototype source both state. **The README contradicts its own documented
+method.**
+
+### Why the published value wins
+
+It is the deliberate artifact. `tokens.css` shipped in the handoff as
+paste-ready, the protocol says every value in the handoff is authoritative, and
+the reversal is one line if that turns out wrong. A rendering that disagrees
+with the document it shipped beside is the weaker signal.
+
+### Why a derivable ramp existed in the first place
+
+The prototype exposes `accent` as an **editor prop with four options** —
+`this.props.accent ?? '#D0F224'`. That is a design-tool affordance for trying
+alternatives on the canvas, not a product feature. Nothing in the app was ever
+meant to pass a custom accent: the handoff describes no picker, and Settings
+holds only macro goal fields and preference toggles.
+
+So `shade()` is deleted. It existed to serve a canvas control that does not
+cross into the app.
+
+### Guard
+
+The `"+22% white"` / `"-26% black"` comments are **removed** from
+`src/tokens.css`. They are known false against the published values and are
+precisely what would lure the next reader into regenerating the ramp. The token
+lines point here instead.
+
+---
+
+## The shell ramp — fixed, not scroll-height
+
+**Handoff prose:** "The gradient runs the full height of the scroll container,
+so content at the top sits on a lighter graphite than content at the bottom."
+
+**Built:** the gradient is painted once on a fixed `position:absolute; inset:0`
+layer, with a transparent scroller over it.
+
+### The evidence
+
+The prototype's phone frame:
+
+```html
+<div style="width:390px;height:844px;
+            background:linear-gradient(176deg,#3D464C 0%,#313A40 24%,
+                                       #262D32 56%,#1D2327 100%);
+            overflow:hidden">
+  <div style="position:absolute;inset:0;overflow-y:auto">...</div>
+</div>
 ```
 
-So the two artifacts that claim to be "taken from the prototypes" disagree with
-the prototype's rendered output on three of four derived stops. The visible one
-is the lightest stop of the accent gradient — `#DAF554` is a flatter yellow,
-`#DDF667` a lighter lime.
+`176deg` appears **exactly once** in that file, on the fixed frame. The
+scroller inside carries **no background at all**. Content scrolls over a
+static ramp; the ramp does not stretch to document height.
 
-Two defensible readings:
+### Why the prose is wrong rather than just imprecise
 
-- **The documents win.** The handoff states its values are authoritative, and
-  two separate files agree with each other. This is what is shipped.
-- **The prototype wins.** The rendered pixels are what a designer looked at and
-  approved; the tables are a hand transcription that drifted.
+For content under one viewport the two are indistinguishable, which is why the
+sentence reads true on Today. At list length they diverge completely:
 
-This needs a human decision. It is a one-file change either way, since every
-consumer reads `var(--pq-accent-*)`.
+| | |
+| --- | --- |
+| 260 Recipes rows at ~64px | 16,640px of scroll |
+| viewport | 844px |
+| screens | 19.7 |
+| **ramp visible per screen** | **5.1%** |
+
+Stretched over the document, a four-stop ramp shows about a twentieth of itself
+per screen — flat, and the dimensional effect the handoff credits it with is
+gone. Fixed, every screen shows the whole ramp at any scroll depth.
+
+**The handoff corroborates this against itself.** Its card section says a card
+near the top of *a screen* is lighter than the same card near the bottom.
+Screen, not document. That only holds under a fixed ramp.
+
+### Accepted consequence
+
+A card changes lightness as it scrolls through the ramp. That is the
+prototype's behaviour and it is what the effect is made of. Not compensated
+for.
+
+### Implementation constraints
+
+- An explicit absolute layer, **not** `background-attachment: fixed` on body —
+  unreliable in iOS Safari, which is where this app lives.
+- Sized in `dvh`, not `vh`, so the ramp tracks the visual viewport as Safari's
+  toolbars collapse.
+- Page ground `#08090A`, so an overscroll bounce reveals the ramp's own ground.
+- Block E swaps `--pq-shell` for `--pq-shell-wide` (168deg). Same mechanism.
+
+This **closed** the block-A carry-forward rather than deferring it: under a
+fixed ramp the "does it read flat at 260 rows" question cannot arise.
 
 ---
 

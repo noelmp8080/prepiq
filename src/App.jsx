@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AppStoreProvider, useAppStore } from './store/useAppStore'
 import { ThemeProvider } from './store/useTheme'
 import BottomNav from './components/BottomNav'
+import Shell     from './components/Shell'
 import Today    from './components/Today'
 import Plan     from './components/Plan'
 import Recipes  from './components/Recipes'
@@ -17,8 +18,8 @@ function AppInner() {
 
   if (user === undefined) {
     return (
-      <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--bg2)', borderTopColor:'#4F3FD4', animation:'spin 0.7s linear infinite' }} />
+      <div style={{ minHeight:'100dvh', background:'var(--pq-page)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid rgba(255,255,255,0.14)', borderTopColor:'var(--pq-accent)', animation:'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     )
@@ -34,18 +35,20 @@ function AppInner() {
   }
 
   return (
-    <>
+    <Shell
+      nav={<BottomNav active={tab} onChange={setTab} />}
+      /* App-wide: a failed cloud write can happen on any screen, and the
+         writer that costs the most (the weekly plan) fails on Plan, not
+         here. Kept against the design, which has no error state because
+         it assumes no fetch - see DEVIATIONS.md. */
+      overlay={<SyncErrorBanner />}
+    >
       {tab === 'today'   && <Today   onChange={setTab} />}
       {tab === 'plan'    && <Plan />}
       {tab === 'recipes' && <Recipes />}
       {tab === 'grocery' && <Grocery />}
       {tab === 'track'   && <Track />}
-      {/* App-wide: a failed cloud write can happen on any screen, and
-          the writer that costs the most (the weekly plan) fails on
-          Plan, not here. */}
-      <SyncErrorBanner />
-      <BottomNav active={tab} onChange={setTab} />
-    </>
+    </Shell>
   )
 }
 
