@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { shade, accentRamp } from '../store/useTheme'
 
 /* THE HANDOFF SAYS EVERY VALUE IS AUTHORITATIVE. This asserts the ones a
    later edit is most likely to "round to something close" — the accent
@@ -23,27 +22,9 @@ describe('the accent ramp is the spec ramp, exactly', () => {
     expect(tok('pq-on-accent-ink')).toBe('#0E1012')
   })
 
-  /* Why the ramp is hardcoded rather than generated: two of the five
-     stops cannot be reproduced by the shading the handoff describes. */
-  it('is NOT derivable — deriving it would ship a wrong accent', () => {
-    expect(shade('#D0F224', -0.42)).toBe('#798C15')      // the one that does
-    expect(shade('#D0F224', -0.26)).not.toBe('#99B31B')  // red out by 1
-    expect(shade('#D0F224', 0.22)).not.toBe('#DDF667')   // blue out by 19
-    expect(shade('#D0F224', 0.72)).not.toBe('#F2FCBE')
-    /* and no single factor reproduces drop - the channels disagree */
-    for (const t of [0.25, 0.26, 0.264, 0.27]) {
-      expect(shade('#D0F224', -t)).not.toBe('#99B31B')
-    }
-  })
-
-  it('leaves the authoritative ramp alone for the default accent', () => {
-    expect(accentRamp('#D0F224')).toBeNull()
-    expect(accentRamp('#d0f224')).toBeNull()
-    /* and derives one only where no authoritative value exists */
-    const custom = accentRamp('#4F9BF2')
-    expect(custom['--pq-accent']).toBe('#4F9BF2')
-    expect(custom['--pq-accent-drop']).toBe(shade('#4F9BF2', -0.26))
-  })
+  /* The ramp is not generated, and shade() is gone — nothing in the
+     design ever passes a custom accent. The evidence for why the values
+     are literals lives in tokens.css; these assertions are the guard. */
 })
 
 describe('the values a later edit would most likely round', () => {

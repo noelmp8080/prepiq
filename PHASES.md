@@ -1,0 +1,270 @@
+# PrepIQ Redesign — Phase Plan
+
+Lives at repo root. Read this and `DEVIATIONS.md` at the start of every session,
+alongside the relevant section of the handoff README.
+
+**Handoff bundle:** `/d/remote-it-academy/design_handoff_prepiq_redesign/`
+(outside the repo, deliberately — it must not reach `git status` or the Vercel
+upload).
+
+**Branch:** `feat/redesign-tokens`
+
+---
+
+## Session protocol
+
+Every session:
+
+1. Read `PHASES.md` and `DEVIATIONS.md`.
+2. Read the handoff README section for the block in hand. **Every value in it is
+   authoritative** — no rounding, no nearby-token substitution.
+3. Report a change plan before editing.
+4. Commit per screen or per unit of work, never one commit per block.
+5. Update `PHASES.md` status and `DEVIATIONS.md` as part of the commit, not after.
+
+**Prototypes are reference only.** Never port `support.js`, `<x-dc>`, or `{{ }}`
+syntax. Read markup for structure and inline styles for exact values, then write
+ordinary JSX. Serve over HTTP to view: `npx serve .` in `design/`.
+
+**Never invent, paraphrase, or substitute recipe content.** Render what
+`recipe-details.json` holds.
+
+**No new dependencies without asking.**
+
+---
+
+## Blocks
+
+Nine phases collapsed into five blocks. Three boundaries are load-bearing and
+must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
+**E last** (needs every screen done).
+
+| Block | Contents | Status |
+| --- | --- | --- |
+| — | Phase 1 — tokens | **Done** — `504c3ea` |
+| A | Phase 2 — shell, nav, logo, primitives | **In flight** |
+| B | Phase 3 — connected model + migrations | Not started |
+| C | Sheets, then Today / Plan / Recipes / Track | Not started |
+| D | Grocery | Not started |
+| E | iPad + desktop | Not started |
+
+**Ordering note:** the original phase list built the four list screens before
+the recipe sheet. That is backwards — RecipeSheet is reached from Today, Plan,
+Recipes, and Track, so building screens first means stubbing four tap targets
+and returning. Block C builds the sheets first.
+
+---
+
+## Block A — shell, nav, logo, primitives *(in flight)*
+
+**Files:** `App.jsx`, `BottomNav.jsx`, new `Card.jsx`, new `Logo.jsx`, new sheet
+primitive.
+
+- Shell gradient on the **scroll container**, full scroll height. Content at the
+  top sits on lighter graphite than content at the bottom — this is what makes
+  the UI read as dimensional without photography.
+- Scroll containers reserve `padding-bottom: 92px`.
+- Bottom nav: 64px, 20px Lucide-style stroked icons, 9px/600/.10em mono labels,
+  4px gap, accent active state at stroke-width 2.4 vs 1.8 inactive (`#8A938F`).
+
+**Constraints:**
+
+- `Card.jsx` is translucent white over the shell, so its lightness is a function
+  of scroll position. It can never take an opaque fallback background and can
+  never nest inside anything opaque. Guard this with a test.
+- **Sheets get their own primitive, not a `Card` variant.** Settings and
+  RecipeSheet use an opaque gradient, a different shadow, and top-only 20px
+  radius. A `variant="sheet"` prop makes one component do two unrelated jobs.
+- `Logo.jsx` parameterized from the start — 30px phone / 34px sidebar, 8px / 9px
+  radius, 11px / 12px mono — so block E does not fork it.
+- **Do not wire the grocery nav dot.** It depends on per-day `checks` and
+  `groceryDay`, neither of which exists until block B. Stub with
+  `TODO(phase-3)`. Carried forward below.
+
+**Verify:** shell gradient on **Recipes** (~260 rows), not Today. Confirm it
+spans full scroll height without repeating per viewport. If it reads flat at
+that length, that is a question for the design, not a bug to paper over.
+
+### Open item from block A — RESOLVED
+
+`shade()` is deleted. Reading the implementation in the prototypes rather than
+inferring from outputs answered both halves:
+
+- The helper is linear RGB, the same maths measured in phase 1 — so the phase-1
+  conclusion that "the ramp is not derivable" was **wrong about the cause**.
+- A custom accent is not a feature. No call site overrides the prototype
+  default, the handoff never mentions a picker, and Settings holds only macro
+  goals and preference toggles. The helper had no user, so it is gone.
+
+It also surfaced a genuine conflict: the prototype's own `shade()` on its own
+accent does **not** produce the values the README and `tokens.css` publish, on
+three of four derived stops. The hardcoded ramp stands either way; **which
+seven literals it should contain is an open question** — see `DEVIATIONS.md`.
+
+---
+
+## Block B — connected model + migrations *(runs alone)*
+
+**Files:** `storeLogic.js`, `useAppStore.jsx`, `groceryList.test.js`,
+`groceryNoReflow.test.jsx`.
+
+`weekPlan` becomes the single source of truth. Today is a derived view. Grocery
+is derived, never stored — **there is no "add to list" affordance anywhere**.
+Track pre-fills from Today's plan. Changing a day's meal changes the grocery
+list on the next render.
+
+### Derivation change
+
+`buildGroceryItems(weekPlan, catalog, excluded, dayIndex)` — iterate one day
+only. **`dayIndex` is always a real integer.** Resolve `null -> todayIndex` at
+the call site in the store; keeping date resolution out of the pure function
+preserves testability and avoids the surface where the UTC date bug lived.
+Build the exclusion key string in the caller where possible.
+
+Keep the `seenCards` dedupe — a recipe twice in one day is one shop.
+
+### Test order — do not invert this
+
+**Write the day-scoped assertions from the README first, and let them fail.**
+Then change the implementation. Rewriting the ~8 week-wide tests after the fact
+means they encode whatever the new code happens to do rather than what the spec
+requires.
+
+Keep an explicit dedupe-within-a-day test. `groceryNoReflow.test.jsx` must
+become deterministic: fixed day, fixed recipe set, **exact** row count. It is
+the only automated protection for the paint-only row contract.
+
+### Migrations — both in one commit
+
+- `EXCLUDED_VERSION` -> 2, reset.
+- `CHECKS_VERSION` -> 3, reset. Per-day, keyed `dayIndex:itemId`.
+
+Reset rather than migrate: an exclusion means "I already have this, for this
+shop" — transient, not a record. Inventing a day index for a week-wide
+exclusion would be inventing data. Same pattern as the `recipe_${id}` re-key.
+
+### Persistence — local-first
+
+Hydrate from localStorage synchronously at store construction; let the Firestore
+read land later and reconcile. The `user === undefined` gate becomes auth-only.
+
+**Confirmed in phase 0: `saveLS` keys are NOT uid-namespaced.** Only the meal
+log interpolates anything, and that is a date. `prepiq_goals`,
+`prepiq_weekplan`, `prepiq_grocery`, `prepiq_grocery_excluded` and
+`prepiq_favorites` are global. Today that is masked because hydration waits for
+Firestore, which overwrites. Making hydration synchronous **exposes it**: user B
+sees user A's plan on a shared device until the cloud read lands. Namespace them
+in this same migration.
+
+### Carried forward into block B
+
+- [ ] Wire the grocery nav badge to per-day checks + `groceryDay`
+      (`TODO(phase-3)` stub from block A). A merged block is exactly where a
+      stub survives unnoticed — check this off explicitly.
+- [ ] Namespace `saveLS` keys by uid, alongside the two version resets.
+
+---
+
+## Block C — sheets, then read screens
+
+Commit per screen. Natural split point if it runs long: **after the sheets and
+Today**. The remaining three screens are the same shape repeated.
+
+- **C1 RecipeSheet** — the one detail surface, reached identically from Today,
+  Plan, Recipes and Track.
+- **C2 Settings** — bottom sheet, not a tab.
+- **C3 Today** — logo lockup, date eyebrow, macro card, meals card, `ALSO LOGGED`.
+- **C4 Plan** — week stat strip, seven flat `#141619` day cards.
+- **C5 Recipes** — search field, filter chips, result rows.
+- **C6 Track** — macro card, `PLANNED · ONE TAP TO LOG`, `LOGGED`.
+
+Exact values per screen: handoff README, "Screens".
+
+---
+
+## Block D — Grocery *(runs alone)*
+
+**These mechanics were deliberate in the current app and are unchanged by the
+redesign. If a simpler approach would collapse the two buttons into one, animate
+the row, or sort checked items to the bottom — stop and ask.**
+
+Full invariant list: handoff README, "Grocery — the interaction model to
+preserve". The load-bearing ones:
+
+- Row is **two buttons side by side**. Left `flex: 1`, 56px, holds checkbox +
+  name + quantity. Right fixed 44 x 56px expander.
+- **Feedback is paint-only.** Checkbox fills with the accent gradient and shows
+  a 14px check stroked `#0E1012` at width 3; name gets `line-through`; row
+  opacity -> `0.45` over `.15s`. **Nothing below the tapped row may shift.**
+- Name **18px minimum**, weight 500, `#F2F5EE`, single line ellipsis. Do not
+  reduce.
+- Quantities mono, right-aligned. Multiple quantities listed, never
+  force-converted.
+- Collapse state persists across day changes. `Spices & seasoning` collapsed by
+  default, catalog-driven.
+- `Clear` acts only on checked rows -> day-keyed exclusion set -> Undo 3500ms.
+- Empty day shows the dashed block, not a header with empty sections.
+
+**Verify:** run the deterministic reflow harness. A row's `top` must be
+identical before and after a check, and no row below may move.
+
+---
+
+## Block E — iPad + desktop *(last)*
+
+84px collapsed rail / 224px expanded, user-toggleable on **both** wide surfaces,
+so rail width is a user choice rather than a function of screen size. Two panes
+on iPad, three columns on desktop where the data supports it. Nothing about the
+visual language changes between surfaces — only layout and affordance sizes.
+
+**Also in block E:** remove Plus Jakarta once the last component migrates. Check
+the font payload against the baseline in `DEVIATIONS.md`.
+
+---
+
+## Standing verification
+
+Before calling any block done:
+
+- Re-read the relevant README section line by line and diff against what was
+  built. Report any deviated value and why.
+- Run the reflow harness.
+- Touch targets: grocery rows 56px, buttons 44px minimum, nav items 64px.
+  Nothing below 44px on a touch surface.
+- Walk the derived chain by hand: change a meal on Plan -> Today updates ->
+  grocery updates -> Track's planned list updates. No manual sync anywhere.
+- Missing-photo fallback tiles at 36 / 48 / 56px, radius 7 / 9 / 10px. A
+  mostly-photoless list must read as a calm column.
+- Build clean, no console errors, **works offline with the network disabled**.
+
+---
+
+## Motion
+
+Deliberately minimal — this is an instrument, not a showcase.
+
+| Interaction | Behavior |
+| --- | --- |
+| Grocery row tap | opacity `.15s`, no layout change |
+| Chevron rotate | `transform .15s` |
+| Section collapse | immediate, no height animation |
+| Sheet open | slide up from bottom, backdrop tap closes |
+| Nav tab change | immediate |
+| Undo | visible 3500ms, self-clears |
+| Hover (desktop only) | bg to `rgba(0,0,0,0.3)`, border to `rgba(255,255,255,0.16)` |
+
+---
+
+## Decisions log
+
+- **A — grocery scope:** day-scoped derivation, exclusions re-keyed
+  `dayIndex:itemId`, reset rather than migrate. Signature takes a real integer.
+- **B — checks:** per-day, keyed like `excluded`. Quantities differ per day, so
+  a global check claims "bought" against a row that still needs a different
+  amount.
+- **C — persistence:** local-first hydration. `SyncErrorBanner` kept against the
+  design, own slot.
+- **Fonts:** self-hosted `@fontsource`, specific weights only (sans
+  400/500/600/700, mono 400/500/600), not package root.
+- **Accent ramp:** hardcoded, `shade()` deleted — no call site ever passed a
+  custom accent. **Which seven literals — open, see `DEVIATIONS.md`.**
