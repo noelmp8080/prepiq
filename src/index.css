@@ -1,3 +1,5 @@
+@import './tokens.css';
+
 /* SELF-HOSTED TYPE — no network dependency for the typeface.
  *
  * These loaded from the Google Fonts CDN. The grocery list is used

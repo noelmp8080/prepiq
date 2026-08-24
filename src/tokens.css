@@ -1,0 +1,195 @@
+/* PrepIQ design tokens - graphite & chartreuse
+ *
+ * Pasted from the redesign handoff (design/tokens.css). Every value here
+ * is authoritative; do not round, substitute, or re-derive.
+ *
+ * THE ACCENT RAMP IS HARDCODED, NOT DERIVED, and that is deliberate.
+ * The handoff describes the stops as the base accent shaded "+22% white"
+ * / "-26% black". Only ONE of the five reproduces under linear RGB
+ * mixing - the bottom inset shade, at .42. The rest miss:
+ *
+ *   lift   +22% white -> #DAF554   spec #DDF667   blue out by 19
+ *   drop   -26% black -> #9AB31B   spec #99B31B   red out by 1
+ *   edge   +72% white -> #F2FBC2   spec #F2FCBE   green and blue out
+ *
+ * And no single mix factor produces drop: the three channels want .264,
+ * .260 and .250 separately. The percentages in the handoff are
+ * descriptive, not the prototype's actual maths, so deriving the ramp
+ * would ship a subtly wrong accent.
+ *
+ * useTheme.jsx keeps a shade() helper for a CUSTOM accent, where an
+ * approximation is the only option and no authoritative value exists.
+ *
+ * SELF-HOSTED TYPE. The handoff specifies a Google Fonts <link>. This
+ * app removed exactly that dependency: the grocery list is used standing
+ * in a shop, and a supermarket is where the request fails - the app
+ * would fall back to a generic sans after every row width had been
+ * measured against Plex. Same outcome, no network. Latin subset, only
+ * the weights the handoff names: Sans 400/500/600/700, Mono 400/500/600.
+ */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+:root {
+  /* ── Shell ─────────────────────────────────────────────── */
+  --pq-page:              #08090A;   /* page behind the app */
+  --pq-page-wide:         #0B0D0E;
+  --pq-shell-1:           #3D464C;   /* gradient stops, light → dark */
+  --pq-shell-2:           #313A40;
+  --pq-shell-3:           #262D32;
+  --pq-shell-4:           #1D2327;
+  --pq-panel:             #141619;   /* flat panels: Plan day cards, inputs */
+
+  /* The shell runs the full height of the scroll container, so content
+     at the top sits on lighter graphite than content at the bottom. */
+  --pq-shell: linear-gradient(176deg,
+    var(--pq-shell-1) 0%, var(--pq-shell-2) 24%,
+    var(--pq-shell-3) 56%, var(--pq-shell-4) 100%);
+  --pq-shell-wide: linear-gradient(168deg,
+    var(--pq-shell-1) 0%, var(--pq-shell-2) 22%,
+    var(--pq-shell-3) 54%, var(--pq-shell-4) 100%);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --pq-accent:            #D0F224;
+  --pq-accent-lift:       #DDF667;   /* accent + 22% white */
+  --pq-accent-drop:       #99B31B;   /* accent - 26% black */
+  --pq-accent-edge:       #F2FCBE;   /* top inset highlight */
+  --pq-accent-shade:      #798C15;   /* bottom inset shade */
+  --pq-on-accent:         #131719;   /* text on accent fills */
+  --pq-on-accent-ink:     #0E1012;   /* checkmark stroke */
+
+  --pq-accent-grad: linear-gradient(150deg,
+    var(--pq-accent-lift) 0%, var(--pq-accent) 46%, var(--pq-accent-drop) 100%);
+  --pq-accent-bar: linear-gradient(90deg,
+    #A2BD1C 0%, var(--pq-accent) 72%, #D7F44F 100%);
+
+  /* every accent-filled control */
+  --pq-accent-raise:
+    inset 0 1.5px 0 var(--pq-accent-edge),
+    inset 0 -3px 0 var(--pq-accent-shade),
+    0 5px 12px rgba(0,0,0,0.45),
+    0 1px 2px rgba(0,0,0,0.3);
+
+  /* ── Text ──────────────────────────────────────────────── */
+  --pq-text:              #F2F5EE;
+  --pq-text-2:            #C7CDC1;
+  --pq-text-3:            #AAB1A6;   /* mono labels */
+  --pq-text-muted:        #9BA398;
+  --pq-text-faint:        #8A938F;   /* logo brackets, inactive nav */
+  --pq-text-faintest:     #6F7873;   /* eyebrows */
+
+  /* ── Card surface ──────────────────────────────────────── */
+  /* Translucent white over the shell, so position affects lightness.
+     The two inset lines are what make it read as raised. */
+  --pq-card-bg: linear-gradient(168deg,
+    rgba(255,255,255,0.16) 0%,
+    rgba(255,255,255,0.085) 48%,
+    rgba(255,255,255,0.04) 100%);
+  --pq-card-border:       1px solid rgba(255,255,255,0.14);
+  --pq-card-shadow:
+    0 8px 20px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(0,0,0,0.22);
+
+  /* photo fallback tile — most recipes have no photo */
+  --pq-thumb-fallback:    linear-gradient(158deg,#59636A,#333C42);
+  --pq-thumb-fallback-lip: inset 0 1px 0 rgba(255,255,255,0.12);
+
+  /* ── Lines ─────────────────────────────────────────────── */
+  --pq-rule-row:          rgba(255,255,255,0.06);  /* rows in a card */
+  --pq-rule-cell:         rgba(255,255,255,0.07);  /* stat grid cells */
+  --pq-rule-meal:         rgba(255,255,255,0.05);  /* Plan meal rows */
+  --pq-rule-strong:       rgba(255,255,255,0.14);  /* card border */
+  --pq-rule-soft:         rgba(255,255,255,0.08);  /* panel border */
+  --pq-rule-dashed:       1px dashed rgba(255,255,255,0.14);
+
+  /* ── Wells and insets ──────────────────────────────────── */
+  --pq-well-bg:           rgba(0,0,0,0.28);
+  --pq-well-shadow:       inset 0 2px 4px rgba(0,0,0,0.45);
+  --pq-track-bg:          rgba(0,0,0,0.3);
+  --pq-track-shadow:      inset 0 1px 2px rgba(0,0,0,0.4);
+
+  /* ── Chrome ────────────────────────────────────────────── */
+  --pq-nav-bg: linear-gradient(180deg, rgba(62,71,78,0.94), rgba(40,47,52,0.96));
+  --pq-nav-shadow:
+    0 -8px 22px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.14);
+  --pq-nav-h:             64px;
+  --pq-nav-clearance:     92px;      /* scroll container padding-bottom */
+
+  --pq-sheet-bg: linear-gradient(180deg,#4A545B 0%,#333C42 42%,#282F34 100%);
+  --pq-sheet-shadow:      0 -12px 40px rgba(0,0,0,0.55);
+  --pq-scrim:             rgba(0,0,0,0.6);
+
+  --pq-rail-bg: linear-gradient(180deg,
+    rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%);
+  --pq-rail-edge:         inset -1px 0 0 rgba(0,0,0,0.25);
+  --pq-rail-w-collapsed:  84px;
+  --pq-rail-w-expanded:   224px;
+
+  --pq-logo-tile: linear-gradient(160deg,#3F484F,#1E2427);
+  --pq-logo-tile-shadow:
+    0 2px 6px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.16);
+
+  /* ── Type ──────────────────────────────────────────────── */
+  --pq-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --pq-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --pq-size-title:        28px;  /* screen title, 700, -.02em */
+  --pq-size-sheet:        17px;  /* sheet title, 700, -.01em */
+  --pq-size-headline:     19px;  /* card headline, 700, -.01em */
+  --pq-size-grocery:      18px;  /* GROCERY ITEM NAME — do not reduce */
+  --pq-size-logo:         16px;
+  --pq-size-meal:         15px;
+  --pq-size-row:          14px;
+  --pq-size-body:         13px;
+  --pq-size-stat-lg:      26px;  /* mono, 600 */
+  --pq-size-stat:         18px;  /* mono, 600 */
+  --pq-size-eyebrow:      11px;  /* mono, 500 */
+  --pq-size-label:        10px;  /* mono, 500 */
+  --pq-size-nav:          9px;   /* mono, 600 */
+
+  --pq-track-eyebrow:     .12em;
+  --pq-track-section:     .14em;
+  --pq-track-label:       .10em;
+  --pq-track-caption:     .08em;
+  --pq-track-chip:        .06em;
+  --pq-tight-title:       -.02em;
+  --pq-tight-row:         -.01em;
+  --pq-tight-logo:        -.03em;
+
+  /* ── Space ─────────────────────────────────────────────── */
+  --pq-gutter:            16px;  /* phone screen gutter */
+  --pq-gap-card:          20px;  /* card to card */
+  --pq-gap-section:       24px;  /* section with an eyebrow */
+  --pq-pad-card:          16px;
+  --pq-pad-row:           12px;
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --pq-r-device:          28px;
+  --pq-r-card:            14px;
+  --pq-r-button:          10px;
+  --pq-r-thumb:           9px;   /* 7px at 36px, 10px at 56px */
+  --pq-r-chip:            8px;
+  --pq-r-check:           6px;
+
+  /* ── Targets ───────────────────────────────────────────── */
+  --pq-row-grocery:       56px;  /* whole-row tap target */
+  --pq-tap-min:           44px;  /* every button */
+  --pq-check:             22px;
+  --pq-expander-w:        44px;
+  --pq-thumb-lg:          48px;  /* Today, Recipes */
+  --pq-thumb-sm:          36px;  /* Plan */
+  --pq-thumb-sheet:       56px;
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --pq-t-paint:           .15s;  /* opacity, transform — the only motion */
+  --pq-undo-ms:           3500;  /* ms the Undo affordance persists */
+}
