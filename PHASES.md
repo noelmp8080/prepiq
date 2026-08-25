@@ -164,6 +164,13 @@ exclusion would be inventing data. Same pattern as the `recipe_${id}` re-key.
 Hydrate from localStorage synchronously at store construction; let the Firestore
 read land later and reconcile. The `user === undefined` gate becomes auth-only.
 
+**Whose scope, before auth resolves?** The last signed-in uid is remembered
+unscoped (`prepiq_last_uid`) and the boot reads that scope. Reading `anon` for a
+signed-in user would be the shared-device bleed this same migration fixes,
+arriving from the other end. Auth then confirms or contradicts it; contradiction
+costs one re-read. `bootScope` is exposed so the app renders instead of spinning
+when the device already knows whose data it holds.
+
 **Confirmed in phase 0: `saveLS` keys are NOT uid-namespaced.** Only the meal
 log interpolates anything, and that is a date. `prepiq_goals`,
 `prepiq_weekplan`, `prepiq_grocery`, `prepiq_grocery_excluded` and

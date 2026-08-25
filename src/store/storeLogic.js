@@ -73,6 +73,10 @@ export function loadLS(key, fallback) {
   }
 }
 
+export function removeLS(key) {
+  try { localStorage.removeItem(key); return true } catch { return false }
+}
+
 export function saveLS(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
@@ -331,4 +335,38 @@ export function adoptAnonKeys(uid, names = ADOPTABLE) {
   }
   saveLS(adoptedMarker(uid), true)
   return { adopted, skipped, alreadyRun: false }
+}
+
+/* ── BOOTING WITHOUT THE NETWORK ──────────────────────────────────────
+ *
+ * Hydration used to wait for `onAuthStateChanged`, which waits for
+ * Firebase, which on a cold start in a shop with one bar is the
+ * difference between a list and a spinner. The data was already on the
+ * device the whole time.
+ *
+ * The catch is that at construction nobody knows WHOSE data to read —
+ * auth has not resolved. Reading the anon scope would show a signed-in
+ * user a stranger's app for a beat, which is the shared-device bug this
+ * migration just fixed, reintroduced from the other end. So the last
+ * signed-in uid is remembered, unscoped, and the boot reads that scope.
+ *
+ * If auth then resolves to somebody else — or to nobody — the store
+ * reloads from the right scope and the optimism costs one render. It is
+ * an optimistic read of a value Firebase itself persists locally, so it
+ * is right on every launch except the one after a sign-out elsewhere. */
+export const LAST_UID = 'prepiq_last_uid'
+export const lastScope = () => loadLS(LAST_UID, null)
+export const rememberScope = uid =>
+  uid ? saveLS(LAST_UID, uid) : removeLS(LAST_UID)
+
+/** Everything this app keeps, read out of one scope in one go. */
+export function hydrateLocal(uid, date, defaults = {}) {
+  return {
+    goals:           loadLS(lsKey(uid, 'goals'), defaults.goals),
+    mealLog:         loadLS(lsKey(uid, `log_${date}`), []),
+    weekPlan:        loadLS(lsKey(uid, 'weekplan'), defaults.weekPlan),
+    favorites:       arrayToSet(loadLS(lsKey(uid, 'favorites'), [])),
+    groceryChecks:   readChecks(loadLS(lsKey(uid, 'grocery'), null), CHECKS_VERSION),
+    groceryExcluded: readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION),
+  }
 }

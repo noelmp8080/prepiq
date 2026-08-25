@@ -39,7 +39,7 @@ vi.mock('firebase/auth', () => ({
 
 const { AppStoreProvider, useAppStore } = await import('../store/useAppStore')
 const { lsKey, CHECKS_VERSION, EXCLUDED_VERSION, dayKey, adoptedMarker,
-        buildGroceryItems } = await import('../store/storeLogic')
+        buildGroceryItems, LAST_UID, lastScope } = await import('../store/storeLogic')
 const { default: catalog } = await import('../data/groceryCatalog.json')
 
 /* Grocery keys carry the day, and the day defaults to today — so every
@@ -402,6 +402,94 @@ describe('Clear removes items, and they stay removed', () => {
     expect(derive(box.store.groceryExcluded).length).toBe(25)
     expect(JSON.parse(localStorage.getItem(lsKey(null, 'grocery_excluded'))).keys).toEqual([])
     expect(JSON.parse(localStorage.getItem(lsKey(null, 'grocery'))).keys).toEqual([])
+    unmount()
+  })
+})
+
+/* ── LOCAL FIRST ──────────────────────────────────────────────────────
+ *
+ * The property: the store holds real data BEFORE onAuthStateChanged has
+ * fired, and before any getDoc resolves. Asserted by never calling the
+ * auth callback in the first case — if hydration still waited on auth,
+ * the store would be sitting on defaults.
+ */
+describe('the store boots from the device, not from the network', () => {
+  const UID = 'returning-user'
+  const PLAN = [{ day: 'Mon', ids: [9, 9] }, { day: 'Tue', ids: [1, null] },
+                { day: 'Wed', ids: [2, null] }, { day: 'Thu', ids: [3, null] },
+                { day: 'Fri', ids: [4, null] }, { day: 'Sat', ids: [5, null] },
+                { day: 'Sun', ids: [6, null] }]
+
+  beforeEach(() => localStorage.clear())
+
+  it('has the previous signed-in scope ready before auth resolves', () => {
+    saveLSRaw(LAST_UID, UID)
+    saveLSRaw(lsKey(UID, 'weekplan'), PLAN)
+    saveLSRaw(lsKey(UID, 'goals'), { calories: 2400, protein: 200, carbs: 150, fat: 55 })
+    saveLSRaw(lsKey(UID, 'favorites'), [11, 12])
+    saveLSRaw(lsKey(UID, 'grocery_excluded'), { version: EXCLUDED_VERSION, keys: ['1:1'] })
+
+    const { box, unmount } = mountStore()            // NOTE: no authCallback, no getDoc
+
+    expect(box.store.user).toBeUndefined()           // auth genuinely has not resolved
+    expect(getDocMock).not.toHaveBeenCalled()
+    expect(box.store.weekPlan).toEqual(PLAN)
+    expect(box.store.goals.calories).toBe(2400)
+    expect(box.store.favorites).toEqual(new Set([11, 12]))
+    expect(box.store.groceryExcluded).toEqual(new Set(['1:1']))
+    /* and the app is told it may render rather than spin */
+    expect(box.store.bootScope).toBe(UID)
+    unmount()
+  })
+
+  it('boots into the anon scope when nobody was signed in', () => {
+    saveLSRaw(lsKey(null, 'weekplan'), PLAN)
+    const { box, unmount } = mountStore()
+    expect(box.store.bootScope).toBe(null)
+    expect(box.store.weekPlan).toEqual(PLAN)
+    unmount()
+  })
+
+  /* THE SHARED-DEVICE CASE, FROM THE OTHER END. Booting the anon scope
+     for a signed-in user would have been the same bleed the namespacing
+     just fixed, so the boot follows the remembered uid — and one user's
+     data must never appear in the other's boot. */
+  it('never boots one account into the other account data', () => {
+    saveLSRaw(LAST_UID, 'userA')
+    saveLSRaw(lsKey('userA', 'weekplan'), PLAN)
+    saveLSRaw(lsKey('userB', 'weekplan'), [{ day: 'Mon', ids: [99, null] }])
+
+    const { box, unmount } = mountStore()
+    expect(box.store.weekPlan).toEqual(PLAN)
+    expect(box.store.weekPlan).not.toContainEqual({ day: 'Mon', ids: [99, null] })
+    unmount()
+  })
+
+  it('remembers the scope on sign-in and forgets it on sign-out', async () => {
+    getDocMock.mockResolvedValue(snap(undefined))
+    const { box, unmount } = mountStore()
+
+    await act(async () => { await authCallback({ uid: UID }) })
+    expect(lastScope()).toBe(UID)
+
+    await act(async () => { await authCallback(null) })
+    expect(lastScope()).toBe(null)
+    unmount()
+  })
+
+  /* Booted optimistically into a scope, then auth says nobody — the
+     store must re-read rather than keep showing the signed-out user
+     somebody else's plan. */
+  it('re-reads when auth contradicts the boot', async () => {
+    saveLSRaw(LAST_UID, UID)
+    saveLSRaw(lsKey(UID, 'weekplan'), PLAN)
+    saveLSRaw(lsKey(null, 'weekplan'), [{ day: 'Mon', ids: [99, null] }])
+
+    const { box, unmount } = mountStore()
+    expect(box.store.weekPlan).toEqual(PLAN)
+
+    await act(async () => { await authCallback(null) })
+    expect(box.store.weekPlan).toEqual([{ day: 'Mon', ids: [99, null] }])
     unmount()
   })
 })

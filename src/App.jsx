@@ -12,11 +12,17 @@ import Auth     from './components/Auth'
 import SyncErrorBanner from './components/SyncErrorBanner'
 
 function AppInner() {
-  const { user } = useAppStore()
+  const { user, bootScope } = useAppStore()
   const [tab,      setTab]      = useState('today')
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
 
-  if (user === undefined) {
+  /* THE GATE IS AUTH-ONLY NOW.
+     Data is read off the device at construction, so nothing here is
+     waiting for a fetch — the only open question is whether to show the
+     app or the Auth screen. And when the device already knows whose
+     scope it booted into, that answer is known too: render, and let auth
+     confirm it. A returning user gets their list with the radio off. */
+  if (user === undefined && !bootScope) {
     return (
       <div style={{ minHeight:'100dvh', background:'var(--pq-page)', display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid rgba(255,255,255,0.14)', borderTopColor:'var(--pq-accent)', animation:'spin 0.7s linear infinite' }} />

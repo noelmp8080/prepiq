@@ -5,7 +5,8 @@ import { auth, db } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
-         CHECKS_VERSION, EXCLUDED_VERSION } from './storeLogic'
+         CHECKS_VERSION, EXCLUDED_VERSION, hydrateLocal, lastScope,
+         rememberScope } from './storeLogic'
 
 const AppStoreContext = createContext(null)
 
@@ -18,12 +19,22 @@ const DEFAULT_WEEK_PLAN = (() => {
 })()
 
 export function AppStoreProvider({ children }) {
-  const [user,          setUser]          = useState(undefined)   // undefined = loading
-  const [goals,         setGoalsState]    = useState(DEFAULT_GOALS)
-  const [mealLog,       setMealLog]       = useState([])
-  const [weekPlan,      setWeekPlan]      = useState(DEFAULT_WEEK_PLAN)
-  const [favorites,     setFavorites]     = useState(new Set())
-  const [groceryChecks, setGroceryChecks] = useState(new Set())
+  /* LOCAL FIRST. Read the device before the network, at construction,
+     from the scope of whoever was signed in last — see hydrateLocal. A
+     cold start in a shop with one bar showed a spinner while the list
+     sat on disk the whole time. */
+  const [boot] = useState(() => ({
+    scope: lastScope(),
+    ...hydrateLocal(lastScope(), todayISO(),
+                    { goals: DEFAULT_GOALS, weekPlan: DEFAULT_WEEK_PLAN }),
+  }))
+
+  const [user,          setUser]          = useState(undefined)   // undefined = auth not resolved
+  const [goals,         setGoalsState]    = useState(boot.goals)
+  const [mealLog,       setMealLog]       = useState(boot.mealLog)
+  const [weekPlan,      setWeekPlan]      = useState(boot.weekPlan)
+  const [favorites,     setFavorites]     = useState(boot.favorites)
+  const [groceryChecks, setGroceryChecks] = useState(boot.groceryChecks)
   /* { [what]: detail } — one slot per writer, so a successful write
      never clears another writer's failure. */
   const [syncErrors,    setSyncErrors]    = useState({})
@@ -37,7 +48,7 @@ export function AppStoreProvider({ children }) {
      the week plan still generates them, so the removal has to persist as
      an exclusion. Keyed on catalog ids — never on a name, because the
      normaliser has changed on nearly every pass of this work. */
-  const [groceryExcluded, setGroceryExcluded] = useState(new Set())
+  const [groceryExcluded, setGroceryExcluded] = useState(boot.groceryExcluded)
   /* WHICH DAY THE GROCERY LIST IS SHOWING. null means "today", and this
      is the ONLY place that means resolves to an index — buildGroceryItems
      takes a real integer so date handling stays out of the derivation. */
@@ -48,13 +59,18 @@ export function AppStoreProvider({ children }) {
   const groceryDay = groceryDayRaw ?? todayIndex(weekPlan)
 
   // Load from localStorage (offline/no-auth path)
+  /* ONE READER, used at construction and again whenever the scope
+     changes. Two copies of this list is how a field ends up hydrated on
+     one path and not the other. */
   function loadFromLS(uid, date) {
-    setGoalsState(loadLS(lsKey(uid, 'goals'), DEFAULT_GOALS))
-    setMealLog(loadLS(lsKey(uid, `log_${date}`), []))
-    setWeekPlan(loadLS(lsKey(uid, 'weekplan'), DEFAULT_WEEK_PLAN))
-    setFavorites(arrayToSet(loadLS(lsKey(uid, 'favorites'), [])))
-    setGroceryChecks(readChecks(loadLS(lsKey(uid, 'grocery'), null), CHECKS_VERSION))
-    setGroceryExcluded(readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION))
+    const local = hydrateLocal(uid, date,
+                               { goals: DEFAULT_GOALS, weekPlan: DEFAULT_WEEK_PLAN })
+    setGoalsState(local.goals)
+    setMealLog(local.mealLog)
+    setWeekPlan(local.weekPlan)
+    setFavorites(local.favorites)
+    setGroceryChecks(local.groceryChecks)
+    setGroceryExcluded(local.groceryExcluded)
   }
 
   // Load from Firestore
@@ -99,6 +115,9 @@ export function AppStoreProvider({ children }) {
       setUser(u)
       const date = todayISO()
       setLogDate(date)
+      /* Remembered for the NEXT cold start, so it boots into the right
+         scope instead of guessing anon. */
+      rememberScope(u?.uid)
       if (u) {
         /* ADOPT BEFORE READING, not after. The signed-out plan has to be
            in this account's scope by the time loadFromFirestore looks for
@@ -107,7 +126,8 @@ export function AppStoreProvider({ children }) {
            keep it. */
         adoptAnonKeys(u.uid)
         await loadFromFirestore(u.uid, date)
-      } else {
+      } else if (boot.scope !== null) {
+        /* Booted into somebody's scope and auth says nobody. Re-read. */
         loadFromLS(null, date)
       }
     })
@@ -363,6 +383,9 @@ export function AppStoreProvider({ children }) {
     groceryChecks,
     groceryExcluded,
     groceryDay,
+    /* Non-null when the device booted straight into a known scope, so
+       the app can render before auth resolves. */
+    bootScope: boot.scope,
     groceryDayIsToday: groceryDayRaw === null,
     setGroceryDay,
     undoClear,
