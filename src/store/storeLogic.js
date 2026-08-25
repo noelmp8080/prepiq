@@ -155,14 +155,21 @@ export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Se
       if (!info) continue                             // retired id, no longer stocked
       let row = rows.get(entry.id)
       if (!row) {
-        row = { id: entry.id, name: info.name, section: info.section, meals: [], qty: [] }
+        row = { id: entry.id, name: info.name, section: info.section,
+                meals: [], qty: [], qtyFrom: [] }
         rows.set(entry.id, row)
       }
       row.meals.push(rid)
       /* LISTED, NEVER SUMMED. "1 cup" + "200g" + "2 cloves" has no
          answer without unit conversion, so the summed reading of the
-         handoff is under-defined rather than merely less specific. */
-      for (const q of entry.qty || []) row.qty.push(q)
+         handoff is under-defined rather than merely less specific.
+
+         `qtyFrom` runs PARALLEL to `qty`, one recipe id per line, because
+         the expander shows each quantity beside the meal that needs it.
+         A card can contribute more than one line, so `meals` cannot be
+         indexed against `qty` — pairing them by position is exactly the
+         off-by-one that shows Tuesday's amount under Monday's recipe. */
+      for (const q of entry.qty || []) { row.qty.push(q); row.qtyFrom.push(rid) }
     }
   }
   return [...rows.values()]

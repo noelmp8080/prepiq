@@ -481,3 +481,48 @@ describe('todayIndex — resolved at the call site, never in the derivation', ()
     expect(Number.isInteger(todayIndex(named))).toBe(true)
   })
 })
+
+/* ── Which recipe asked for which amount ──────────────────────────────
+ *
+ * The expander lists each quantity beside the meal that needs it. A card
+ * can contribute more than one line, so `meals` cannot be indexed
+ * against `qty` — that is the off-by-one that puts Tuesday's amount under
+ * Monday's recipe. `qtyFrom` runs parallel to `qty` instead.
+ */
+describe('qtyFrom pairs every quantity with its source recipe', () => {
+  const week = plan([[1, 2], [3, 4]])
+
+  it('is the same length as qty, on every row', () => {
+    const rows = buildGroceryItems(week, catalog, new Set(), 0)
+    expect(rows.length).toBeGreaterThan(20)
+    for (const r of rows) expect(r.qtyFrom).toHaveLength(r.qty.length)
+  })
+
+  it('names only recipes that are actually on that day', () => {
+    const rows = buildGroceryItems(week, catalog, new Set(), 0)
+    const onMonday = new Set([1, 2])
+    let seen = 0
+    for (const r of rows) for (const id of r.qtyFrom) { seen++; expect(onMonday.has(id)).toBe(true) }
+    expect(seen).toBeGreaterThan(0)
+  })
+
+  /* THE CASE THAT DECIDES THE SHAPE. Two recipes both needing chicken
+     breast contribute one quantity line each; the row must be able to
+     say which is which. */
+  it('keeps two lines apart when two meals need the same item', () => {
+    const rows = buildGroceryItems(week, catalog, new Set(), 0)
+    const shared = rows.find(r => r.qty.length > 1)
+    expect(shared, 'no row on Monday carries two quantities').toBeTruthy()
+    expect(new Set(shared.qtyFrom).size).toBe(shared.qtyFrom.length)
+    expect(shared.qtyFrom.every(id => shared.meals.includes(id))).toBe(true)
+  })
+
+  it('stays empty where the section carries no quantities', () => {
+    const rows = buildGroceryItems(week, catalog, new Set(), 0)
+    const qtySections = new Set(catalog.quantitySections)
+    for (const r of rows) {
+      if (qtySections.has(r.section)) continue
+      expect(r.qtyFrom).toHaveLength(0)
+    }
+  })
+})
