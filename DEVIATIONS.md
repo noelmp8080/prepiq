@@ -267,6 +267,30 @@ work — but on a device with many accounts localStorage grows without bound.
 
 ---
 
+## Latent: mutators are stale if called twice in one tick
+
+Not a deviation and not a shipped bug — recorded so it is not rediscovered
+as a mystery.
+
+`toggleFavorite`, `toggleGroceryItem` and the other mutators compute the next
+value from state captured at render, then write. Two calls in the same tick
+therefore both start from the same snapshot and the second overwrites the
+first. Found by the block-B round-trip audit, which called `toggleFavorite(7)`
+and `toggleFavorite(9)` inside one `act()` and got `[9]`.
+
+**Not reachable from the UI:** two taps are two events and two renders.
+
+**It is the deliberate price of a fix.** Computing inside `setX(prev => …)`
+would make this correct, and is exactly what was removed when every toggle was
+found firing two identical `setDoc` calls under StrictMode — a state updater
+must be pure. The two properties trade against each other; the current shape
+picks the one whose failure is reachable.
+
+If a caller ever needs several changes at once, add a batch action — that is
+why `checkAllGrocery` takes a list rather than being called in a loop.
+
+---
+
 ## The handoff contradicts itself — the prior for the fourth time
 
 Three internal contradictions have surfaced so far — the **accent ramp** (prose

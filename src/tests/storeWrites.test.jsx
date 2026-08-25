@@ -569,3 +569,145 @@ describe('the grocery badge', () => {
     unmount()
   })
 })
+
+/* ── EVERY WRITER, THROUGH STORAGE AND BACK ───────────────────────────
+ *
+ * THE AUDIT THAT PRODUCED THIS. After the migration, the read/write
+ * pairs were listed and checked one at a time for a test that goes all
+ * the way round. Checks and exclusions had one. Goals, the week plan,
+ * favourites and the meal log did NOT — every assertion about them
+ * either stopped at the cloud payload or started from a hand-seeded key.
+ *
+ * That is the same one-sided coverage that let Clear ship broken: each
+ * half tested against a literal, neither tested against the other. Clear
+ * was simply the one that happened to break first.
+ *
+ * So these use no literals and no seeding. Write through the store's own
+ * action, throw the store away, mount a NEW one, and read the value back
+ * out of the hydrated state. Nothing in between is stubbed, so a key
+ * that disagrees between writer and reader — by scope, by name, by
+ * serialisation — fails here and nowhere else.
+ */
+describe('every writer round-trips through storage', () => {
+  beforeEach(() => localStorage.clear())
+
+  /* Signed out, so localStorage is the only store in play and a passing
+     assertion cannot be the cloud mock covering for it. */
+  async function fresh() {
+    const { box, unmount } = mountStore()
+    await act(async () => { await authCallback(null) })
+    return { box, unmount }
+  }
+  async function roundTrip(mutate) {
+    const first = await fresh()
+    let captured
+    await act(async () => { captured = mutate(first.box.store) })
+    first.unmount()
+    const second = await fresh()
+    return { store: second.box.store, captured, unmount: second.unmount }
+  }
+
+  it('goals', async () => {
+    const { store, unmount } = await roundTrip(s => s.updateGoals({ calories: 2345 }))
+    expect(store.goals.calories).toBe(2345)
+    unmount()
+  })
+
+  it('the week plan', async () => {
+    const first = await fresh()
+    const before = JSON.stringify(first.box.store.weekPlan)
+    await act(async () => { first.box.store.shuffleWeekPlan() })
+    const after = JSON.stringify(first.box.store.weekPlan)
+    first.unmount()
+
+    const second = await fresh()
+    expect(JSON.stringify(second.box.store.weekPlan)).toBe(after)
+    /* and the shuffle actually changed something, or this proves nothing */
+    expect(after).not.toBe(before)
+    second.unmount()
+  })
+
+  /* Sets do not survive JSON. This is the pair where the write
+     serialises (setToArray) and the read deserialises (arrayToSet), so
+     an asymmetry here would come back as an empty Set or as {}.
+
+     TWO SEPARATE act()s, DELIBERATELY, and what that cost to learn:
+     written as one act with two toggles, this failed with [9] instead of
+     [7, 9]. The toggles close over `favorites` from the render that
+     created them, so two calls in one tick both start from the same
+     snapshot and the second overwrites the first.
+
+     That is not reachable from the UI — two taps are two events and two
+     renders — and it is the deliberate price of keeping writes OUT of
+     the state updaters, which is what stopped every toggle firing two
+     identical setDoc calls under StrictMode. Recorded in DEVIATIONS as a
+     latent constraint rather than papered over here. */
+  it('favourites, across the Set/array boundary', async () => {
+    const first = await fresh()
+    await act(async () => { first.box.store.toggleFavorite(7) })
+    await act(async () => { first.box.store.toggleFavorite(9) })
+    first.unmount()
+
+    const second = await fresh()
+    expect(second.box.store.favorites).toBeInstanceOf(Set)
+    expect([...second.box.store.favorites].sort()).toEqual([7, 9])
+    second.unmount()
+  })
+
+  /* The log key interpolates a date INSIDE the scope, which is the one
+     key whose name is built from two moving parts. */
+  it('the meal log, under a key built from scope and date', async () => {
+    const { store, unmount } = await roundTrip(s => s.logMeal(1, 'lunch'))
+    expect(store.mealLog).toHaveLength(1)
+    expect(store.mealLog[0].slot).toBe('lunch')
+    expect(localStorage.getItem(lsKey(null, `log_${store.logDate}`))).not.toBe(null)
+    unmount()
+  })
+
+  it('grocery checks', async () => {
+    const first = await fresh()
+    await act(async () => { first.box.store.setGroceryDay(2) })
+    const id = first.box.store.groceryRows[0].id
+    await act(async () => { first.box.store.toggleGroceryItem(id) })
+    first.unmount()
+
+    const second = await fresh()
+    expect(second.box.store.groceryChecks).toEqual(new Set([dayKey(2, id)]))
+    second.unmount()
+  })
+
+  it('grocery exclusions', async () => {
+    const first = await fresh()
+    await act(async () => { first.box.store.setGroceryDay(2) })
+    const id = first.box.store.groceryRows[0].id
+    await act(async () => { first.box.store.toggleGroceryItem(id) })
+    await act(async () => { first.box.store.clearGrocery() })
+    first.unmount()
+
+    const second = await fresh()
+    expect(second.box.store.groceryExcluded).toEqual(new Set([dayKey(2, id)]))
+    second.unmount()
+  })
+
+  /* SIGNED IN, THE SAME WAY. The scope is the part that changed in this
+     migration, so the round trip has to be proved on both sides of it —
+     a writer that scoped correctly and a reader that did not would pass
+     every anon test above. */
+  it('carries the whole round trip inside a uid scope', async () => {
+    getDocMock.mockResolvedValue(snap(undefined))
+    const first = mountStore()
+    await act(async () => { await authCallback({ uid: UID }) })
+    await act(async () => { first.box.store.updateGoals({ calories: 2600 }) })
+    await act(async () => { first.box.store.toggleFavorite(3) })
+    first.unmount()
+
+    /* a NEW store, booting from the remembered scope with no auth yet */
+    const second = mountStore()
+    expect(second.box.store.bootScope).toBe(UID)
+    expect(second.box.store.goals.calories).toBe(2600)
+    expect([...second.box.store.favorites]).toEqual([3])
+    /* and none of it leaked into anon */
+    expect(localStorage.getItem(lsKey(null, 'goals'))).toBe(null)
+    second.unmount()
+  })
+})
