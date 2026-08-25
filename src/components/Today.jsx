@@ -74,7 +74,13 @@ function MacroCell({ label, value, goal, suffix = '', accent, fill, style }) {
   )
 }
 
-export default function Today({ onChange, onOpenSettings }) {
+/* Wide splits the stack into two columns: the numbers on the left, the
+   meals on the right. Nothing is added or restyled — the same cards move
+   from stacked to side by side, which is the whole brief for this block. */
+const COLS = { tablet: '300px 1fr', desktop: '360px 1fr' }
+
+export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
+  const cols = COLS[surface]
   const {
     weekPlan, planToday, mealLog, goals, consumed,
     logMeal, removeLoggedMeal,
@@ -139,8 +145,15 @@ export default function Today({ onChange, onOpenSettings }) {
         </button>
       </div>
 
+      <div style={cols ? {
+        display: 'grid', gridTemplateColumns: cols,
+        gap: surface === 'desktop' ? 26 : 20,
+        alignItems: 'start',
+        padding: '0 var(--pq-gutter)',
+      } : undefined}>
+      <div>
       {/* ── Macro card ──────────────────────────────────────────── */}
-      <Card style={{ margin: '20px var(--pq-gutter) 0' }}>
+      <Card style={{ margin: cols ? '20px 0 0' : '20px var(--pq-gutter) 0' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
           borderBottom: CARD_CELL_RULE,
@@ -168,8 +181,10 @@ export default function Today({ onChange, onOpenSettings }) {
         </div>
       </Card>
 
+      </div>
+      <div>
       {/* ── Planned today ───────────────────────────────────────── */}
-      <div style={{ padding: '26px var(--pq-gutter) 0' }}>
+      <div style={{ padding: cols ? '20px 0 0' : '26px var(--pq-gutter) 0' }}>
         <div style={{
           display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
           marginBottom: 10,
@@ -256,7 +271,7 @@ export default function Today({ onChange, onOpenSettings }) {
       {/* ── Also logged ─────────────────────────────────────────────
           Only when the log holds something the plan did not. */}
       {extras.length > 0 && (
-        <div style={{ padding: '24px var(--pq-gutter) 0' }}>
+        <div style={{ padding: cols ? '24px 0 0' : '24px var(--pq-gutter) 0' }}>
           <div style={{ ...EYEBROW, marginBottom: 10 }}>ALSO LOGGED</div>
           <Card>
             {extras.map(entry => {
@@ -303,7 +318,7 @@ export default function Today({ onChange, onOpenSettings }) {
 
       {/* Anything eaten that was never planned goes through Track, which
           is the screen built for choosing a recipe. */}
-      <div style={{ padding: '20px var(--pq-gutter) 0' }}>
+      <div style={{ padding: cols ? '20px 0 0' : '20px var(--pq-gutter) 0' }}>
         <button
           onClick={() => onChange?.('track')}
           style={{
@@ -313,6 +328,8 @@ export default function Today({ onChange, onOpenSettings }) {
             color: 'var(--pq-text-2)', fontSize: 'var(--pq-size-body)',
             fontWeight: 500, fontFamily: 'var(--pq-sans)',
           }}>+ Log something else</button>
+      </div>
+      </div>
       </div>
 
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />

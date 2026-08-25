@@ -21,7 +21,7 @@ import { recipes } from '../data/recipes'
  */
 
 const MONO = { fontFamily: 'var(--pq-mono)' }
-const PAGE = 40
+
 
 /* Every value here exists in the catalog — checked against it rather
    than copied from the prototype and hoped for. Counts at the time of
@@ -41,10 +41,17 @@ const FILTERS = [
   { label: 'FAVES',        test: (r, favs) => favs.has(r.id) },
 ]
 
-export default function Recipes() {
+/* More columns where the data supports it. 260 rows in one column is a
+   scroll; in three it is a page you can scan. The ROW is unchanged —
+   same thumb, same name, same heart — only how many sit side by side. */
+const RESULT_COLS = { tablet: 'repeat(2,minmax(0,1fr))', desktop: 'repeat(3,minmax(0,1fr))' }
+const PAGES = { phone: 40, tablet: 48, desktop: 60 }
+
+export default function Recipes({ surface = 'phone' }) {
   const { favorites, toggleFavorite } = useAppStore()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('ALL')
+  const PAGE = PAGES[surface] || PAGES.phone
   const [shown, setShown] = useState(PAGE)
   const [sheetRecipe, setSheetRecipe] = useState(null)
 
@@ -143,7 +150,12 @@ export default function Recipes() {
           fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-3)',
         }}>No recipes match</p>
       ) : (
-        <Card style={{ margin: '14px var(--pq-gutter) 0' }}>
+        <Card style={{
+          margin: '14px var(--pq-gutter) 0',
+          ...(RESULT_COLS[surface] ? {
+            display: 'grid', gridTemplateColumns: RESULT_COLS[surface],
+          } : null),
+        }}>
           {visible.map(r => {
             const faved = favorites.has(r.id)
             return (

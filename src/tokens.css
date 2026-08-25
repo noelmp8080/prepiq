@@ -185,3 +185,27 @@
   --pq-t-paint:           .15s;  /* opacity, transform — the only motion */
   --pq-undo-ms:           3500;  /* ms the Undo affordance persists */
 }
+
+/* ── WIDE SURFACES ────────────────────────────────────────────────────
+ *
+ * The gutter is the one token that changes with the surface, and it
+ * changes HERE rather than in five components. Every screen already
+ * pads with var(--pq-gutter), so widening it widens all of them at once
+ * and no screen can be left at the phone value by accident.
+ *
+ * Nothing else about the visual language moves: same ramp mechanism,
+ * same card recipe, same type scale, same accent. Only layout and
+ * affordance sizes, which is what the handoff asks for.
+ *
+ * The breakpoints match useSurface.js — 900 and 1400, chosen to sit
+ * BELOW the handoff's reference widths (1194 and 1512) so a real iPad
+ * with browser chrome, and a desktop window the user has dragged
+ * narrower, both land in the band they were designed for. If these two
+ * files ever disagree the rail appears at a width the layout has not
+ * widened for, so a test asserts they match. */
+@media (min-width: 900px) {
+  :root { --pq-gutter: 24px; }
+}
+@media (min-width: 1400px) {
+  :root { --pq-gutter: 32px; }
+}

@@ -55,7 +55,36 @@ import catalog from '../data/groceryCatalog.json'
 const MONO = { fontFamily: 'var(--pq-mono)' }
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-export default function Grocery({ onChange }) {
+/* ── WIDE: TWO EXPLICIT COLUMNS, NOT CSS `columns` ────────────────────
+ *
+ * The prototype lays the sections out with `columns: 2`. That is
+ * multi-column flow, which redistributes content BETWEEN columns
+ * whenever anything above it changes height — so opening an expander in
+ * one column can move rows in the other, rows the user never touched.
+ * On phone the worst case is "things below move"; in a flowed pair of
+ * columns it is "things sideways move", which is a failure mode the row
+ * contract has never had to survive.
+ *
+ * Worse, jsdom cannot measure column balancing, so the harness could
+ * neither prove nor disprove it — the single most important property in
+ * the project would have shipped unverifiable.
+ *
+ * So sections are assigned alternately to two INDEPENDENT columns. A
+ * height change in one is structurally incapable of moving the other,
+ * which is the same reasoning that made the shell ramp a fixed layer:
+ * arrange it so the question cannot arise. Measured on real days, the
+ * alternating split lands within 13% — 680/736px and 792/904px — so it
+ * reads as balanced columns. Confirmed with the user; see DEVIATIONS.md.
+ */
+function splitColumns(sections) {
+  const a = [], b = []
+  sections.forEach((s, i) => (i % 2 === 0 ? a : b).push(s))
+  return [a, b]
+}
+
+export default function Grocery({ onChange, surface = 'phone' }) {
+  const wide = surface === 'tablet' || surface === 'desktop'
+  const desktop = surface === 'desktop'
   const {
     weekPlan, planToday, groceryRows: rows, groceryChecks, groceryDay,
     groceryDayIsToday, setGroceryDay, toggleGroceryItem,
@@ -171,8 +200,10 @@ export default function Grocery({ onChange }) {
             Parked since block B because neither existed until now. */}
         <SyncErrorBanner />
 
-        {/* ── Day chips ───────────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 5 }}>
+        {/* ── Day chips ─────────────────────────────────────────────
+            On wide these move to the side pane, where there is room for
+            full day labels and the progress bar beside them. */}
+        {!wide && <div style={{ display: 'flex', gap: 5 }}>
           {weekPlan.map((d, i) => {
             const on = i === groceryDay
             const hasMeals = (d.ids || []).some(Boolean)
@@ -211,7 +242,7 @@ export default function Grocery({ onChange }) {
               </button>
             )
           })}
-        </div>
+        </div>}
 
         {/* ── Progress ────────────────────────────────────────────────
             A fixed 4px track that clips its fill, so the width change on
@@ -254,8 +285,23 @@ export default function Grocery({ onChange }) {
           </EmptyBlock>
         </div>
       ) : (
-        <div data-grocery-list style={{ padding: '10px var(--pq-gutter)' }}>
-          {sections.map(section => {
+        <div data-grocery-list style={{
+          padding: '10px var(--pq-gutter)',
+          ...(wide ? {
+            display: 'grid',
+            gridTemplateColumns: desktop ? '1fr 320px' : '1fr 280px',
+            gap: desktop ? 26 : 20, alignItems: 'start',
+          } : null),
+        }}>
+          {/* Left region. On desktop it splits again into two
+              independent columns, giving three in total. */}
+          <div style={desktop ? {
+            display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
+            gap: 26, alignItems: 'start',
+          } : undefined}>
+          {(desktop ? splitColumns(sections) : [sections]).map((group, gi) => (
+          <div key={gi}>
+          {group.map(section => {
             const shut = collapsed.has(section.name)
             return (
               <section key={section.name}>
@@ -397,8 +443,87 @@ export default function Grocery({ onChange }) {
               </section>
             )
           })}
+          </div>
+          ))}
+          </div>
 
-          <button
+          {/* The side pane: which day, and how far through it you are.
+              On phone both live in the sticky header; here there is room
+              for full day names beside the list rather than above it. */}
+          {wide && (
+            <aside data-grocery-side style={{
+              position: 'sticky', top: 10,
+              display: 'flex', flexDirection: 'column', gap: 12,
+              padding: 16, borderRadius: 'var(--pq-r-card)',
+              background: 'var(--pq-panel)',
+              border: '1px solid var(--pq-rule-soft)',
+            }}>
+              <div style={{
+                ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,
+                color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-section)',
+              }}>SHOPPING FOR</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {weekPlan.map((d, i) => {
+                  const on = i === groceryDay
+                  const hasMeals = (d.ids || []).some(Boolean)
+                  return (
+                    <button
+                      key={d.day}
+                      onClick={() => setGroceryDay(i)}
+                      aria-pressed={on}
+                      aria-label={`${d.day}${hasMeals ? '' : ', no meals'}`}
+                      style={{
+                        minHeight: 'var(--pq-tap-min)', padding: '0 12px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        gap: 8, borderRadius: 'var(--pq-r-chip)', cursor: 'pointer',
+                        background: on ? 'var(--pq-accent-grad)' : 'transparent',
+                        boxShadow: on ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
+                        border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+                        color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+                        ...MONO, fontSize: 11, fontWeight: 600,
+                        letterSpacing: 'var(--pq-track-chip)',
+                      }}>
+                      <span>{d.day.toUpperCase()}</span>
+                      <span aria-hidden="true" style={{ fontSize: 9, opacity: 0.75 }}>
+                        {hasMeals ? '•' : ''}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div style={{
+                ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,
+                color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-section)',
+                marginTop: 4,
+              }}>PROGRESS</div>
+              <div style={{
+                height: 5, borderRadius: 3, overflow: 'hidden',
+                background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
+              }}>
+                <div style={{
+                  height: '100%', width: `${pct}%`, borderRadius: 3,
+                  background: 'var(--pq-accent-bar)', transition: 'width .4s ease',
+                }} />
+              </div>
+              <div style={{ ...MONO, fontSize: 12, color: 'var(--pq-text-muted)' }}>
+                {done} OF {rows.length} · {pct}%
+              </div>
+
+              <button
+                onClick={startNewGroceryList}
+                style={{
+                  marginTop: 4, minHeight: 'var(--pq-tap-min)',
+                  borderRadius: 'var(--pq-r-button)', background: 'transparent',
+                  border: '1px solid var(--pq-rule-soft)', cursor: 'pointer',
+                  color: 'var(--pq-text-muted)',
+                  ...MONO, fontSize: 11, fontWeight: 500,
+                  letterSpacing: 'var(--pq-track-chip)',
+                }}>START A NEW LIST</button>
+            </aside>
+          )}
+
+          {!wide && <button
             onClick={startNewGroceryList}
             style={{
               width: '100%', minHeight: 'var(--pq-tap-min)', marginTop: 24,
@@ -406,7 +531,7 @@ export default function Grocery({ onChange }) {
               border: '1px solid var(--pq-rule-soft)', cursor: 'pointer',
               color: 'var(--pq-text-muted)',
               ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
-            }}>START A NEW LIST</button>
+            }}>START A NEW LIST</button>}
         </div>
       )}
 

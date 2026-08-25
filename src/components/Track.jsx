@@ -49,7 +49,10 @@ function Bar({ value, goal, height, fill }) {
   )
 }
 
-export default function Track({ onChange }) {
+const COLS = { tablet: '300px 1fr', desktop: '360px 1fr' }
+
+export default function Track({ onChange, surface = 'phone' }) {
+  const cols = COLS[surface]
   const {
     weekPlan, planToday, mealLog, goals, consumed,
     logMeal, removeLoggedMeal,
@@ -98,8 +101,13 @@ export default function Track({ onChange }) {
         </button>
       </div>
 
+      <div style={cols ? {
+        display: 'grid', gridTemplateColumns: cols,
+        gap: surface === 'desktop' ? 26 : 20,
+        alignItems: 'start', padding: '0 var(--pq-gutter)',
+      } : undefined}>
       {/* ── Macro card ──────────────────────────────────────────── */}
-      <Card style={{ margin: '20px var(--pq-gutter) 0', padding: 16 }}>
+      <Card style={{ margin: cols ? '20px 0 0' : '20px var(--pq-gutter) 0', padding: 16 }}>
         <div style={{
           display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
           marginBottom: 10,
@@ -145,9 +153,10 @@ export default function Track({ onChange }) {
         </div>
       </Card>
 
+      <div>
       {/* ── Planned, not yet logged ─────────────────────────────── */}
       {uneaten.length > 0 && (
-        <div style={{ padding: '24px var(--pq-gutter) 0' }}>
+        <div style={{ padding: cols ? '20px 0 0' : '24px var(--pq-gutter) 0' }}>
           <div style={EYEBROW}>PLANNED · ONE TAP TO LOG</div>
           <Card>
             {uneaten.map(({ recipeId, slot }) => {
@@ -197,7 +206,7 @@ export default function Track({ onChange }) {
       )}
 
       {/* ── Logged ──────────────────────────────────────────────── */}
-      <div style={{ padding: '24px var(--pq-gutter) 0' }}>
+      <div style={{ padding: cols ? '24px 0 0' : '24px var(--pq-gutter) 0' }}>
         <div style={EYEBROW}>LOGGED</div>
         {mealLog.length === 0 ? (
           <EmptyBlock style={{ padding: 22 }}>
@@ -255,6 +264,9 @@ export default function Track({ onChange }) {
             })}
           </Card>
         )}
+      </div>
+
+      </div>
       </div>
 
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />

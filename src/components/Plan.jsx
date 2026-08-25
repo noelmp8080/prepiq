@@ -123,7 +123,11 @@ function RecipePicker({ dayLabel, onPick, onClose }) {
   )
 }
 
-export default function Plan() {
+/* Seven days stacked is a scroll; two or three abreast is a week you can
+   see. Each day card is unchanged — flat panel, same header, same rows. */
+const DAY_COLS = { tablet: 'repeat(2,minmax(0,1fr))', desktop: 'repeat(3,minmax(0,1fr))' }
+
+export default function Plan({ surface = 'phone' }) {
   const { weekPlan, planToday, assignMeal, removeMeal, shuffleWeekPlan } = useAppStore()
   const [picking, setPicking] = useState(null)          // { dayIndex, label }
   const [sheetRecipe, setSheetRecipe] = useState(null)
@@ -177,7 +181,11 @@ export default function Plan() {
         </div>
       </Card>
 
-      <div style={{
+      <div style={DAY_COLS[surface] ? {
+        padding: '20px var(--pq-gutter) 0',
+        display: 'grid', gridTemplateColumns: DAY_COLS[surface],
+        gap: surface === 'desktop' ? 16 : 12, alignItems: 'start',
+      } : {
         padding: '20px var(--pq-gutter) 0',
         display: 'flex', flexDirection: 'column', gap: 10,
       }}>

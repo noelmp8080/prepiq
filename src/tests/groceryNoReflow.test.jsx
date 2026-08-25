@@ -447,3 +447,123 @@ describe('the harness detects a real reflow', () => {
     expect(layoutDiff(a, b)).toEqual([])
   })
 })
+
+/* ── THE SAME CONTRACT, AT WIDE WIDTHS ────────────────────────────────
+ *
+ * The block E brief makes this the gate: the two-pane grocery layout
+ * must not break the row contract. It is a real risk rather than a
+ * formality — the prototype lays wide sections out with CSS `columns`,
+ * which flows content BETWEEN columns, so a height change in one can
+ * move rows in the other. Two independent column divs are used instead
+ * precisely so this test can be written at all; with `columns` there is
+ * nothing jsdom can measure.
+ *
+ * Desktop is the harder case and the one tested: it splits the sections
+ * across two columns AND adds the side pane, so there are three regions
+ * that could move each other.
+ */
+describe('NOTHING MOVES ON TAP — at desktop width', () => {
+  let wHost, wRoot
+
+  beforeEach(async () => {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    wHost = document.createElement('div')
+    document.body.appendChild(wHost)
+    wRoot = createRoot(wHost)
+    await act(async () => {
+      wRoot.render(
+        <AppStoreProvider>
+          <PinDay index={PIN_DAY}><Grocery surface="desktop" /></PinDay>
+        </AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+  })
+  afterEach(() => { act(() => wRoot.unmount()); wHost.remove() })
+
+  const wList = () => wHost.querySelector('[data-grocery-list]')
+  /* The side pane's day buttons also carry aria-pressed and live inside
+     the same region, so they are excluded by ancestry rather than by
+     counting — a selector that silently caught them would have made the
+     row count 26 and every later assertion meaningless. */
+  const wRows = () => [...wList().querySelectorAll('button[aria-pressed]')]
+    .filter(b => !b.closest('[data-grocery-side]'))
+
+  it('lays the same rows out in three regions', () => {
+    expect(wRows()).toHaveLength(VISIBLE_ROWS)
+    expect(wList().style.display).toBe('grid')
+    expect(wList().style.gridTemplateColumns).toBe('1fr 320px')
+    expect(wHost.querySelector('[data-grocery-side]')).toBeTruthy()
+
+    /* two INDEPENDENT columns, not one flowed pair */
+    const inner = wList().firstElementChild
+    expect(inner.style.gridTemplateColumns).toBe('repeat(2,minmax(0,1fr))')
+    expect(inner.style.columns).toBe('')
+    expect(inner.children).toHaveLength(2)
+    /* and every row belongs to exactly one of them */
+    const [a, b] = [...inner.children]
+    for (const r of wRows()) expect(a.contains(r) !== b.contains(r)).toBe(true)
+  })
+
+  it('checking a row moves nothing, in either column or the side pane', () => {
+    const before = snapshot(wList())
+    act(() => { wRows()[0].click() })
+    const all = layoutDiff(before, snapshot(wList()))
+    /* The side pane's progress readout is meant to move — it is this
+       surface's version of the phone header's counter. Named, like the
+       phone one, rather than waved past with a loose pattern. */
+    const allowed = [
+      /^#\d+ <DIV> width: "\d+%" -> "\d+%"$/,
+      /^#\d+ text "0 OF 25 · 0%" -> "1 OF 25 · 4%"$/,
+    ]
+    const diff = all.filter(d => !allowed.some(re => re.test(d)))
+    expect(diff, 'tapping a row moved something at desktop width:\n' + diff.join('\n')).toEqual([])
+    for (const re of allowed) {
+      expect(all.some(d => re.test(d)), `nothing matched ${re}`).toBe(true)
+    }
+  })
+
+  /* THE CROSS-COLUMN CASE, which is the whole reason for the deviation.
+     A row in the first column is tapped; nothing in the SECOND column
+     may move. Under CSS `columns` this is the assertion that could not
+     be written. */
+  it('a tap in the first column cannot move the second', () => {
+    const inner = wList().firstElementChild
+    const [colA, colB] = [...inner.children]
+    const inA = wRows().filter(r => colA.contains(r))
+    expect(inA.length).toBeGreaterThan(0)
+    expect(wRows().filter(r => colB.contains(r)).length).toBeGreaterThan(0)
+
+    const before = snapshot(colB)
+    act(() => { inA[0].click() })
+    const diff = layoutDiff(before, snapshot(colB))
+    expect(diff, 'the other column moved:\n' + diff.join('\n')).toEqual([])
+  })
+
+  it('and the tap still registers at this width', () => {
+    const row = wRows()[0]
+    act(() => { row.click() })
+    expect(row.style.opacity).toBe('0.45')
+    expect(row.getAttribute('aria-pressed')).toBe('true')
+    expect(row.querySelector('span:last-child').style.textDecoration).toBe('line-through')
+  })
+
+  it('keeps the 56px row and the 44px expander at wide widths', () => {
+    const row = wRows()[0]
+    expect(row.style.height).toBe('var(--pq-row-grocery)')
+    const exp = row.parentElement.querySelector('button[aria-expanded]')
+    expect(exp.style.width).toBe('var(--pq-expander-w)')
+    expect(exp.style.height).toBe('var(--pq-row-grocery)')
+    /* and the name is still 18px — the one value the brief says never
+       to reduce, on any surface */
+    expect(row.querySelector('span:last-child').style.fontSize).toBe('var(--pq-size-grocery)')
+  })
+
+  it('gives every control on the wide screen at least 44px', () => {
+    for (const b of wHost.querySelectorAll('button')) {
+      const h = b.style.height || b.style.minHeight
+      expect(h, `"${b.textContent.slice(0, 24)}" at ${h || 'no height'}`)
+        .toMatch(/var\(--pq-tap-min\)|var\(--pq-row-grocery\)|^4[4-9]px|^[5-9]\d+px/)
+    }
+  })
+})
