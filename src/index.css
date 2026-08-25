@@ -1,30 +1,19 @@
 @import './tokens.css';
 
-/* SELF-HOSTED TYPE — no network dependency for the typeface.
+/* THE OLD TYPE IS GONE.
  *
- * These loaded from the Google Fonts CDN. The grocery list is used
- * standing in a shop, and a supermarket is exactly where the request
- * fails: the app would silently fall back to generic sans-serif, after
- * every row width had been measured against Plus Jakarta Sans.
+ * Plus Jakarta Sans and DM Mono were the pre-redesign families, kept
+ * loaded through blocks A-D while screens migrated one at a time. Auth
+ * was the last file setting them, and it moved in block E — so their
+ * seven woff2 files come out of the bundle here rather than sitting in
+ * it unreferenced.
  *
- * LATIN SUBSET, and only the weights the app actually sets. Enumerated
- * from the source rather than guessed:
- *   Plus Jakarta Sans  500 (41 uses) · 800 (36) · 700 (36) · 600 (14)
- *                      400 — no explicit uses, but it is the default
- *                      weight for the 7 elements that set a size and no
- *                      weight, and for body text.
- *                      300 — loaded by the old CDN link, used nowhere.
- *   DM Mono            400, 500. The app asks for 800 in five places;
- *                      DM Mono ships 300/400/500 only, so the browser
- *                      has been synthesising that bold all along.
+ * IBM Plex Sans and Mono are imported from tokens.css, self-hosted for
+ * the same reason these were: the grocery list is used standing in a
+ * shop, and a supermarket is exactly where a font CDN request fails.
+ * Every row width in this app was measured against a specific typeface;
+ * falling back to generic sans-serif silently would undo that.
  */
-@import '@fontsource/plus-jakarta-sans/latin-400.css';
-@import '@fontsource/plus-jakarta-sans/latin-500.css';
-@import '@fontsource/plus-jakarta-sans/latin-600.css';
-@import '@fontsource/plus-jakarta-sans/latin-700.css';
-@import '@fontsource/plus-jakarta-sans/latin-800.css';
-@import '@fontsource/dm-mono/latin-400.css';
-@import '@fontsource/dm-mono/latin-500.css';
 
 [data-theme="dark"] {
   --bg: #1A1626;
@@ -59,9 +48,9 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  background: var(--bg);
-  color: var(--ink);
+  font-family: var(--pq-sans);
+  background: var(--pq-page);
+  color: var(--pq-text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;

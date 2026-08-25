@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Card from './Card'
+import Logo from './Logo'
 import { useAppStore } from '../store/useAppStore'
 
 function friendlyError(err) {
@@ -57,94 +59,125 @@ export default function Auth({ onSkip }) {
   }
 
   const inputStyle = {
-    width: '100%', padding: '14px 16px', borderRadius: '14px',
-    border: '1.5px solid var(--border-c)', outline: 'none',
-    fontSize: '15px', color: 'var(--ink)', background: 'var(--surface2)',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
-    boxSizing: 'border-box',
+    width: '100%', minHeight: 'var(--pq-tap-min)', padding: '14px 16px',
+    borderRadius: 'var(--pq-r-button)', outline: 'none',
+    background: 'var(--pq-track-bg)',
+    border: '1px solid var(--pq-rule-cell)',
+    boxShadow: 'var(--pq-well-shadow)',
+    fontSize: 'var(--pq-size-meal)', color: 'var(--pq-text)',
+    fontFamily: 'var(--pq-sans)',
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Gradient header */}
-      <div style={{ background: 'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding: '56px 24px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-        <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
-          🥗
-        </div>
-        <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', letterSpacing: '-.05em', margin: 0 }}>PrepIQ</h1>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', fontWeight: 500, margin: 0 }}>Smart meal prep, tracked.</p>
-      </div>
+    <div style={{
+      minHeight: '100dvh', background: 'var(--pq-page)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', padding: 'var(--pq-gutter)',
+      color: 'var(--pq-text)', fontFamily: 'var(--pq-sans)',
+    }}>
+      {/* THE SHELL RAMP, ON THE ONE SCREEN OUTSIDE THE SHELL. Auth
+          renders before App reaches <Shell>, so it paints the same fixed
+          ramp itself rather than sitting on a flat page — otherwise the
+          first thing anyone sees is the only screen that looks like a
+          different app. */}
+      <div aria-hidden="true" style={{
+        position: 'fixed', inset: 0, background: 'var(--pq-shell)', pointerEvents: 'none',
+      }} />
 
-      {/* Card */}
-      <div style={{ flex: 1, padding: '0 20px 32px', marginTop: '-24px', position: 'relative', zIndex: 10 }}>
-        <div style={{ background: 'var(--card)', borderRadius: '24px', padding: '28px 24px', boxShadow: '0 4px 32px rgba(79,63,212,0.13)' }}>
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: 380,
+        display: 'flex', flexDirection: 'column', gap: 24,
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <Logo size={34} caption="MEAL PREP" />
+          <p style={{
+            margin: 0, fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
+            color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-eyebrow)',
+          }}>SMART MEAL PREP, TRACKED</p>
+        </div>
+
+        <Card style={{ padding: 22 }}>
           {/* Mode toggle */}
-          <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: '14px', padding: '4px', marginBottom: '24px' }}>
-            {['signin', 'signup'].map(m => (
-              <button key={m} onClick={() => { setMode(m); setError('') }} style={{
-                flex: 1, padding: '10px', borderRadius: '11px', border: 'none', cursor: 'pointer',
-                fontSize: '13px', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
-                background: mode === m ? 'var(--card)' : 'transparent',
-                color:      mode === m ? '#4F3FD4'     : 'var(--ink4)',
-                boxShadow:  mode === m ? '0 1px 6px rgba(79,63,212,0.12)' : 'none',
-                transition: 'all .15s',
-              }}>
-                {m === 'signin' ? 'Sign In' : 'Sign Up'}
-              </button>
-            ))}
+          <div style={{
+            display: 'flex', gap: 4, padding: 4, marginBottom: 20,
+            borderRadius: 'var(--pq-r-button)',
+            background: 'var(--pq-well-bg)', boxShadow: 'var(--pq-well-shadow)',
+          }}>
+            {['signin', 'signup'].map(m => {
+              const on = mode === m
+              return (
+                <button key={m} onClick={() => { setMode(m); setError('') }}
+                  aria-pressed={on}
+                  style={{
+                    flex: 1, minHeight: 'var(--pq-tap-min)',
+                    borderRadius: 'var(--pq-r-chip)', border: 'none', cursor: 'pointer',
+                    background: on ? 'var(--pq-accent-grad)' : 'transparent',
+                    boxShadow: on ? 'var(--pq-accent-raise)' : 'none',
+                    color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+                    fontFamily: 'var(--pq-mono)', fontSize: 12, fontWeight: 600,
+                    letterSpacing: 'var(--pq-track-chip)',
+                  }}>
+                  {m === 'signin' ? 'SIGN IN' : 'SIGN UP'}
+                </button>
+              )
+            })}
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
+              type="email" placeholder="Email address" aria-label="Email address"
+              value={email} onChange={e => setEmail(e.target.value)} required
               style={inputStyle}
             />
             <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
+              type="password" placeholder="Password" aria-label="Password"
+              value={password} onChange={e => setPassword(e.target.value)} required
               style={inputStyle}
             />
 
             {error && (
-              <div style={{ fontSize: '12px', color: '#C53030', fontWeight: 500, padding: '10px 14px', background: 'rgba(197,48,48,0.07)', borderRadius: '10px', lineHeight: 1.5, wordBreak: 'break-word' }}>
+              <div role="alert" style={{
+                fontSize: 12, fontWeight: 500, lineHeight: 1.5, wordBreak: 'break-word',
+                padding: '10px 12px', borderRadius: 'var(--pq-r-button)',
+                background: 'rgba(197,48,48,0.14)',
+                border: '1px solid rgba(233,120,120,0.34)',
+                color: '#F2C7C7',
+              }}>
                 {error}
               </div>
             )}
 
             <button
-              type="submit"
-              disabled={loading}
+              type="submit" disabled={loading}
               style={{
-                width: '100%', padding: '15px', borderRadius: '16px', border: 'none',
+                width: '100%', minHeight: 'var(--pq-tap-min)', padding: 15, marginTop: 4,
+                borderRadius: 'var(--pq-r-button)', border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '15px', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
-                background: loading ? '#C4B5FD' : '#4F3FD4', color: '#fff',
-                boxShadow: '0 4px 16px rgba(79,63,212,0.35)', marginTop: '4px',
-                transition: 'opacity .15s',
+                opacity: loading ? 0.6 : 1,
+                background: 'var(--pq-accent-grad)', boxShadow: 'var(--pq-accent-raise)',
+                color: 'var(--pq-on-accent-ink)',
+                fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-body)',
+                fontWeight: 600, letterSpacing: '.04em',
+                transition: 'opacity var(--pq-t-paint)',
               }}
             >
-              {loading ? 'Please wait…' : (mode === 'signin' ? 'Sign In' : 'Create Account')}
+              {loading ? 'PLEASE WAIT…' : (mode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT')}
             </button>
           </form>
 
           <button
             onClick={onSkip}
             style={{
-              display: 'block', width: '100%', marginTop: '20px', background: 'none', border: 'none',
-              cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ink4)',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center', padding: '8px 0',
+              display: 'block', width: '100%', minHeight: 'var(--pq-tap-min)', marginTop: 16,
+              background: 'none', border: 'none', cursor: 'pointer', textAlign: 'center',
+              color: 'var(--pq-text-3)',
+              fontFamily: 'var(--pq-mono)', fontSize: 11, fontWeight: 500,
+              letterSpacing: 'var(--pq-track-chip)',
             }}
           >
-            Continue without account →
+            CONTINUE WITHOUT AN ACCOUNT →
           </button>
-        </div>
+        </Card>
       </div>
     </div>
   )
