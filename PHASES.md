@@ -237,7 +237,9 @@ Today**. The remaining three screens are the same shape repeated.
 - [x] **C4 Plan** — done. Day cards are flat panels, not Cards: seven
       translucent surfaces down one screen would each read a different
       lightness through the fixed ramp.
-- **C5 Recipes** — search field, filter chips, result rows.
+- [x] **C5 Recipes** — done. Paginated at 40. Trailing control is the heart per
+      the markup, not the assign button the prose describes; assigning happens
+      in the sheet. Ramp confirmed at all 260 rows.
 - **C6 Track** — macro card, `PLANNED · ONE TAP TO LOG`, `LOGGED`.
 
 Exact values per screen: handoff README, "Screens".
