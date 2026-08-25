@@ -217,6 +217,34 @@ fixed ramp the "does it read flat at 260 rows" question cannot arise.
 
 ---
 
+## 5. Quantities are listed, never summed
+
+**Handoff:** the README says a merged row carries "the total"; the prototype
+markup and the shipped screen both render every contributing quantity as its
+own mono line.
+
+**Built:** listed, one line per contributing recipe.
+
+**Why:** the summed reading is not merely less specific, it is
+**under-defined**. `1 cup` + `200g` + `2 cloves` has no answer without unit
+conversion, and the catalog carries free-text quantities lifted from the source
+recipes. Listing is the only implementable reading of the two.
+
+**Approved:** yes.
+
+---
+
+## The handoff contradicts itself — the prior for the fourth time
+
+Three internal contradictions have surfaced so far — the **accent ramp** (prose
+and prototype state k=0.22, the published `lift` hex implies k≈0.30), the
+**shell mechanism** (prose says scroll-height, the markup paints once on a fixed
+frame), and **quantity merging** (prose says total, the markup lists) — and all
+three resolved toward the markup or the shipped behaviour over the prose. Treat
+that as the default when the fourth appears, and check the markup first.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

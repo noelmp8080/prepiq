@@ -39,7 +39,7 @@ const HEADER = 72
 
 export default function Grocery() {
   const {
-    weekPlan, groceryChecks, groceryExcluded, toggleGroceryItem,
+    weekPlan, groceryChecks, groceryExcluded, groceryDay, toggleGroceryItem,
     clearGrocery, undoClear, startNewGroceryList,
   } = useAppStore()
 
@@ -49,8 +49,8 @@ export default function Grocery() {
   const scrollPin = useRef(null)
 
   const rows = useMemo(
-    () => buildGroceryItems(weekPlan, catalog, groceryExcluded),
-    [weekPlan, groceryExcluded])
+    () => buildGroceryItems(weekPlan, catalog, groceryExcluded, groceryDay),
+    [weekPlan, groceryExcluded, groceryDay])
   const sections = useMemo(() => groupBySection(rows, catalog), [rows])
 
   const done = rows.filter(r => groceryChecks.has(r.id)).length

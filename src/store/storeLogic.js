@@ -96,36 +96,78 @@ export function saveLS(key, value) {
  * chip can answer "why" and "how much".
  */
 
-/** One shopping row per item across the week's meals.
+/** One shopping row per item, for ONE day.
+ *
+ *  The redesign scopes the list to a chosen day rather than the week:
+ *  quantities differ per day, and a week-wide list cannot say how much
+ *  of anything Thursday actually needs.
  *
  *  @param weekPlan  [{day, ids:[recipeId|null]}]
  *  @param catalog   src/data/groceryCatalog.json
- *  @param excluded  Set of item ids the user cleared. Ids, never names —
- *                   the normaliser has changed on nearly every pass of
- *                   this work and a name key would break each time.
+ *  @param excluded  Set of `dayIndex:itemId` keys the user cleared. Ids,
+ *                   never names — the normaliser has changed on nearly
+ *                   every pass of this work and a name key would break
+ *                   each time.
+ *  @param dayIndex  ALWAYS A REAL INTEGER. `null -> today` is resolved at
+ *                   the call site in the store, deliberately: keeping
+ *                   date resolution out of this function keeps it pure
+ *                   and testable, and gives the UTC bug that once lived
+ *                   in date handling no surface here.
  */
-export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set()) {
+/** Which index in weekPlan is today.
+ *
+ *  PURE, AND TAKES THE DATE. buildGroceryItems must never resolve this
+ *  itself — the whole reason dayIndex is a required integer is to keep
+ *  date handling out of the derivation, where a UTC bug once lived in
+ *  this codebase and was invisible for months.
+ *
+ *  Matches on the plan's own day labels rather than assuming Monday is
+ *  index 0, so reordering the week is a data change and not a hunt for
+ *  an off-by-one.
+ *
+ *  Returns 0 when today is not in the plan, so a caller always has a
+ *  real integer to pass. */
+export function todayIndex(weekPlan = [], date = new Date()) {
+  const label = date.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()
+  const i = weekPlan.findIndex(d => String(d?.day || '').toLowerCase().startsWith(label))
+  return i >= 0 ? i : 0
+}
+
+/** The exclusion key. `dayIndex:itemId`, so clearing Thursday leaves
+ *  Friday's list intact.
+ *
+ *  One definition, used by the derivation to look up and by the store to
+ *  write. Two places building the same string by hand is how a key ends
+ *  up half-applied — the excluding side working while the writing side
+ *  emits something that never matches, or the reverse. */
+export const exclusionKey = (dayIndex, itemId) => `${dayIndex}:${itemId}`
+
+export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex) {
   const byCard = catalog.byCard || {}
   const meta = catalog.items || {}
+  const day = Array.isArray(weekPlan) ? weekPlan[dayIndex] : undefined
+  if (!day) return []                                // out of range is an empty day
+
   const rows = new Map()
   const seenCards = new Set()
 
-  for (const day of weekPlan) {
-    for (const rid of day?.ids || []) {
-      if (!rid || seenCards.has(rid)) continue      // a repeated meal is one shop
-      seenCards.add(rid)
-      for (const entry of byCard[String(rid)] || []) {
-        if (excluded.has(entry.id)) continue
-        const info = meta[String(entry.id)]
-        if (!info) continue                          // retired id, no longer stocked
-        let row = rows.get(entry.id)
-        if (!row) {
-          row = { id: entry.id, name: info.name, section: info.section, meals: [], qty: [] }
-          rows.set(entry.id, row)
-        }
-        row.meals.push(rid)
-        for (const q of entry.qty || []) row.qty.push(q)
+  for (const rid of day.ids || []) {
+    if (!rid || seenCards.has(rid)) continue          // a recipe twice in one day is one shop
+    seenCards.add(rid)
+    for (const entry of byCard[String(rid)] || []) {
+      if (excluded.has(exclusionKey(dayIndex, entry.id))) continue
+      const info = meta[String(entry.id)]
+      if (!info) continue                             // retired id, no longer stocked
+      let row = rows.get(entry.id)
+      if (!row) {
+        row = { id: entry.id, name: info.name, section: info.section, meals: [], qty: [] }
+        rows.set(entry.id, row)
       }
+      row.meals.push(rid)
+      /* LISTED, NEVER SUMMED. "1 cup" + "200g" + "2 cloves" has no
+         answer without unit conversion, so the summed reading of the
+         handoff is under-defined rather than merely less specific. */
+      for (const q of entry.qty || []) row.qty.push(q)
     }
   }
   return [...rows.values()]

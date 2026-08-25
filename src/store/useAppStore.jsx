@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
-         readChecks, writeChecks } from './storeLogic'
+         readChecks, writeChecks, todayIndex } from './storeLogic'
 
 const AppStoreContext = createContext(null)
 
@@ -37,6 +37,10 @@ export function AppStoreProvider({ children }) {
      an exclusion. Keyed on catalog ids — never on a name, because the
      normaliser has changed on nearly every pass of this work. */
   const [groceryExcluded, setGroceryExcluded] = useState(new Set())
+  /* WHICH DAY THE GROCERY LIST IS SHOWING. null means "today", and this
+     is the ONLY place that means resolves to an index — buildGroceryItems
+     takes a real integer so date handling stays out of the derivation. */
+  const [groceryDayRaw, setGroceryDay] = useState(null)
 
   // Load from localStorage (offline/no-auth path)
   function loadFromLS(date) {
@@ -342,6 +346,10 @@ export function AppStoreProvider({ children }) {
     favorites,
     groceryChecks,
     groceryExcluded,
+    /* Resolved here, at the call site, exactly once. */
+    groceryDay: groceryDayRaw ?? todayIndex(weekPlan),
+    groceryDayIsToday: groceryDayRaw === null,
+    setGroceryDay,
     undoClear,
     startNewGroceryList,
     syncErrors,
