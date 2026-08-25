@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act } from 'react'
+import { act, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 
 /* NOTHING MOVES ON TAP — asserted, not commented.
@@ -61,8 +61,64 @@ vi.mock('firebase/auth', () => ({
   signOut: vi.fn(),
 }))
 
-const { AppStoreProvider } = await import('../store/useAppStore')
+const { AppStoreProvider, useAppStore } = await import('../store/useAppStore')
 const { default: Grocery } = await import('../components/Grocery')
+
+/* ── DETERMINISM: A FIXED DAY AND A FIXED RECIPE SET ──────────────────
+ *
+ * This harness used to render whatever the default plan produced for
+ * whatever day it happened to be, and assert `> 10` rows. Under a
+ * day-scoped derivation that is a test whose subject changes seven times
+ * a week: Saturday's list is 14 items and Thursday's is 30, so `> 10`
+ * would have kept passing through a bug that dropped half of them, and a
+ * genuine off-by-one in the day index would have shown up as a failure
+ * only on the days the counts differ enough to notice.
+ *
+ * So: a plan written here rather than inherited, a day pinned rather
+ * than read off the clock, and EXACT counts.
+ *
+ * THE PLAN IS DELIBERATELY NOT THE DEFAULT ONE. The default seeds Monday
+ * with recipes 1,2 and Tuesday with 3,4; this swaps them. That makes the
+ * seeding observable — if localStorage were ignored and the store fell
+ * back to its default, day 1 would derive 31 rows instead of 25 and the
+ * counts below fail. One assertion covers two mechanisms.
+ */
+const FIXED_PLAN = [
+  { day: 'Mon', ids: [3, 4] },
+  { day: 'Tue', ids: [1, 2] },
+  { day: 'Wed', ids: [5, 6] },
+  { day: 'Thu', ids: [7, 8] },
+  { day: 'Fri', ids: [9, 10] },
+  { day: 'Sat', ids: [11, null] },
+  { day: 'Sun', ids: [12, null] },
+]
+const PIN_DAY = 1                       // Tuesday -> recipes 1 and 2
+
+/* Measured against the catalog, not copied from a run. Recipes 1 and 2
+   contribute 25 distinct items; `Spices & seasoning` holds 6 of them and
+   is collapsed by default, so 19 rows are in the DOM. The gap between
+   the two numbers is the point — a regression that renders the collapsed
+   section anyway shows up as 25. */
+const DERIVED_ROWS = 25
+const VISIBLE_ROWS = 19
+const SPICE_ROWS = 6
+
+/* On Monday's recipes and NOT on Tuesday's. If the screen ever derives
+   the wrong day — or the whole week again — these appear. */
+const MONDAY_ONLY = ['basmati rice', 'gochujang paste', 'red cabbage', 'sesame seeds']
+
+/* PIN THE DAY RATHER THAN THE CLOCK. `groceryDay` resolves null -> today
+   in the store; fake timers would work but would also freeze the
+   midnight-rollover interval this component's provider installs. Setting
+   the day outright is narrower.
+   Children are withheld until the pin has landed, so no assertion can
+   ever see the clock-dependent first render. If the pin fails the screen
+   renders nothing and the exact counts below fail loudly. */
+function PinDay({ index, children }) {
+  const { setGroceryDay, groceryDay } = useAppStore()
+  useEffect(() => { setGroceryDay(index) }, [index, setGroceryDay])
+  return groceryDay === index ? children : null
+}
 
 /** Every element's identity as far as layout is concerned. */
 function snapshot(host) {
@@ -121,10 +177,14 @@ function layoutDiff(before, after) {
 let host, root
 beforeEach(async () => {
   localStorage.clear()
+  localStorage.setItem('prepiq_weekplan', JSON.stringify(FIXED_PLAN))
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  await act(async () => { root.render(<AppStoreProvider><Grocery /></AppStoreProvider>) })
+  await act(async () => {
+    root.render(
+      <AppStoreProvider><PinDay index={PIN_DAY}><Grocery /></PinDay></AppStoreProvider>)
+  })
   await act(async () => { await authCb(null) })          // signed out, localStorage path
 })
 afterEach(() => { act(() => root.unmount()); host.remove() })
@@ -134,11 +194,34 @@ const listEl = () => host.querySelector('[data-grocery-list]')
 const rowButtons = () =>
   [...host.querySelectorAll('button')].filter(b => b.style.height === '56px' && b.querySelector('span'))
 
-describe('the screen renders real food', () => {
-  it('has rows at all, and they are 56px', () => {
+describe('the screen renders real food, for exactly one day', () => {
+  it('renders exactly the rows that day needs, and they are 56px', () => {
     const rows = rowButtons()
-    expect(rows.length).toBeGreaterThan(10)
+    expect(rows).toHaveLength(VISIBLE_ROWS)
     for (const r of rows) expect(r.style.height).toBe('56px')
+  })
+
+  /* The counter counts DERIVED rows, including the collapsed ones — you
+     still have to buy the paprika. Asserting both numbers from one render
+     is what distinguishes "the section is shut" from "the rows are gone". */
+  it('counts all 25, shows 19, and holds 6 behind the collapsed spice rack', () => {
+    expect(host.textContent).toContain(`${DERIVED_ROWS} left`)
+    const spices = [...host.querySelectorAll('section')]
+      .find(s => s.textContent.includes('Spices & seasoning'))
+    expect(spices).toBeTruthy()
+    expect(spices.textContent).toContain(String(SPICE_ROWS))
+    expect(rowButtons()).toHaveLength(DERIVED_ROWS - SPICE_ROWS)
+  })
+
+  /* THE DAY SCOPE, ASSERTED FROM THE DOM. groceryList.test.js proves the
+     derivation drops other days; this proves the screen is wired to it.
+     Both are needed — the derivation was correct and the call site was
+     still passing no day index at all until this session. */
+  it('shows only that day — nothing from the neighbouring day leaks in', () => {
+    const text = host.textContent.toLowerCase()
+    for (const name of MONDAY_ONLY) expect(text).not.toContain(name)
+    expect(text).toContain('low calorie tortilla wrap')      // Tuesday, recipe 1
+    expect(text).toContain('uncooked macaroni pasta')        // Tuesday, recipe 2
   })
 
   it('names ingredients rather than recipes', () => {
