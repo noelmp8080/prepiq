@@ -43,7 +43,7 @@ must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
 | --- | --- | --- |
 | — | Phase 1 — tokens | **Done** — `504c3ea` |
 | A | Phase 2 — shell, nav, logo, primitives | **Done** |
-| B | Phase 3 — connected model + migrations | Not started |
+| B | Phase 3 — connected model + migrations | **Done** |
 | C | Sheets, then Today / Plan / Recipes / Track | Not started |
 | D | Grocery | Not started |
 | E | iPad + desktop | Not started |
@@ -193,7 +193,32 @@ in this same migration.
 
 ---
 
+## Block B — the chain walk, half-deferred
+
+Measured at the end of block B, with a throwaway probe:
+
+```
+BEFORE  Plan Tue = [3,4]    grocery 31 rows, badge 31
+AFTER   Plan Tue = [21,284] grocery 20 rows, badge 20
+```
+
+**Plan -> grocery -> badge is connected**, no manual sync anywhere.
+
+**Plan -> Today and Plan -> Track are not — because those screens do not read
+`weekPlan` at all yet.** Neither file mentions it, and Track has no `PLANNED`
+list. That is block C's job (C3 Today, C6 Track), not a block B regression.
+Moved into block C's gate below so it is not silently skipped: a link that
+cannot be walked yet must be walked when it can.
+
+---
+
 ## Block C — sheets, then read screens
+
+**Carried in from block B:** finish the derived chain. Today and Track must
+read `weekPlan`, and the full walk — change a meal on Plan, see Today, grocery
+and Track's planned list all follow — must be re-run before block C is done.
+
+
 
 Commit per screen. Natural split point if it runs long: **after the sheets and
 Today**. The remaining three screens are the same shape repeated.
