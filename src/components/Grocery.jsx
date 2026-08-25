@@ -1,7 +1,7 @@
 import { useState, useRef, useLayoutEffect, useMemo } from 'react'
 import { CheckSquare, Square, ChevronRight, ChevronDown, Undo2 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
-import { buildGroceryItems, groupBySection } from '../store/storeLogic'
+import { buildGroceryItems, groupBySection, dayKey } from '../store/storeLogic'
 import catalog from '../data/groceryCatalog.json'
 
 /* ── The grocery list ─────────────────────────────────────────────────
@@ -53,7 +53,10 @@ export default function Grocery() {
     [weekPlan, groceryExcluded, groceryDay])
   const sections = useMemo(() => groupBySection(rows, catalog), [rows])
 
-  const done = rows.filter(r => groceryChecks.has(r.id)).length
+  /* Checks are keyed dayIndex:itemId, same as exclusions. The row knows
+     its item; the day comes from the store. */
+  const isChecked = id => groceryChecks.has(dayKey(groceryDay, id))
+  const done = rows.filter(r => isChecked(r.id)).length
   const left = rows.length - done
   const pct = rows.length ? Math.round(done / rows.length * 100) : 0
 
@@ -160,7 +163,7 @@ export default function Grocery() {
               </button>
 
               {!isShut && section.items.map(item => {
-                const checked = groceryChecks.has(item.id)
+                const checked = isChecked(item.id)
                 const open = openChip === item.id
                 return (
                   <div key={item.id}>

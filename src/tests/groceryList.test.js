@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  buildGroceryItems, groupBySection, exclusionKey, todayIndex, readChecks, writeChecks, CHECKS_VERSION,
+  buildGroceryItems, groupBySection, dayKey, isDayKey, todayIndex, readChecks, writeChecks,
+  CHECKS_VERSION, EXCLUDED_VERSION,
 } from '../store/storeLogic'
 import catalog from '../data/groceryCatalog.json'
 
@@ -121,7 +122,7 @@ describe('exclusions — the Clear round-trip', () => {
     const before = buildGroceryItems(week, catalog, new Set(), MON)
     expect(before.length).toBeGreaterThan(3)
     const drop = before.slice(0, 3).map(r => r.id)
-    const keys = new Set(drop.map(id => exclusionKey(MON, id)))
+    const keys = new Set(drop.map(id => dayKey(MON, id)))
     const after = buildGroceryItems(week, catalog, keys, MON)
     expect(after.length).toBe(before.length - 3)
     for (const id of drop) expect(after.find(r => r.id === id)).toBeUndefined()
@@ -138,7 +139,7 @@ describe('exclusions — the Clear round-trip', () => {
   it('ignores an id that is not on the list', () => {
     const before = buildGroceryItems(week, catalog, new Set(), MON)
     expect(before.length).toBeGreaterThan(0)
-    const after = buildGroceryItems(week, catalog, new Set([exclusionKey(MON, 999999)]), MON)
+    const after = buildGroceryItems(week, catalog, new Set([dayKey(MON, 999999)]), MON)
     expect(after.length).toBe(before.length)
   })
 
@@ -147,8 +148,8 @@ describe('exclusions — the Clear round-trip', () => {
      half-applied — the excluding side working while the writing side
      emits something that never matches. */
   it('builds the key one way', () => {
-    expect(exclusionKey(3, 41)).toBe('3:41')
-    expect(exclusionKey(0, 1)).toBe('0:1')
+    expect(dayKey(3, 41)).toBe('3:41')
+    expect(dayKey(0, 1)).toBe('0:1')
   })
 })
 
@@ -198,43 +199,102 @@ describe('groupBySection', () => {
   })
 })
 
-describe('the check re-key', () => {
-  it('reads nothing from the old recipe-keyed shape', () => {
-    /* v1 stored `recipe_${id}` strings. They cannot be mapped onto the
-       nineteen ingredients of a recipe without inventing data, so a
-       rollback or an old document yields an unchecked list. */
-    expect(readChecks({ ids: ['recipe_1', 'recipe_2'] }).size).toBe(0)
-    expect(readChecks({ version: 1, ids: ['recipe_1'] }).size).toBe(0)
-    expect(readChecks(null).size).toBe(0)
-    expect(readChecks({}).size).toBe(0)
+describe('the stored key space', () => {
+  /* Two resets in one bump, and the reasons differ.
+
+     CHECKS were bare item ids and week-wide. There is no honest mapping
+     from one bare id onto seven possible days.
+
+     EXCLUSIONS were bare ids too — and, crucially, were stored under
+     CHECKS_VERSION because they never had a constant of their own. A
+     measured document from this branch read
+     `{"version":2,"ids":[13,18]}`. That is why EXCLUDED_VERSION is 3 and
+     not the 2 the phase plan named: at 2 those bare ids would read back
+     as VALID, match nothing, clear nothing, and look like a reset while
+     being a migration that lost. */
+  it('gives exclusions a version that actually rejects what is on disk', () => {
+    expect(EXCLUDED_VERSION).not.toBe(2)
+    expect(readChecks({ version: 2, ids: [13, 18] }, EXCLUDED_VERSION).size).toBe(0)
+    expect(readChecks({ version: 2, ids: [13, 18] }, CHECKS_VERSION).size).toBe(0)
   })
 
-  /* THE VERSION CHECK, ISOLATED. The assertions above pass even without
-     it: they use string ids, which the integer filter drops anyway, so
-     the filter was doing the work and the version gate was never
-     exercised. A mutant that deleted the gate survived. These ids are
-     integers, so only the version can reject them. */
-  it('rejects a wrong-version document even when its ids look valid', () => {
-    expect(readChecks({ version: 1, ids: [1, 2, 3] }).size).toBe(0)
-    expect(readChecks({ version: CHECKS_VERSION + 1, ids: [1, 2, 3] }).size).toBe(0)
-    expect(readChecks({ ids: [1, 2, 3] }).size).toBe(0)
-    expect(readChecks({ version: CHECKS_VERSION, ids: [1, 2, 3] }).size).toBe(3)
+  it('reads nothing from either older shape', () => {
+    expect(readChecks({ ids: ['recipe_1', 'recipe_2'] }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({ version: 1, ids: ['recipe_1'] }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({ version: 2, ids: [1, 2, 3] }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks(null, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({}, CHECKS_VERSION).size).toBe(0)
   })
 
-  it('round-trips the new id-keyed shape', () => {
-    const ids = new Set([3, 1, 2])
-    const doc = writeChecks(ids)
+  /* THE VERSION CHECK, ISOLATED — these keys are well-formed, so only
+     the version can reject them. Without this a mutant that deleted the
+     gate survived, because the shape filter was doing all the work. */
+  it('rejects a wrong-version document even when its keys are valid', () => {
+    const keys = ['0:1', '0:2', '3:41']
+    expect(readChecks({ version: 1, keys }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({ version: CHECKS_VERSION + 1, keys }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({ keys }, CHECKS_VERSION).size).toBe(0)
+    expect(readChecks({ version: CHECKS_VERSION, keys }, CHECKS_VERSION).size).toBe(3)
+  })
+
+  /* ONE VALIDATOR, BOTH SIDES. This is the assertion that would have
+     caught the defect that produced this commit: a reader wanting
+     `"1:13"` and a writer emitting `13`, each with its own filter, each
+     internally consistent, and Clear silently doing nothing.
+     Asserting the two functions AGREE — rather than asserting each
+     against a literal — is what makes drift impossible to introduce
+     without a red test. */
+  it('cannot drift: everything written is read back, and only that', () => {
+    const mixed = ['0:1', '3:41', 13, 'recipe_2', '1.0:2', ' 1:2', '01:2', '1e3:2',
+                   '', '1:', ':1', '1:2:3', null, undefined, '-1:2']
+    const doc = writeChecks(mixed, CHECKS_VERSION)
+    const back = readChecks(doc, CHECKS_VERSION)
+    expect([...back].sort()).toEqual(doc.keys.slice().sort())
+    for (const k of mixed) expect(back.has(k)).toBe(isDayKey(k))
+  })
+
+  /* Structural, not a pattern. Every rejected string below coerces to a
+     number happily; none is a key this app ever wrote. A regex looking
+     for digits either accepts them or grows until it is this function. */
+  it('accepts only canonical integer pairs', () => {
+    for (const ok of ['0:1', '3:41', '6:577', '-1:2']) expect(isDayKey(ok)).toBe(true)
+    for (const no of ['1.0:2', ' 1:2', '01:2', '1e3:2', '1:', ':1', '', '1:2:3',
+                      '1', 13, null, undefined, {}, ['0:1']]) {
+      expect(isDayKey(no), `${String(no)} should be rejected`).toBe(false)
+    }
+  })
+
+  it('round-trips the day-keyed shape', () => {
+    const keys = new Set([dayKey(3, 41), dayKey(0, 1)])
+    const doc = writeChecks(keys, CHECKS_VERSION)
     expect(doc.version).toBe(CHECKS_VERSION)
-    expect(doc.ids).toEqual([1, 2, 3])           // sorted, so the write is stable
-    expect([...readChecks(doc)].sort()).toEqual([1, 2, 3])
+    expect(doc.keys).toEqual(['3:41', '0:1'])
+    expect(readChecks(doc, CHECKS_VERSION)).toEqual(keys)
   })
 
-  it('refuses a mixed document rather than half-reading it', () => {
-    expect([...readChecks({ version: CHECKS_VERSION, ids: [1, 'recipe_2', 3] })]).toEqual([1, 3])
+  /* NO SORT, DELIBERATELY. It used to end `.sort((a, b) => a - b)`,
+     which on strings compares NaN every time — a sort that does nothing
+     while reading as though it orders the file. Storage order is
+     cosmetic, so this asserts insertion order survives rather than
+     pretending an ordering exists. */
+  it('does not reorder what it stores', () => {
+    expect(writeChecks(['6:9', '0:1', '3:41'], CHECKS_VERSION).keys)
+      .toEqual(['6:9', '0:1', '3:41'])
   })
 
   it('writes a replacement, not a merge — old keys cannot linger', () => {
-    expect(writeChecks(new Set([5])).ids).toEqual([5])
+    expect(writeChecks(new Set([dayKey(0, 5)]), CHECKS_VERSION).keys).toEqual(['0:5'])
+  })
+
+  /* The two stores are versioned separately so they can move apart
+     later, but a document from one must not validate against the other's
+     constant if they ever diverge. */
+  it('keeps the two versions independent', () => {
+    const doc = writeChecks(['0:1'], EXCLUDED_VERSION)
+    expect(readChecks(doc, EXCLUDED_VERSION).size).toBe(1)
+    if (CHECKS_VERSION !== EXCLUDED_VERSION) {
+      expect(readChecks(doc, CHECKS_VERSION).size).toBe(0)
+    }
   })
 })
 

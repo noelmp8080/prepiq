@@ -146,8 +146,14 @@ the only automated protection for the paint-only row contract.
 
 ### Migrations — both in one commit
 
-- `EXCLUDED_VERSION` -> 2, reset.
 - `CHECKS_VERSION` -> 3, reset. Per-day, keyed `dayIndex:itemId`.
+- `EXCLUDED_VERSION` -> **3**, reset. **Corrected from the `-> 2` this
+  document originally said.** Exclusions never had a version constant of their
+  own — they reused `CHECKS_VERSION`, and a live document on this branch
+  measured `{"version":2,"ids":[13,18]}`. At 2 the constant would have read
+  every existing bare-id exclusion back as valid, where it matches nothing and
+  clears nothing: a migration that loses, wearing a reset's clothes. Separate
+  constants so the two can diverge later; both past 2 so both actually reset.
 
 Reset rather than migrate: an exclusion means "I already have this, for this
 shop" — transient, not a record. Inventing a day index for a week-wide
@@ -171,7 +177,9 @@ in this same migration.
 - [ ] Wire the grocery nav badge to per-day checks + `groceryDay`
       (`TODO(phase-3)` stub from block A). A merged block is exactly where a
       stub survives unnoticed — check this off explicitly.
-- [ ] Namespace `saveLS` keys by uid, alongside the two version resets.
+- [x] Namespace `saveLS` keys by uid, alongside the two version resets. Done —
+      `lsKey(uid, name)`, anon scope `prepiq_anon_*`, per-key adoption on first
+      sign-in.
 
 ---
 

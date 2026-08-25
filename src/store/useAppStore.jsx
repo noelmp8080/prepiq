@@ -4,7 +4,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
-         readChecks, writeChecks, todayIndex } from './storeLogic'
+         readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
+         CHECKS_VERSION, EXCLUDED_VERSION } from './storeLogic'
 
 const AppStoreContext = createContext(null)
 
@@ -41,15 +42,19 @@ export function AppStoreProvider({ children }) {
      is the ONLY place that means resolves to an index — buildGroceryItems
      takes a real integer so date handling stays out of the derivation. */
   const [groceryDayRaw, setGroceryDay] = useState(null)
+  /* RESOLVED ONCE, HERE. Everything downstream — the derivation, the
+     check key, the exclusion key — takes a real integer, so this is the
+     only line in the app where "today" means anything. */
+  const groceryDay = groceryDayRaw ?? todayIndex(weekPlan)
 
   // Load from localStorage (offline/no-auth path)
-  function loadFromLS(date) {
-    setGoalsState(loadLS('prepiq_goals', DEFAULT_GOALS))
-    setMealLog(loadLS(`prepiq_log_${date}`, []))
-    setWeekPlan(loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
-    setFavorites(arrayToSet(loadLS('prepiq_favorites', [])))
-    setGroceryChecks(readChecks(loadLS('prepiq_grocery', null)))
-    setGroceryExcluded(readChecks(loadLS('prepiq_grocery_excluded', null)))
+  function loadFromLS(uid, date) {
+    setGoalsState(loadLS(lsKey(uid, 'goals'), DEFAULT_GOALS))
+    setMealLog(loadLS(lsKey(uid, `log_${date}`), []))
+    setWeekPlan(loadLS(lsKey(uid, 'weekplan'), DEFAULT_WEEK_PLAN))
+    setFavorites(arrayToSet(loadLS(lsKey(uid, 'favorites'), [])))
+    setGroceryChecks(readChecks(loadLS(lsKey(uid, 'grocery'), null), CHECKS_VERSION))
+    setGroceryExcluded(readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION))
   }
 
   // Load from Firestore
@@ -70,22 +75,22 @@ export function AppStoreProvider({ children }) {
       const c = grocSnap.exists()  ? grocSnap.data()       : null
       const x = exclSnap.exists()  ? exclSnap.data()       : null
 
-      const resolvedGoals = resolveField(g, () => loadLS('prepiq_goals', DEFAULT_GOALS))
-      const resolvedLog   = resolveField(l, () => loadLS(`prepiq_log_${date}`, []))
-      const resolvedPlan  = resolveField(p, () => loadLS('prepiq_weekplan', DEFAULT_WEEK_PLAN))
-      const resolvedFavs  = resolveField(f, () => loadLS('prepiq_favorites', []))
-      const resolvedGroc  = resolveField(c, () => loadLS('prepiq_grocery', null))
-      const resolvedExcl  = resolveField(x, () => loadLS('prepiq_grocery_excluded', null))
+      const resolvedGoals = resolveField(g, () => loadLS(lsKey(uid, 'goals'), DEFAULT_GOALS))
+      const resolvedLog   = resolveField(l, () => loadLS(lsKey(uid, `log_${date}`), []))
+      const resolvedPlan  = resolveField(p, () => loadLS(lsKey(uid, 'weekplan'), DEFAULT_WEEK_PLAN))
+      const resolvedFavs  = resolveField(f, () => loadLS(lsKey(uid, 'favorites'), []))
+      const resolvedGroc  = resolveField(c, () => loadLS(lsKey(uid, 'grocery'), null))
+      const resolvedExcl  = resolveField(x, () => loadLS(lsKey(uid, 'grocery_excluded'), null))
 
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
       setWeekPlan(resolvedPlan)
       setFavorites(arrayToSet(resolvedFavs))
-      setGroceryChecks(readChecks(resolvedGroc))
-      setGroceryExcluded(readChecks(resolvedExcl))
+      setGroceryChecks(readChecks(resolvedGroc, CHECKS_VERSION))
+      setGroceryExcluded(readChecks(resolvedExcl, EXCLUDED_VERSION))
     } catch (e) {
       console.error('[loadFromFirestore]', e)
-      loadFromLS(date)
+      loadFromLS(uid, date)
     }
   }
 
@@ -95,9 +100,15 @@ export function AppStoreProvider({ children }) {
       const date = todayISO()
       setLogDate(date)
       if (u) {
+        /* ADOPT BEFORE READING, not after. The signed-out plan has to be
+           in this account's scope by the time loadFromFirestore looks for
+           a local fallback, or the fallback finds an empty new scope and
+           the work is lost at exactly the moment the user signed up to
+           keep it. */
+        adoptAnonKeys(u.uid)
         await loadFromFirestore(u.uid, date)
       } else {
-        loadFromLS(date)
+        loadFromLS(null, date)
       }
     })
     return unsub
@@ -125,7 +136,7 @@ export function AppStoreProvider({ children }) {
       const now = todayISO()
       if (!dayChanged(logDate, now)) return
       setLogDate(now)
-      const local = () => loadLS(`prepiq_log_${now}`, [])
+      const local = () => loadLS(lsKey(user?.uid, `log_${now}`), [])
       if (!user) { setMealLog(local()); return }
       getDoc(doc(db, 'users', user.uid, 'logs', now))
         .then(s => setMealLog(resolveField(s.exists() ? s.data().meals : null, local)))
@@ -187,38 +198,38 @@ export function AppStoreProvider({ children }) {
   }, [])
 
   const writeGoals = useCallback((uid, value) => {
-    saveLS('prepiq_goals', value)
+    saveLS(lsKey(uid, 'goals'), value)
     cloudWrite(uid, ['profile', 'goals'], value, 'goals')
   }, [cloudWrite])
 
   /* The date is PASSED IN rather than read from a module constant — see
      todayISO. A write must land on the day it was made. */
   const writeLog = useCallback((uid, value, date) => {
-    saveLS(`prepiq_log_${date}`, value)
+    saveLS(lsKey(uid, `log_${date}`), value)
     cloudWrite(uid, ['logs', date], { meals: value }, "today's log")
   }, [cloudWrite])
 
   const writePlan = useCallback((uid, value) => {
-    saveLS('prepiq_weekplan', value)
+    saveLS(lsKey(uid, 'weekplan'), value)
     cloudWrite(uid, ['weekPlan', 'current'], { days: value }, 'weekly plan')
   }, [cloudWrite])
 
   const writeFavs = useCallback((uid, value) => {
-    saveLS('prepiq_favorites', setToArray(value))
+    saveLS(lsKey(uid, 'favorites'), setToArray(value))
     cloudWrite(uid, ['profile', 'favorites'], { ids: setToArray(value) }, 'favourites')
   }, [cloudWrite])
 
   /* The write REPLACES rather than merges, so v1's `recipe_${id}` keys
      cannot linger and quietly inflate the count. */
   const writeGroc = useCallback((uid, value) => {
-    const doc_ = writeChecks(value)
-    saveLS('prepiq_grocery', doc_)
+    const doc_ = writeChecks(value, CHECKS_VERSION)
+    saveLS(lsKey(uid, 'grocery'), doc_)
     cloudWrite(uid, ['grocery', 'checks'], doc_, 'grocery checks')
   }, [cloudWrite])
 
   const writeExcluded = useCallback((uid, value) => {
-    const doc_ = writeChecks(value)
-    saveLS('prepiq_grocery_excluded', doc_)
+    const doc_ = writeChecks(value, EXCLUDED_VERSION)
+    saveLS(lsKey(uid, 'grocery_excluded'), doc_)
     cloudWrite(uid, ['grocery', 'excluded'], doc_, 'cleared items')
   }, [cloudWrite])
 
@@ -278,18 +289,23 @@ export function AppStoreProvider({ children }) {
     writeFavs(user?.uid, next)
   }, [favorites, user, writeFavs])
 
+  /* CHECKS ARE PER DAY, keyed exactly like exclusions. A week-wide check
+     claims "bought" against Friday's row when what you bought was
+     Tuesday's amount of the same thing. The screen passes item ids; the
+     day comes from here, so no caller can build half a key. */
   const toggleGroceryItem = useCallback((itemId) => {
+    const k = dayKey(groceryDay, itemId)
     const next = new Set(groceryChecks)
-    next.has(itemId) ? next.delete(itemId) : next.add(itemId)
+    next.has(k) ? next.delete(k) : next.add(k)
     setGroceryChecks(next)
     writeGroc(user?.uid, next)
-  }, [groceryChecks, user, writeGroc])
+  }, [groceryChecks, groceryDay, user, writeGroc])
 
   const checkAllGrocery = useCallback((allItemIds) => {
-    const next = new Set(allItemIds)
+    const next = new Set([...allItemIds].map(id => dayKey(groceryDay, id)))
     setGroceryChecks(next)
     writeGroc(user?.uid, next)
-  }, [user, writeGroc])
+  }, [groceryDay, user, writeGroc])
 
   /* CLEAR MOVES CHECKED ITEMS OFF THE LIST, it does not merely untick
      them. That was the original bug: the button said Clear, emptied the
@@ -346,8 +362,7 @@ export function AppStoreProvider({ children }) {
     favorites,
     groceryChecks,
     groceryExcluded,
-    /* Resolved here, at the call site, exactly once. */
-    groceryDay: groceryDayRaw ?? todayIndex(weekPlan),
+    groceryDay,
     groceryDayIsToday: groceryDayRaw === null,
     setGroceryDay,
     undoClear,

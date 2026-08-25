@@ -38,6 +38,15 @@ vi.mock('firebase/auth', () => ({
 }))
 
 const { AppStoreProvider, useAppStore } = await import('../store/useAppStore')
+const { lsKey, CHECKS_VERSION, EXCLUDED_VERSION, dayKey, adoptedMarker } =
+  await import('../store/storeLogic')
+
+/* Grocery keys carry the day, and the day defaults to today — so every
+   assertion about a stored check would otherwise change with the
+   weekday. Pinned once here. */
+const DAY = 2
+const K = id => dayKey(DAY, id)
+const readLS = (uid, name) => JSON.parse(localStorage.getItem(lsKey(uid, name)))
 
 const UID = 'test-uid-123'
 const snap = value => ({ exists: () => value !== undefined, data: () => value })
@@ -62,6 +71,7 @@ function mountStore() {
 async function signIn(box) {
   getDocMock.mockResolvedValue(snap(undefined))
   await act(async () => { await authCallback({ uid: UID }) })
+  await act(async () => { box.store.setGroceryDay(DAY) })
   setDocMock.mockClear()
   return box
 }
@@ -116,12 +126,13 @@ describe('every writer lands on its own document', () => {
     /* Sets are serialised as arrays — Firestore cannot store a Set, and
        a Set would arrive as {} with no error.
 
-       CHECKS ARE VERSIONED AND ID-KEYED NOW. They used to be
-       `recipe_${id}` strings, which could not be mapped onto a recipe's
-       nineteen ingredients without inventing data, so v2 resets rather
-       than migrates and the version marks which key space a stored
-       document belongs to. */
-    expect(payloadFor(`users/${UID}/grocery/checks`)).toEqual({ version: 2, ids: [1, 2] })
+       CHECKS ARE VERSIONED AND DAY-KEYED NOW — `dayIndex:itemId`. They
+       were `recipe_${id}` at v1 and bare item ids at v2; neither can be
+       mapped onto a day without inventing data, so v3 resets rather than
+       migrates and the version marks which key space a document belongs
+       to. */
+    expect(payloadFor(`users/${UID}/grocery/checks`))
+      .toEqual({ version: CHECKS_VERSION, keys: [K(1), K(2)] })
     expect(payloadFor(`users/${UID}/profile/favorites`)).toEqual({ ids: [7] })
     expect(payloadFor(`users/${UID}/weekPlan/current`).days).toHaveLength(7)
 
@@ -133,10 +144,13 @@ describe('every writer lands on its own document', () => {
     await act(async () => { await authCallback(null) })
     setDocMock.mockClear()
 
+    await act(async () => { box.store.setGroceryDay(DAY) })
     await act(async () => { box.store.checkAllGrocery([1]) })
 
     expect(setDocMock).not.toHaveBeenCalled()
-    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual({ version: 2, ids: [1] })
+    /* Signed out writes to the ANON scope, not to a global key. */
+    expect(readLS(null, 'grocery')).toEqual({ version: CHECKS_VERSION, keys: [K(1)] })
+    expect(localStorage.getItem('prepiq_grocery')).toBe(null)
     unmount()
   })
 })
@@ -162,8 +176,8 @@ describe('a failed write is reported, not swallowed', () => {
     setDocMock.mockRejectedValue(new Error('offline'))
     await act(async () => { box.store.checkAllGrocery([1]) })
 
-    expect(JSON.parse(localStorage.getItem('prepiq_grocery'))).toEqual({ version: 2, ids: [1] })
-    expect(box.store.groceryChecks.has(1)).toBe(true)
+    expect(readLS(UID, 'grocery')).toEqual({ version: CHECKS_VERSION, keys: [K(1)] })
+    expect(box.store.groceryChecks.has(K(1))).toBe(true)
     unmount()
   })
 

@@ -133,15 +133,6 @@ export function todayIndex(weekPlan = [], date = new Date()) {
   return i >= 0 ? i : 0
 }
 
-/** The exclusion key. `dayIndex:itemId`, so clearing Thursday leaves
- *  Friday's list intact.
- *
- *  One definition, used by the derivation to look up and by the store to
- *  write. Two places building the same string by hand is how a key ends
- *  up half-applied — the excluding side working while the writing side
- *  emits something that never matches, or the reverse. */
-export const exclusionKey = (dayIndex, itemId) => `${dayIndex}:${itemId}`
-
 export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex) {
   const byCard = catalog.byCard || {}
   const meta = catalog.items || {}
@@ -155,7 +146,7 @@ export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Se
     if (!rid || seenCards.has(rid)) continue          // a recipe twice in one day is one shop
     seenCards.add(rid)
     for (const entry of byCard[String(rid)] || []) {
-      if (excluded.has(exclusionKey(dayIndex, entry.id))) continue
+      if (excluded.has(dayKey(dayIndex, entry.id))) continue
       const info = meta[String(entry.id)]
       if (!info) continue                             // retired id, no longer stocked
       let row = rows.get(entry.id)
@@ -199,23 +190,145 @@ export function groupBySection(rows = [], catalog = {}) {
   return out
 }
 
-/* CHECKS RE-KEY FROM `recipe_${id}` TO ITEM IDS, AND RESET.
+/* ── THE STORED KEY SPACE ─────────────────────────────────────────────
  *
- * A check meant "I have the ingredients for Spicy Chicken Wraps". It
- * cannot be mapped onto that recipe's nineteen ingredients without
- * inventing data, so the old keys are dropped rather than migrated.
+ * Checks and exclusions are both sets of `dayIndex:itemId`, and both are
+ * stored the same way. Two version bumps, both resets.
  *
- * The version marks which key space a stored set belongs to. A rollback
- * reads v2 keys, finds none it recognises, and shows an unchecked list —
- * an empty list rather than garbage. Writes REPLACE so old keys cannot
- * linger and quietly inflate the count. */
-export const CHECKS_VERSION = 2
+ * CHECKS: v2 -> v3. A check was week-wide and keyed on a bare item id.
+ * It has no day to belong to, and quantities differ per day, so a global
+ * check claims "bought" against a row that still needs a different
+ * amount. There is no honest mapping from one bare id to seven possible
+ * days, so the old keys are dropped rather than migrated.
+ *
+ * EXCLUSIONS: also v2 -> v3, and NOT v1 -> v2 as the phase plan said.
+ * Exclusions never had a version constant of their own — they reused
+ * CHECKS_VERSION and are on disk today carrying `version: 2`. Setting
+ * EXCLUDED_VERSION to 2 would have read every existing bare-id exclusion
+ * back as valid, where it would match nothing and clear nothing: a
+ * migration that looks like a reset and is not one. Separate constants
+ * so the two can drift apart later; both past 2 so both actually reset.
+ *
+ * `ids` becomes `keys` in the same bump. The field holds strings now and
+ * calling them ids was how the last defect read as correct. A rollback
+ * to v2 code finds no `ids` and no matching version, and shows an empty
+ * list rather than garbage. Writes REPLACE, so old keys cannot linger. */
+export const CHECKS_VERSION = 3
+export const EXCLUDED_VERSION = 3
 
-export function readChecks(doc) {
-  if (!doc || doc.version !== CHECKS_VERSION) return new Set()
-  return new Set((doc.ids || []).filter(n => Number.isInteger(n)))
+/** `dayIndex:itemId` — the one key both stores use, so clearing
+ *  Thursday leaves Friday's list intact.
+ *
+ *  Built here and nowhere else. Two hand-built strings is how a key ends
+ *  up half-applied: the reading side excluding correctly while the
+ *  writing side emits something that never matches. */
+export const dayKey = (dayIndex, itemId) => `${dayIndex}:${itemId}`
+
+/** Is this a key this app wrote?
+ *
+ *  ONE VALIDATOR, USED BY BOTH SIDES. `readChecks` and `writeChecks`
+ *  each carried their own `.filter(Number.isInteger)`, and that is the
+ *  shape of the bug this closes — two filters that can drift apart did
+ *  drift apart, leaving a reader that wanted `"1:13"` and a writer that
+ *  emitted `13`. The suite stayed green and Clear silently stopped
+ *  removing anything.
+ *
+ *  Structural, not a regex: split on the separator and require both
+ *  halves to be integers IN CANONICAL FORM. The round-trip through
+ *  Number is what does that work — it rejects `" 1"`, `"1.0"`, `"01"`,
+ *  `"1e3"` and `""`, all of which coerce to a number happily and none of
+ *  which this app ever wrote. A pattern that merely looks for digits
+ *  would accept them and store keys that never match. */
+const isCanonicalInt = part => {
+  const n = Number(part)
+  return Number.isInteger(n) && String(n) === part
 }
 
-export function writeChecks(ids) {
-  return { version: CHECKS_VERSION, ids: [...ids].filter(Number.isInteger).sort((a, b) => a - b) }
+export function isDayKey(k) {
+  if (typeof k !== 'string') return false
+  const parts = k.split(':')
+  return parts.length === 2 && parts.every(isCanonicalInt)
+}
+
+export function readChecks(doc, version) {
+  if (!doc || doc.version !== version) return new Set()
+  return new Set((doc.keys || []).filter(isDayKey))
+}
+
+/* NO SORT. It used to end `.sort((a, b) => a - b)`, which on strings
+   returns NaN for every comparison — a sort that silently does nothing
+   while reading as though it orders the file. Storage order is cosmetic,
+   so dropping it is the honest version. */
+export function writeChecks(keys, version) {
+  return { version, keys: [...keys].filter(isDayKey) }
+}
+
+/* ── WHOSE DATA IS THIS? ──────────────────────────────────────────────
+ *
+ * Every localStorage key is scoped to an owner. They were not:
+ * `prepiq_goals`, `prepiq_weekplan`, `prepiq_favorites` and both grocery
+ * keys were global, and only the meal log interpolated anything — and
+ * that was a date, not a user.
+ *
+ * That was MASKED, not harmless. Hydration waited for Firestore, which
+ * overwrote whatever localStorage held, so on a shared device user B saw
+ * their own data a beat later. Making hydration synchronous EXPOSES it:
+ * user B would open the app to user A's plan and see it until the cloud
+ * read lands. The scoping is a fix for a latent bug, not a precaution
+ * against a new one.
+ */
+export const ANON = 'anon'
+export const scopeOf = uid => uid || ANON
+export const lsKey = (uid, name) => `prepiq_${scopeOf(uid)}_${name}`
+
+/* ── ADOPTING SIGNED-OUT WORK ─────────────────────────────────────────
+ *
+ * Signed-out work is real work. Someone plans a week on the train, then
+ * signs up — the plan has to follow them into the account, or signing up
+ * is punished.
+ *
+ * PER KEY, NOT ALL-OR-NOTHING. Each name is decided on its own: adopt
+ * only where the account has no answer of its own. All-or-nothing would
+ * mean one populated field on the account blocking five empty ones, or
+ * one empty field letting anon overwrite five populated ones.
+ *
+ * THE EMPTINESS TEST IS resolveField's — nullish, and nothing else. `[]`,
+ * `0` and `''` are answers somebody gave. An account whose favourites are
+ * deliberately empty must not have anon's favourites poured into it.
+ *
+ * GROCERY IS NOT ADOPTED. Checks and exclusions are transient state about
+ * one shop on one day, keyed by a day index that means nothing across a
+ * sign-in boundary. The same reason both are reset rather than migrated.
+ */
+export const ADOPTABLE = ['goals', 'weekplan', 'favorites']
+export const NEVER_ADOPTED = ['grocery', 'grocery_excluded']
+export const adoptedMarker = uid => `prepiq_anon_adopted_${uid}`
+
+/** Copy anon-scoped values into `uid`'s scope, once, per key.
+ *
+ *  IDEMPOTENT BY MARKER, not by comparing values. A second run must be a
+ *  no-op even when it would be harmless, because "harmless" stops being
+ *  true the moment the user edits after signing in: without the marker,
+ *  a later re-entry would look at an account key the user had since
+ *  cleared, find it empty, and pour the stale anon value back in.
+ *
+ *  The anon keys are LEFT IN PLACE. Signing out returns you to them, and
+ *  a device is often shared with the same person's signed-out self. */
+export function adoptAnonKeys(uid, names = ADOPTABLE) {
+  if (!uid) return { adopted: [], skipped: [], alreadyRun: false }
+  if (loadLS(adoptedMarker(uid), null) != null) {
+    return { adopted: [], skipped: [...names], alreadyRun: true }
+  }
+  const adopted = [], skipped = []
+  for (const name of names) {
+    if (NEVER_ADOPTED.includes(name)) { skipped.push(name); continue }
+    const theirs = loadLS(lsKey(null, name), null)
+    if (theirs == null) { skipped.push(name); continue }      // nothing to bring
+    const mine = loadLS(lsKey(uid, name), null)
+    if (mine != null) { skipped.push(name); continue }        // the account already answered
+    saveLS(lsKey(uid, name), theirs)
+    adopted.push(name)
+  }
+  saveLS(adoptedMarker(uid), true)
+  return { adopted, skipped, alreadyRun: false }
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
+  lsKey, scopeOf, ANON, adoptAnonKeys, adoptedMarker, ADOPTABLE, NEVER_ADOPTED,
 } from '../store/storeLogic'
 
 /* THE RULES WHERE A WRONG ANSWER IS SILENT.
@@ -215,5 +216,147 @@ describe('loadLS / saveLS', () => {
 
   it('whereas an absent key does use the fallback — the distinction', () => {
     expect(loadLS('never-written', 'FALLBACK')).toBe('FALLBACK')
+  })
+})
+
+/* ── KEY SCOPING AND ADOPTION ─────────────────────────────────────────
+ *
+ * Both go through real localStorage, because both are about what is on
+ * disk and a test that stubbed storage would prove nothing about it.
+ */
+describe('every key belongs to somebody', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('scopes anonymous work under anon and an account under its uid', () => {
+    expect(scopeOf(null)).toBe(ANON)
+    expect(scopeOf(undefined)).toBe(ANON)
+    expect(scopeOf('')).toBe(ANON)
+    expect(scopeOf('u1')).toBe('u1')
+    expect(lsKey(null, 'weekplan')).toBe('prepiq_anon_weekplan')
+    expect(lsKey('u1', 'weekplan')).toBe('prepiq_u1_weekplan')
+  })
+
+  /* THE LATENT BUG THIS FIXES, STATED AS A TEST. The keys were global.
+     That was masked while hydration waited for Firestore to overwrite
+     them; making hydration synchronous would have shown user B user A's
+     plan. Two users, one device, no bleed — through storage, both ways. */
+  it('keeps two accounts apart on one device', () => {
+    saveLS(lsKey('userA', 'weekplan'), ['A-plan'])
+    saveLS(lsKey('userB', 'weekplan'), ['B-plan'])
+    saveLS(lsKey(null, 'weekplan'), ['anon-plan'])
+
+    expect(loadLS(lsKey('userA', 'weekplan'), null)).toEqual(['A-plan'])
+    expect(loadLS(lsKey('userB', 'weekplan'), null)).toEqual(['B-plan'])
+    expect(loadLS(lsKey(null, 'weekplan'), null)).toEqual(['anon-plan'])
+    /* and nothing lives at the old global key any more */
+    expect(localStorage.getItem('prepiq_weekplan')).toBe(null)
+  })
+
+  it('scopes the per-day log by user as well as by date', () => {
+    expect(lsKey('u1', 'log_2026-08-25')).toBe('prepiq_u1_log_2026-08-25')
+    expect(lsKey(null, 'log_2026-08-25')).toBe('prepiq_anon_log_2026-08-25')
+  })
+})
+
+describe('adopting signed-out work on first sign-in', () => {
+  const UID = 'u1'
+  beforeEach(() => localStorage.clear())
+
+  it('brings anon work into an account that has none — per key', () => {
+    saveLS(lsKey(null, 'goals'), { calories: 2200 })
+    saveLS(lsKey(null, 'weekplan'), ['anon-plan'])
+    // favorites deliberately absent from anon
+
+    const r = adoptAnonKeys(UID)
+    expect(r.adopted.sort()).toEqual(['goals', 'weekplan'])
+    expect(r.skipped).toContain('favorites')
+    expect(loadLS(lsKey(UID, 'goals'), null)).toEqual({ calories: 2200 })
+    expect(loadLS(lsKey(UID, 'weekplan'), null)).toEqual(['anon-plan'])
+    expect(loadLS(lsKey(UID, 'favorites'), null)).toBe(null)
+  })
+
+  /* PER KEY, NOT ALL-OR-NOTHING. One populated account field must not
+     block the empty ones, and one empty account field must not let anon
+     overwrite the populated ones. Both directions in one case. */
+  it('decides each key on its own', () => {
+    saveLS(lsKey(null, 'goals'), { calories: 2200 })
+    saveLS(lsKey(null, 'weekplan'), ['anon-plan'])
+    saveLS(lsKey(UID, 'weekplan'), ['account-plan'])      // account already answered
+
+    const r = adoptAnonKeys(UID)
+    expect(r.adopted).toEqual(['goals'])
+    expect(loadLS(lsKey(UID, 'weekplan'), null)).toEqual(['account-plan'])   // not overwritten
+    expect(loadLS(lsKey(UID, 'goals'), null)).toEqual({ calories: 2200 })    // still adopted
+  })
+
+  /* THE EMPTINESS TEST IS resolveField's — nullish and nothing else. An
+     account whose favourites are deliberately empty gave an answer. */
+  it('treats an empty array as an answer, not as absence', () => {
+    saveLS(lsKey(null, 'favorites'), [7, 9])
+    saveLS(lsKey(UID, 'favorites'), [])
+
+    expect(adoptAnonKeys(UID).adopted).toEqual([])
+    expect(loadLS(lsKey(UID, 'favorites'), null)).toEqual([])
+  })
+
+  it('runs once, by marker, even when a second run would look harmless', () => {
+    saveLS(lsKey(null, 'goals'), { calories: 2200 })
+    expect(adoptAnonKeys(UID).adopted).toEqual(['goals'])
+    expect(loadLS(adoptedMarker(UID), null)).toBe(true)
+
+    /* the user then clears their goals inside the account */
+    localStorage.removeItem(lsKey(UID, 'goals'))
+    const second = adoptAnonKeys(UID)
+    expect(second.alreadyRun).toBe(true)
+    expect(second.adopted).toEqual([])
+    /* without the marker this is where the stale anon value comes back */
+    expect(loadLS(lsKey(UID, 'goals'), null)).toBe(null)
+  })
+
+  it('marks a run even when it adopted nothing, so it cannot re-arm', () => {
+    expect(adoptAnonKeys(UID).adopted).toEqual([])
+    saveLS(lsKey(null, 'goals'), { calories: 9999 })
+    expect(adoptAnonKeys(UID).alreadyRun).toBe(true)
+    expect(loadLS(lsKey(UID, 'goals'), null)).toBe(null)
+  })
+
+  it('is per uid — a second account on the device adopts on its own', () => {
+    saveLS(lsKey(null, 'goals'), { calories: 2200 })
+    adoptAnonKeys('userA')
+    expect(loadLS(lsKey('userA', 'goals'), null)).toEqual({ calories: 2200 })
+    expect(loadLS(lsKey('userB', 'goals'), null)).toBe(null)
+
+    adoptAnonKeys('userB')
+    expect(loadLS(lsKey('userB', 'goals'), null)).toEqual({ calories: 2200 })
+  })
+
+  /* GROCERY IS NEVER ADOPTED. Checks and exclusions are transient state
+     about one shop on one day, keyed by a day index that means nothing
+     across a sign-in. Asserted even when asked for explicitly, so the
+     exclusion cannot be defeated by widening the caller's list. */
+  it('refuses grocery state even when it is named', () => {
+    saveLS(lsKey(null, 'grocery'), { version: 3, keys: ['0:1'] })
+    saveLS(lsKey(null, 'grocery_excluded'), { version: 3, keys: ['0:2'] })
+
+    expect(ADOPTABLE).not.toContain('grocery')
+    expect(ADOPTABLE).not.toContain('grocery_excluded')
+    const r = adoptAnonKeys(UID, [...ADOPTABLE, ...NEVER_ADOPTED])
+    expect(r.adopted).toEqual([])
+    expect(loadLS(lsKey(UID, 'grocery'), null)).toBe(null)
+    expect(loadLS(lsKey(UID, 'grocery_excluded'), null)).toBe(null)
+  })
+
+  /* Signing out returns you to the anon scope, so the source keys stay.
+     A device is often shared with the same person's signed-out self. */
+  it('leaves the anon keys in place', () => {
+    saveLS(lsKey(null, 'weekplan'), ['anon-plan'])
+    adoptAnonKeys(UID)
+    expect(loadLS(lsKey(null, 'weekplan'), null)).toEqual(['anon-plan'])
+  })
+
+  it('does nothing without a uid', () => {
+    saveLS(lsKey(null, 'goals'), { calories: 2200 })
+    expect(adoptAnonKeys(null).adopted).toEqual([])
+    expect(adoptAnonKeys(undefined).alreadyRun).toBe(false)
   })
 })

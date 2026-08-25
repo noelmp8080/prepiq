@@ -63,6 +63,7 @@ vi.mock('firebase/auth', () => ({
 
 const { AppStoreProvider, useAppStore } = await import('../store/useAppStore')
 const { default: Grocery } = await import('../components/Grocery')
+const { lsKey } = await import('../store/storeLogic')
 
 /* ── DETERMINISM: A FIXED DAY AND A FIXED RECIPE SET ──────────────────
  *
@@ -177,7 +178,7 @@ function layoutDiff(before, after) {
 let host, root
 beforeEach(async () => {
   localStorage.clear()
-  localStorage.setItem('prepiq_weekplan', JSON.stringify(FIXED_PLAN))
+  localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)

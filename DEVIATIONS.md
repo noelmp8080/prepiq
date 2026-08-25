@@ -234,6 +234,39 @@ recipes. Listing is the only implementable reading of the two.
 
 ---
 
+## 6. localStorage keys are scoped by user — a fix, not a deviation
+
+**Handoff:** silent on persistence keys.
+
+**Built (block B):** `prepiq_<scope>_<name>`, where scope is the uid or `anon`.
+
+**Why this is not a deviation.** The keys were global: `prepiq_goals`,
+`prepiq_weekplan`, `prepiq_favorites` and both grocery keys. On a shared device
+user B could read user A's data. That was **masked** because hydration waited
+for Firestore, which overwrote localStorage before anything rendered — so the
+window existed but nothing was drawn in it. Making hydration synchronous
+**exposes** the bug; it does not cause it. Recorded here so nobody later reads
+the scoping as redesign scope creep and removes it.
+
+**Anonymous work is adopted on first sign-in**, per key, into `prepiq_<uid>_*`:
+adopt only where the account has no answer of its own, using `resolveField`'s
+emptiness test — nullish and nothing else, so `[]` and `0` are answers somebody
+gave. Grocery checks and exclusions are never adopted; they are transient state
+about one shop on one day and the day index means nothing across a sign-in.
+Idempotent by marker `prepiq_anon_adopted_<uid>` rather than by comparing
+values, because a second run stops being harmless the moment the user edits
+after signing in.
+
+**Known and accepted:** keys accumulate per uid on a shared device. Sign-out
+leaves both the previous account's keys and the anon keys in place, and nothing
+prunes them. That is deliberate — signing out returns you to your signed-out
+work — but on a device with many accounts localStorage grows without bound.
+`saveLS` already fails soft on quota. Revisit if it ever bites.
+
+**Approved:** yes.
+
+---
+
 ## The handoff contradicts itself — the prior for the fourth time
 
 Three internal contradictions have surfaced so far — the **accent ramp** (prose
