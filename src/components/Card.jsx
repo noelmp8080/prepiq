@@ -48,9 +48,9 @@ export const CARD_CELL_RULE = '1px solid var(--pq-rule-cell)'
 
 /* The dashed empty-state block. Every screen's "nothing here yet" uses
    it, so it lives beside the card rather than being redrawn per screen. */
-export function EmptyBlock({ children, style }) {
+export function EmptyBlock({ children, style, as: Tag = 'div', ...rest }) {
   return (
-    <div style={{
+    <Tag {...rest} style={{
       border: 'var(--pq-rule-dashed)',
       borderRadius: 'var(--pq-r-card)',
       padding: '30px 22px',
@@ -59,6 +59,6 @@ export function EmptyBlock({ children, style }) {
       ...style,
     }}>
       {children}
-    </div>
+    </Tag>
   )
 }

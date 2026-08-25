@@ -370,3 +370,65 @@ export function hydrateLocal(uid, date, defaults = {}) {
     groceryExcluded: readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION),
   }
 }
+
+/* ── WHAT WAS PLANNED VS WHAT WAS EATEN ───────────────────────────────
+ *
+ * Today shows the day's planned meals and marks the ones already logged.
+ * Track shows the same pairing from the other side: what is planned and
+ * NOT yet logged is the `PLANNED · ONE TAP TO LOG` list, and what was
+ * logged without being planned is `ALSO LOGGED`.
+ *
+ * ONE FUNCTION, because the two screens must agree. Two implementations
+ * of "is this planned meal logged yet?" is how Today shows a meal ticked
+ * while Track still offers to log it — and the user taps, and it is
+ * logged twice.
+ *
+ * PAIRING IS ONE-TO-ONE AND ORDER-STABLE. A day planning the same recipe
+ * twice, with one of them eaten, must show one done and one to go — so a
+ * log entry is CONSUMED by the first planned slot that matches it and is
+ * not offered to the second. Matching on "does any log mention this
+ * recipe" would tick both.
+ *
+ * Nothing here reads the clock or the store; it is given the day's ids
+ * and the log, and returns the pairing.
+ */
+export function planVsLog(plannedIds = [], mealLog = []) {
+  const spare = mealLog.map(entry => ({ entry, taken: false }))
+
+  const planned = []
+  for (let slot = 0; slot < plannedIds.length; slot++) {
+    const recipeId = plannedIds[slot]
+    if (!recipeId) continue                          // an empty slot is not a meal
+    const hit = spare.find(s => !s.taken && s.entry?.recipeId === recipeId)
+    if (hit) hit.taken = true
+    planned.push({ recipeId, slot, log: hit ? hit.entry : null })
+  }
+
+  return {
+    planned,
+    /* Logged, but not against anything on the plan. */
+    extras: spare.filter(s => !s.taken).map(s => s.entry),
+  }
+}
+
+/** Macro totals for a set of recipe ids. */
+export function sumMacros(ids = [], recipeById = {}) {
+  const out = { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  for (const id of ids) {
+    const r = recipeById[id]
+    if (!r) continue
+    out.calories += r.cal || 0
+    out.protein  += r.protein || 0
+    out.carbs    += r.carbs || 0
+    out.fat      += r.fat || 0
+  }
+  return out
+}
+
+/** Percentage of a goal, clamped to 100 for bar widths.
+ *  Clamped so an overshoot cannot draw past the track; the NUMBER above
+ *  the bar is never clamped, because going over is worth seeing. */
+export function pct(value, goal) {
+  if (!goal || goal <= 0) return 0
+  return Math.min(100, Math.round((value / goal) * 100))
+}

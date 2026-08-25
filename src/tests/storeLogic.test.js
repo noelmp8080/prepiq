@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
   lsKey, scopeOf, ANON, adoptAnonKeys, adoptedMarker, ADOPTABLE, NEVER_ADOPTED,
+  planVsLog, sumMacros, pct,
 } from '../store/storeLogic'
 
 /* THE RULES WHERE A WRONG ANSWER IS SILENT.
@@ -358,5 +359,95 @@ describe('adopting signed-out work on first sign-in', () => {
     saveLS(lsKey(null, 'goals'), { calories: 2200 })
     expect(adoptAnonKeys(null).adopted).toEqual([])
     expect(adoptAnonKeys(undefined).alreadyRun).toBe(false)
+  })
+})
+
+/* ── The pairing Today and Track share ────────────────────────────────
+ *
+ * Both screens ask the same question from opposite sides, so they run
+ * the same function. Two implementations is how Today ticks a meal while
+ * Track still offers to log it — and the tap logs it twice.
+ */
+describe('planVsLog', () => {
+  const log = (recipeId, id = String(recipeId)) => ({ id, recipeId })
+
+  it('marks a planned meal as logged', () => {
+    const { planned, extras } = planVsLog([1, 2], [log(1)])
+    expect(planned).toHaveLength(2)
+    expect(planned[0]).toMatchObject({ recipeId: 1, slot: 0 })
+    expect(planned[0].log).toBeTruthy()
+    expect(planned[1].log).toBe(null)
+    expect(extras).toEqual([])
+  })
+
+  it('reports what was eaten off-plan as extras', () => {
+    const { planned, extras } = planVsLog([1], [log(1), log(9)])
+    expect(planned[0].log).toBeTruthy()
+    expect(extras.map(e => e.recipeId)).toEqual([9])
+  })
+
+  /* THE ONE THAT DECIDES THE SHAPE. A day with the same recipe in both
+     slots, one eaten, must read as one done and one to go. Matching on
+     "does any log mention this recipe" ticks both, and Track then stops
+     offering the second — a meal you planned and did not eat quietly
+     counted as eaten. */
+  it('pairs one to one when a recipe is planned twice', () => {
+    const { planned, extras } = planVsLog([5, 5], [log(5)])
+    expect(planned).toHaveLength(2)
+    expect(planned[0].log).toBeTruthy()
+    expect(planned[1].log).toBe(null)
+    expect(extras).toEqual([])
+  })
+
+  it('does not consume the same log entry twice', () => {
+    const one = log(5, 'only-one')
+    const { planned } = planVsLog([5, 5], [one])
+    const used = planned.filter(p => p.log).map(p => p.log.id)
+    expect(used).toEqual(['only-one'])
+  })
+
+  it('keeps a third helping as an extra rather than losing it', () => {
+    const { planned, extras } = planVsLog([5, 5], [log(5, 'a'), log(5, 'b'), log(5, 'c')])
+    expect(planned.every(p => p.log)).toBe(true)
+    expect(extras.map(e => e.id)).toEqual(['c'])
+  })
+
+  it('skips empty slots without giving them a row', () => {
+    const { planned } = planVsLog([7, null, undefined], [])
+    expect(planned).toHaveLength(1)
+    expect(planned[0].slot).toBe(0)
+  })
+
+  /* The slot index is what Plan removes by, so it must survive a gap. */
+  it('carries the real slot index, not the row index', () => {
+    const { planned } = planVsLog([null, 7], [])
+    expect(planned[0]).toMatchObject({ recipeId: 7, slot: 1 })
+  })
+
+  it('survives empty and malformed input', () => {
+    expect(planVsLog()).toEqual({ planned: [], extras: [] })
+    expect(planVsLog([], [])).toEqual({ planned: [], extras: [] })
+    expect(planVsLog([1], [null]).planned[0].log).toBe(null)
+  })
+})
+
+describe('sumMacros and pct', () => {
+  const byId = { 1: { cal: 300, protein: 30, carbs: 20, fat: 10 },
+                 2: { cal: 500, protein: 40, carbs: 50, fat: 15 } }
+
+  it('adds what it recognises and ignores what it does not', () => {
+    expect(sumMacros([1, 2], byId)).toEqual({ calories: 800, protein: 70, carbs: 70, fat: 25 })
+    expect(sumMacros([1, 999], byId)).toEqual({ calories: 300, protein: 30, carbs: 20, fat: 10 })
+    expect(sumMacros([], byId)).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+  })
+
+  /* The BAR is clamped so an overshoot cannot draw past its track. The
+     NUMBER above it is not — going over is the thing worth seeing. */
+  it('clamps the bar at 100 and never divides by a zero goal', () => {
+    expect(pct(900, 1800)).toBe(50)
+    expect(pct(2400, 1800)).toBe(100)
+    expect(pct(1, 0)).toBe(0)
+    expect(pct(1, null)).toBe(0)
+    expect(pct(0, 1800)).toBe(0)
   })
 })

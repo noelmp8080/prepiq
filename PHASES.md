@@ -231,7 +231,9 @@ Today**. The remaining three screens are the same shape repeated.
       preference toggle (theme is the only preference that exists). The
       prototype PRESETS row is NOT built — its values are placeholders, and
       choosing them would be issuing nutrition guidance.
-- **C3 Today** — logo lockup, date eyebrow, macro card, meals card, `ALSO LOGGED`.
+- [x] **C3 Today** — done, and the block B chain link with it: Today now reads
+      weekPlan. Macro card is two cells per the markup ruling, not the four the
+      prose describes.
 - **C4 Plan** — week stat strip, seven flat `#141619` day cards.
 - **C5 Recipes** — search field, filter chips, result rows.
 - **C6 Track** — macro card, `PLANNED · ONE TAP TO LOG`, `LOGGED`.
