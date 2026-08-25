@@ -79,7 +79,10 @@ function census() {
   return {
     today: buttons('today').filter(b => b.textContent === 'ATE IT' || b.textContent === 'LOGGED').length,
     plan: buttons('plan').filter(b => (b.getAttribute('aria-label') || '').startsWith('Remove ')).length,
-    grocery: buttons('grocery').filter(b => b.style.height === '56px' && b.querySelector('span')).length,
+    /* The row's left button is the only thing in the grocery list
+       carrying aria-pressed — semantic rather than a style match, which
+       is what broke when the row height became a token. */
+    grocery: [...screen('grocery').querySelectorAll('[data-grocery-list] button[aria-pressed]')].length,
     track: buttons('track').filter(b => (b.getAttribute('aria-label') || '').startsWith('Log ')).length,
   }
 }
