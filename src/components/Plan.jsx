@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import Card, { CARD_ROW_RULE, CARD_CELL_RULE } from './Card'
 import Sheet from './Sheet'
 import Thumb from './Thumb'
+import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipes, recipeById } from '../data/recipes'
@@ -143,33 +144,24 @@ export default function Plan({ surface = 'phone' }) {
 
   return (
     <div>
-      <div style={{
-        padding: '24px 20px 0', display: 'flex',
-        alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-      }}>
-        <div>
-          <div style={{
-            ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
-            color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-eyebrow)',
-            marginBottom: 6,
-          }}>{weekRange()}</div>
-          <h1 style={{
-            margin: 0, fontSize: 'var(--pq-size-title)', fontWeight: 700,
-            letterSpacing: 'var(--pq-tight-title)', lineHeight: 1, color: 'var(--pq-text)',
-          }}>Week</h1>
-        </div>
-        <button
-          onClick={shuffleWeekPlan}
-          style={{
-            flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
-            borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
-            background: 'var(--pq-thumb-fallback)',
-            border: '1px solid var(--pq-rule-strong)',
-            boxShadow: 'var(--pq-thumb-fallback-lip)',
-            color: 'var(--pq-text-2)',
-            ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
-          }}>SHUFFLE</button>
-      </div>
+      <ScreenHeader
+        surface={surface}
+        eyebrow={weekRange()}
+        title="Week"
+        actions={
+          <button
+            onClick={shuffleWeekPlan}
+            style={{
+              flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
+              borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
+              background: 'var(--pq-thumb-fallback)',
+              border: '1px solid var(--pq-rule-strong)',
+              boxShadow: 'var(--pq-thumb-fallback-lip)',
+              color: 'var(--pq-text-2)',
+              ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
+            }}>SHUFFLE</button>
+        }
+      />
 
       <Card style={{ margin: '20px var(--pq-gutter) 0' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>

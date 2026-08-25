@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Card, { CARD_ROW_RULE, EmptyBlock } from './Card'
 import RecipeSheet from './RecipeSheet'
+import ScreenHeader from './ScreenHeader'
 import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
 import { planVsLog, pct } from '../store/storeLogic'
@@ -71,38 +72,29 @@ export default function Track({ onChange, surface = 'phone' }) {
 
   return (
     <div>
-      <div style={{
-        padding: '24px 20px 0', display: 'flex',
-        alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-      }}>
-        <div>
-          <div style={{
-            ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
-            color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-eyebrow)',
-            marginBottom: 6,
-          }}>{dateEyebrow()}</div>
-          <h1 style={{
-            margin: 0, fontSize: 'var(--pq-size-title)', fontWeight: 700,
-            letterSpacing: 'var(--pq-tight-title)', lineHeight: 1, color: 'var(--pq-text)',
-          }}>Track</h1>
-        </div>
-        <button
-          onClick={() => onChange?.('recipes')}
-          style={{
-            flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
-            display: 'flex', alignItems: 'center', gap: 6,
-            borderRadius: 'var(--pq-r-button)', border: 'none', cursor: 'pointer',
-            background: 'var(--pq-accent-grad)', boxShadow: 'var(--pq-accent-raise)',
-            color: 'var(--pq-on-accent-ink)',
-            ...MONO, fontSize: 12, fontWeight: 600, letterSpacing: '.04em',
-          }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14" /><path d="M12 5v14" />
-          </svg>
-          LOG
-        </button>
-      </div>
+      <ScreenHeader
+        surface={surface}
+        eyebrow={dateEyebrow()}
+        title="Track"
+        actions={
+          <button
+            onClick={() => onChange?.('recipes')}
+            style={{
+              flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
+              display: 'flex', alignItems: 'center', gap: 6,
+              borderRadius: 'var(--pq-r-button)', border: 'none', cursor: 'pointer',
+              background: 'var(--pq-accent-grad)', boxShadow: 'var(--pq-accent-raise)',
+              color: 'var(--pq-on-accent-ink)',
+              ...MONO, fontSize: 12, fontWeight: 600, letterSpacing: '.04em',
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" /><path d="M12 5v14" />
+            </svg>
+            LOG
+          </button>
+        }
+      />
 
       <div style={cols ? {
         display: 'grid', gridTemplateColumns: cols,
