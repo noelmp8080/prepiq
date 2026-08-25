@@ -7,7 +7,51 @@ alongside the relevant section of the handoff README.
 (outside the repo, deliberately — it must not reach `git status` or the Vercel
 upload).
 
-**Branch:** `feat/redesign-tokens`
+**Branch:** `feat/redesign-tokens` — **merged to `main`. The redesign is done;
+all five blocks are closed.**
+
+---
+
+## NEXT WORK — open, unstarted
+
+Two items came out of the redesign that are deliberately NOT part of it. Both
+were found by measurement, both are recorded in `DEVIATIONS.md`, and neither has
+been started.
+
+### 1. The mixed-number catalog defect
+
+`"1 and 1/2 Green Chilli, deseeded"` produces a catalog item named **`and`** in
+section `Other`, and **Chilli Lime Chicken loses its green chilli** from the
+shopping list. The cause is the mixed-number form `1 and 1/2`, not the
+parenthesis rules — those were measured clean across all 2,048 paren-bearing
+lines (DEVIATIONS, "Block D pre-check").
+
+Scope: one recipe, one ingredient, out of 3,990 card-item pairs.
+
+**Why it gets its own pass:** the fix is a pipeline change plus a catalog
+rebuild, and a rebuild **renumbers item ids**, which invalidates every stored
+exclusion. So it needs its own `EXCLUDED_VERSION` bump and its own reset,
+exactly like block B's — not a patch tucked into other work.
+
+Cleared at the same time and needing nothing: `ice` (from `Handful Ice Cubes` —
+ice is what you buy) and `egg`. Also noted: `byCard` holds 2 keys (385, 386)
+with no recipe in `recipes.js`, leaving one item (`low carb tortilla wrap`)
+unreachable. Harmless, and for the same pass.
+
+### 2. Preview needs its own Firebase project
+
+**Preview and production share `prepiq-4ddb5` today.** That is why the whole
+pre-merge review ran local-only: there are no Preview-scoped env vars, and
+pointing preview at production would let an unmerged branch run block B's
+`CHECKS_VERSION 3` / `EXCLUDED_VERSION 3` resets against real user data.
+
+Any future preview that needs a working cloud has to have **`prepiq-preview`**
+standing behind Preview-scoped `VITE_FIREBASE_*` variables first. Until then,
+previews are local-only by construction — which works, and says so in Settings
+(DEVIATIONS §13).
+
+Related and already fixed, not open: `.env` was being uploaded to Vercel on
+every deploy (DEVIATIONS §14).
 
 ---
 
