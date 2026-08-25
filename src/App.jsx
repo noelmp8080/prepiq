@@ -9,7 +9,6 @@ import Recipes  from './components/Recipes'
 import Grocery  from './components/Grocery'
 import Track    from './components/Track'
 import Auth     from './components/Auth'
-import SyncErrorBanner from './components/SyncErrorBanner'
 
 function AppInner() {
   const { user, bootScope, groceryUnchecked } = useAppStore()
@@ -44,16 +43,11 @@ function AppInner() {
     <Shell
       nav={<BottomNav active={tab} onChange={setTab}
                       badges={{ grocery: groceryUnchecked > 0 }} />}
-      /* App-wide: a failed cloud write can happen on any screen, and the
-         writer that costs the most (the weekly plan) fails on Plan, not
-         here. Kept against the design, which has no error state because
-         it assumes no fetch - see DEVIATIONS.md. */
-      overlay={<SyncErrorBanner />}
     >
       {tab === 'today'   && <Today   onChange={setTab} />}
       {tab === 'plan'    && <Plan />}
       {tab === 'recipes' && <Recipes />}
-      {tab === 'grocery' && <Grocery />}
+      {tab === 'grocery' && <Grocery onChange={setTab} />}
       {tab === 'track'   && <Track   onChange={setTab} />}
     </Shell>
   )
