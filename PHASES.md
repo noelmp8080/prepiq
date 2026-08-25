@@ -46,7 +46,7 @@ must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
 | B | Phase 3 — connected model + migrations | **Done** |
 | C | Sheets, then Today / Plan / Recipes / Track | **Done** |
 | D | Grocery | **Done** |
-| E | iPad + desktop | Not started |
+| E | iPad + desktop | **Done** |
 
 **Ordering note:** the original phase list built the four list screens before
 the recipe sheet. That is backwards — RecipeSheet is reached from Today, Plan,
@@ -330,6 +330,26 @@ visual language changes between surfaces — only layout and affordance sizes.
 **Also in block E:** remove Plus Jakarta once the last component migrates. Check
 the font payload against the baseline in `DEVIATIONS.md`.
 
+### Built
+
+- **`Rail.jsx`, one component for both wide surfaces.** 84/224 is a table of
+  values, not a second component — which is why `Logo.jsx` was parameterised in
+  block A. Six destinations: the five phone tabs plus Goals at the foot.
+- **Width is a stored choice.** `railStored` is `null` until the user touches
+  the control; only then does the surface stop having an opinion. Local only —
+  a sidebar width is not account data.
+- **`Settings` is one mounted component in two forms.** `open` gates what it
+  renders, not whether it exists, so a half-typed goal survives the window
+  being narrowed from pane to sheet. Owned by `App`.
+- **The gutter is the only token that changes with the surface**, and it changes
+  in `tokens.css` — every screen already pads with `var(--pq-gutter)`, so none
+  can be left at the phone value by accident. Breakpoints 900 / 1400, matching
+  `useSurface.js`; a test asserts the two files agree.
+- **Grocery uses two explicit columns, not CSS `columns`** — see DEVIATIONS §10.
+  The reflow harness runs at desktop width and asserts a tap in one column
+  cannot move the other.
+- **Auth migrated**, and Plus Jakarta + DM Mono removed: **14 woff2 -> 7, 144K.**
+
 ---
 
 ## Standing verification
@@ -344,8 +364,13 @@ Before calling any block done:
 - Walk the derived chain by hand: change a meal on Plan -> Today updates ->
   grocery updates -> Track's planned list updates. No manual sync anywhere.
 - Confirm the full ramp is visible on every screen at any scroll depth.
-- Missing-photo fallback tiles at 36 / 48 / 56px, radius 7 / 9 / 10px. A
-  mostly-photoless list must read as a calm column.
+- Missing-photo fallback tiles at 36 / 48 / 56px, radius 7 / 9 / 10px.
+
+  **The "calm column" half of this line is DROPPED.** It tested a condition
+  that does not exist here: block C measured all 260 recipes as carrying a
+  resolvable image, so there is no mostly-photoless list to read as anything.
+  The tile coverage stays — `image` is set whether or not a file resolves, so
+  the error path is real even though it is rare.
 - Build clean, no console errors, **works offline with the network disabled**.
 
 ---

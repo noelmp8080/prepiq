@@ -475,6 +475,66 @@ that as the default when the fourth appears, and check the markup first.
 
 ---
 
+## 10. Block E: two explicit columns, not CSS `columns`
+
+**Handoff:** the wide grocery markup lays sections out with `columns: 2`.
+
+**Built:** sections assigned alternately to two independent column elements.
+
+**Why.** Multi-column flow redistributes content BETWEEN columns whenever
+anything above changes height, so opening an expander in one column can move
+rows in the other — rows nobody touched. On phone the worst case is "things
+below move"; in a flowed pair it is "things sideways move", which the row
+contract has never had to survive.
+
+And jsdom cannot measure column balancing, so the harness could neither prove
+nor disprove it. The most important property in the project would have shipped
+unverifiable. Two independent columns make cross-column movement structurally
+impossible — the same reasoning that made the shell ramp a fixed layer: arrange
+it so the question cannot arise.
+
+Measured on real days, the alternating split lands within 13%:
+
+| day | column A | column B |
+| --- | --- | --- |
+| Mon (25 rows) | 680px | 736px |
+| Thu (30 rows) | 792px | 904px |
+
+**Approved:** yes, put to the user before building.
+
+---
+
+## 11. Block E: the wide layout keeps each screen's own header
+
+**Handoff:** the wide prototype hoists a shared content header — eyebrow, `h1`,
+and page actions — above the body, outside each screen.
+
+**Built:** every screen keeps the header it already has; only the BODY gains
+columns, and the gutter widens through one token.
+
+**Why:** the screens' headers were built and covered in block C. Hoisting them
+into shared chrome is a five-screen refactor with no visual difference at the
+sizes involved — the same eyebrow, the same 28px title, the same actions, one
+DOM level up. It buys nothing and puts five passing screens back in play in the
+last block. The handoff's own rule for this block is "only the layout and the
+affordance sizes" change, and this satisfies it.
+
+**Not approved separately** — recorded as a scoping call.
+
+---
+
+## 12. Block E: the gate line about photoless lists is dropped
+
+The standing verification carried "a mostly-photoless list must read as a calm
+column". Block C measured the data: **all 260 recipes carry an `image` path and
+all 260 files exist.** The condition does not occur, so the line tested nothing.
+
+The fallback tile itself is kept and covered — `image` is set whether or not the
+file resolves, so a missing file has nothing but the tile's error path to catch
+it. What is dropped is the assertion about a list that cannot happen.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.
@@ -482,4 +542,5 @@ Recorded so drift is visible later.
 | Metric | Value | When |
 | --- | --- | --- |
 | Font payload, both families | 14 woff2 in `dist/assets` | phase 1 |
-| Plus Jakarta removal | block E, once the last component migrates | pending |
+| Font payload, after migration | **7 woff2, 144K** | block E |
+| Plus Jakarta + DM Mono removal | **done** — uninstalled, not just unimported | block E |
