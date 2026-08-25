@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Sheet from './Sheet'
 import { useAppStore } from '../store/useAppStore'
 import { useTheme } from '../store/useTheme'
+import { cloudEnabled } from '../firebase'
 
 /* ── Settings — a bottom sheet, not a tab ─────────────────────────────
  *
@@ -207,6 +208,33 @@ export default function Settings({ open, onClose, inline = false }) {
             </div>
           ))}
         </div>
+
+        {/* WHICH MODE IS THIS BUILD IN?
+            Only shown when there is something to say. A local-only build
+            that looks identical to a signed-in one is how someone
+            reviews the wrong thing, or reports "sign-in is broken" about
+            a build that was never given a cloud to sign in to. Quiet,
+            but present — see DEVIATIONS §13. */}
+        {!cloudEnabled && (
+          <div data-local-only style={{
+            marginBottom: 20, padding: '10px 12px',
+            borderRadius: 'var(--pq-r-button)',
+            background: 'var(--pq-well-bg)',
+            border: '1px solid var(--pq-rule-soft)',
+          }}>
+            <div style={{
+              ...MONO_SECTION, color: 'var(--pq-accent)', marginBottom: 4,
+            }}>LOCAL ONLY</div>
+            <p style={{
+              margin: 0, fontFamily: 'var(--pq-mono)', fontSize: 11,
+              lineHeight: 1.6, color: 'var(--pq-text-3)',
+              letterSpacing: 'var(--pq-track-chip)',
+            }}>
+              NO ACCOUNT CONNECTED. EVERYTHING IS SAVED TO THIS DEVICE
+              AND NOTHING SYNCS.
+            </p>
+          </div>
+        )}
 
         {/* PREFERENCES. One toggle, because one preference exists — the
             theme. The handoff names no others, and adding some would be

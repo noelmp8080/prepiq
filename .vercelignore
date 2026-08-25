@@ -1,3 +1,22 @@
+# SECRETS. Read the CLI's own ignore list before trusting this file to
+# be redundant: vercel's built-in upload ignores are
+#
+#   .hg .git .gitmodules .svn .cache .next .now .vercel .npmignore
+#   .dockerignore .gitignore .*.swp .DS_Store .wafpicke-* .lock-wscript
+#   .env.local .env.*.local .venv .yarn/cache .pnp* npm-debug.log
+#   config.gypi node_modules __pycache__ venv CVS
+#
+# It ignores `.env.local` and `.env.*.local`. It does NOT ignore a plain
+# `.env`, and `.gitignore` is in that list — so being gitignored buys
+# nothing here: the file is neither uploaded nor read for ignore rules.
+#
+# This project's file is a plain `.env` holding live Firebase
+# credentials, so until this line existed it was uploaded with every
+# deployment and read by Vite at build time. Not a preview-only problem.
+.env
+.env.*
+!.env.example
+
 # Vercel uploads the working directory, and it is not reading .gitignore
 # on this project's deploy path: the two source cookbooks are 298MB and
 # 139MB, each over the 100MB per-file limit, and the deploy failed on

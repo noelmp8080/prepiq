@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { auth, db } from '../firebase'
+import { auth, db, cloudEnabled } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
@@ -134,6 +134,12 @@ export function AppStoreProvider({ children }) {
   }
 
   useEffect(() => {
+    /* LOCAL ONLY: there is no auth to subscribe to, so resolve the gate
+       immediately rather than waiting for a callback that cannot fire.
+       The state is already hydrated — boot read it synchronously — so
+       this only tells App that the question is settled. */
+    if (!cloudEnabled) { setUser(null); return }
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
       const date = todayISO()
@@ -181,7 +187,7 @@ export function AppStoreProvider({ children }) {
       if (!dayChanged(logDate, now)) return
       setLogDate(now)
       const local = () => loadLS(lsKey(user?.uid, `log_${now}`), [])
-      if (!user) { setMealLog(local()); return }
+      if (!user || !cloudEnabled) { setMealLog(local()); return }
       getDoc(doc(db, 'users', user.uid, 'logs', now))
         .then(s => setMealLog(resolveField(s.exists() ? s.data().meals : null, local)))
         .catch(e => { console.error('[dayRollover]', e); setMealLog(local()) })
@@ -225,8 +231,10 @@ export function AppStoreProvider({ children }) {
   const cloudWrite = useCallback((uid, segments, payload, what) => {
     /* Signed out is not a failure — the local write already happened and
        is the whole store in that mode. Returning before doc() also keeps
-       a ref from being built against a uid that does not exist. */
-    if (!uid) return
+       a ref from being built against a uid that does not exist.
+       No config means no `db` to build a ref against either, and it is
+       not a failure for the same reason. */
+    if (!uid || !cloudEnabled) return
     setDoc(doc(db, 'users', uid, ...segments), payload)
       .then(() => setSyncErrors(prev => {
         if (!(what in prev)) return prev          // same object back: no re-render
@@ -448,6 +456,7 @@ export function AppStoreProvider({ children }) {
     /* Non-null when the device booted straight into a known scope, so
        the app can render before auth resolves. */
     bootScope: boot.scope,
+    cloudEnabled,
     groceryDayIsToday: groceryDayRaw === null,
     setGroceryDay,
     undoClear,

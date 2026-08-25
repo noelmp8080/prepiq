@@ -18,7 +18,9 @@ const setDocMock = vi.fn()
 const getDocMock = vi.fn()
 let authCallback = null
 
-vi.mock('../firebase', () => ({ auth: {}, db: {} }))
+/* cloudEnabled true: these cover the CLOUD path. Local-only mode
+   has its own file — localOnly.test.jsx. */
+vi.mock('../firebase', () => ({ auth: {}, db: {}, cloudEnabled: true }))
 
 vi.mock('firebase/firestore', () => ({
   /* The real doc() returns a DocumentReference; the store only ever

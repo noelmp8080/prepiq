@@ -11,7 +11,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-vi.mock('../firebase', () => ({ auth: {}, db: {} }))
+/* cloudEnabled true: these cover the CLOUD path. Local-only mode
+   has its own file — localOnly.test.jsx. */
+vi.mock('../firebase', () => ({ auth: {}, db: {}, cloudEnabled: true }))
 vi.mock('firebase/firestore', () => ({
   doc: (_db, ...s) => ({ path: s.join('/') }),
   getDoc: async () => ({ exists: () => false, data: () => ({}) }),
@@ -346,5 +348,61 @@ describe('wide works with the network down', () => {
     expect(h.textContent).toContain('25 left')
 
     act(() => { r.unmount() }); h.remove()
+  })
+})
+
+/* ── THE SPINNER -> APP TRANSITION ────────────────────────────────────
+ *
+ * A first-time visitor with no remembered scope renders the spinner
+ * while auth resolves, then renders the app. Block E added a useEffect
+ * BELOW those early returns, so the two renders used a different number
+ * of hooks and React threw "Rendered more hooks than during the previous
+ * render" — a white screen for exactly the people who have never used
+ * the app before.
+ *
+ * It went unnoticed because no test rendered <App/> across that
+ * transition. This one does.
+ */
+describe('a first-time visitor gets from the spinner to the app', () => {
+  it('does not throw when auth resolves after the spinner', async () => {
+    const { default: App } = await import('../App')
+    localStorage.clear()
+    sessionStorage.clear()
+
+    const h = document.createElement('div')
+    document.body.appendChild(h)
+    const r = createRoot(h)
+
+    await act(async () => { r.render(<App />) })
+    /* the spinner: no bootScope, auth unresolved. Its only text is the
+       keyframes it carries, so the screen is identified by what it does
+       NOT hold rather than by being empty. */
+    expect(h.textContent).not.toContain('Today')
+    expect(h.querySelector('[data-rail]')).toBe(null)
+    expect(h.querySelector('[data-grocery-header]')).toBe(null)
+
+    /* auth resolves — this is the render that used to crash */
+    await act(async () => { await authCb({ uid: 'first-timer' }) })
+
+    expect(h.textContent).toContain('Today')
+    expect(h.textContent).not.toBe('')
+
+    act(() => { r.unmount() }); h.remove()
+  })
+
+  it('and the same for a visitor who signs out to no account', async () => {
+    const { default: App } = await import('../App')
+    localStorage.clear()
+    sessionStorage.setItem('skipAuth', '1')
+
+    const h = document.createElement('div')
+    document.body.appendChild(h)
+    const r = createRoot(h)
+    await act(async () => { r.render(<App />) })
+    await act(async () => { await authCb(null) })
+
+    expect(h.textContent).toContain('Today')
+    act(() => { r.unmount() }); h.remove()
+    sessionStorage.clear()
   })
 })

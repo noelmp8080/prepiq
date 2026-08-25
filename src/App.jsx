@@ -16,7 +16,7 @@ import Auth     from './components/Auth'
 
 function AppInner() {
   const {
-    user, bootScope, groceryUnchecked, railStored, setRailExpanded,
+    user, bootScope, cloudEnabled, groceryUnchecked, railStored, setRailExpanded,
   } = useAppStore()
   const surface = useSurface()
   const wide = isWide(surface)
@@ -24,12 +24,31 @@ function AppInner() {
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
   const [phoneSettings, setPhoneSettings] = useState(false)
 
+  /* EVERY HOOK BEFORE EVERY EARLY RETURN.
+   *
+   * This effect sat below the spinner and Auth returns when block E added
+   * it, which is a rules-of-hooks violation with a real symptom: a
+   * first-time visitor renders the spinner (five hooks), auth resolves,
+   * the next render reaches the effect (six hooks), and React throws
+   * "Rendered more hooks than during the previous render" — a white
+   * screen for exactly the people who have never used the app. It went
+   * unnoticed because no test rendered <App/> across that transition
+   * until the local-only work did.
+   *
+   * Narrowing off a destination the phone does not have: the pane
+   * becomes the sheet in place rather than closing. */
+  useEffect(() => {
+    if (!wide && tab === 'goals') { setTab('today'); setPhoneSettings(true) }
+  }, [wide, tab])
+
   /* THE GATE IS AUTH-ONLY NOW.
      Data is read off the device at construction, so nothing here is
      waiting for a fetch — the only open question is whether to show the
      app or the Auth screen. And when the device already knows whose
      scope it booted into, that answer is known too: render, and let auth
      confirm it. A returning user gets their list with the radio off. */
+  /* Local only never reaches this: the store resolves `user` to null on
+     the first render, so there is no pending question to spin on. */
   if (user === undefined && !bootScope) {
     return (
       <div style={{ minHeight:'100dvh', background:'var(--pq-page)', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -39,7 +58,10 @@ function AppInner() {
     )
   }
 
-  if (!user && !skipAuth) {
+  /* No cloud means no account to sign in to, so there is nothing for the
+     Auth screen to do — showing it would be offering a control that
+     cannot succeed. Settings says which mode this is. */
+  if (!user && !skipAuth && cloudEnabled) {
     return (
       <Auth onSkip={() => {
         sessionStorage.setItem('skipAuth', '1')
@@ -56,12 +78,6 @@ function AppInner() {
      being narrowed from pane to sheet. Rendering it inside the wide
      branch would have thrown the draft away on a resize. */
   const settingsOpen = wide ? tab === 'goals' : phoneSettings
-
-  /* Narrowing off a destination the phone does not have: the pane
-     becomes the sheet in place rather than closing. */
-  useEffect(() => {
-    if (!wide && tab === 'goals') { setTab('today'); setPhoneSettings(true) }
-  }, [wide, tab])
 
   return (
     <Shell

@@ -535,6 +535,105 @@ it. What is dropped is the assertion about a list that cannot happen.
 
 ---
 
+## 13. Local-only mode — a fix on main, not preview scaffolding
+
+**Not a deviation from the handoff.** A defect that was on `main`, found while
+preparing a preview deploy, fixed as a defect.
+
+### The bug
+
+With no Firebase configuration the app called `initializeApp` with six
+`undefined`s, handed the resulting app to `getAuth`, and waited for an
+`onAuthStateChanged` that could never fire. `App.jsx` gates on
+`user === undefined && !bootScope`, so a first-time visitor **sat on the
+spinner for ever**, with nothing on screen saying why — while every screen's
+data was already on the device, because block B made hydration local-first.
+
+### The fix
+
+`cloudEnabled` is computed once at module load from the config alone. When it
+is false: `initializeApp` is never called, no auth subscription is made, `user`
+resolves to `null` on the first render, every write stays local, and the Auth
+screen is skipped — there is no account to sign in to, so offering the control
+would be offering one that cannot succeed.
+
+### The safety property, which matters more than the fix
+
+**The mode is reachable by config absence and by nothing else.** A fallback that
+fired on a *failed call* would turn a flaky connection, an expired token or a
+Firestore outage into a silent, permanent stop-syncing: the user keeps working
+and nothing reaches their account. So the decision is made from a value that
+cannot change at runtime, before any network call exists to fail. `syncErrors`
+remains the only thing that reports failed calls.
+
+Asserted twice — on the rule (`cloudEnabled` assigned exactly once; no `catch`
+in either file) and on behaviour: a store built **with** a cloud whose every
+request rejects still reports through `syncErrors`, still retries, and still
+has `cloudEnabled === true`.
+
+`isConfigComplete` lives in `firebaseConfig.js`, which imports nothing and does
+nothing, so a test can exercise it without initialising an app. The first
+version imported it through `firebase.js` and ran `initializeApp` against
+whatever was in the developer's `.env` — Vite loads `.env` in test mode too.
+That is a unit test one typo away from touching a live project.
+
+### It is visible
+
+Settings carries a `LOCAL ONLY` block: *"NO ACCOUNT CONNECTED. EVERYTHING IS
+SAVED TO THIS DEVICE AND NOTHING SYNCS."* A local-only build that looked
+identical to a signed-in one is how someone reviews the wrong thing, or reports
+"sign-in is broken" about a build never given a cloud.
+
+**Known coverage gap, stated:** the `!cloudEnabled` guard inside `cloudWrite` is
+redundant today — in local-only mode `user` is always `null`, so the existing
+`!uid` check catches every call first. Removing it does not fail any test. It is
+kept as defence in depth against a future path that sets `user` without a
+cloud, not because it is load-bearing now.
+
+---
+
+## 14. `.env` was being uploaded to Vercel on every deploy
+
+Found while checking whether a preview build could reach production Firestore.
+**Not preview-specific — it was true of every deploy this project has made.**
+
+The Vercel CLI's built-in upload ignore list is:
+
+```
+.hg .git .gitmodules .svn .cache .next .now .vercel .npmignore .dockerignore
+.gitignore .*.swp .DS_Store .wafpicke-* .lock-wscript
+.env.local  .env.*.local
+.venv .yarn/cache .pnp* npm-debug.log config.gypi node_modules __pycache__ venv CVS
+```
+
+It ignores `.env.local` and `.env.*.local`. **It does not ignore a plain
+`.env`** — and `.gitignore` is itself on that list, so a file being gitignored
+buys nothing: it is neither uploaded nor consulted for upload rules. This
+project's file is a plain `.env` holding live Firebase credentials.
+
+Read out of the installed CLI's own `getVercelIgnore` rather than tested by
+deploying. `.env` and `.env.*` are now in `.vercelignore`, with the list quoted
+above it so the next person does not have to re-derive it.
+
+---
+
+## 15. There is one Firebase project, and preview shares it
+
+Vercel has the six `VITE_FIREBASE_*` variables scoped to **Production only**;
+there is no second Firebase project anywhere in this repo. A preview build
+therefore has no credentials of its own.
+
+Preview environments now carry all six names with **empty values**, so a preview
+build lands in local-only mode deterministically rather than depending on
+whether `.env` happened to be uploaded. Every screen is explorable from
+localStorage; sign-in is unavailable and says so.
+
+**Still open:** if preview ever needs a working cloud, it needs its own Firebase
+project. Pointing it at production would let an unmerged branch run block B's
+`CHECKS_VERSION 3` / `EXCLUDED_VERSION 3` resets against real user data.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

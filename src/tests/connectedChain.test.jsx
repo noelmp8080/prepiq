@@ -17,7 +17,9 @@ import { createRoot } from 'react-dom/client'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-vi.mock('../firebase', () => ({ auth: {}, db: {} }))
+/* cloudEnabled true: these cover the CLOUD path. Local-only mode
+   has its own file — localOnly.test.jsx. */
+vi.mock('../firebase', () => ({ auth: {}, db: {}, cloudEnabled: true }))
 vi.mock('firebase/firestore', () => ({
   doc: (_db, ...s) => ({ path: s.join('/') }),
   getDoc: async () => ({ exists: () => false, data: () => ({}) }),
