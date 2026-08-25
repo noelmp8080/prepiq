@@ -50,7 +50,11 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
           display: 'flex', flexDirection: 'column',
           background: 'var(--pq-sheet-bg)',
           boxShadow: 'var(--pq-sheet-shadow)',
-          borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          /* 18, not the README's 20. Both sheets in the prototype
+             markup round at 18 and they agree with each other; the
+             prose does not agree with them. Fourth contradiction,
+             resolved the same way as the three before it. */
+          borderTopLeftRadius: 18, borderTopRightRadius: 18,
           borderTop: 'var(--pq-card-border)',
           /* Slides up from the bottom. The only entrance animation in
              the app — motion is minimal by design. */

@@ -57,7 +57,11 @@ export function AppStoreProvider({ children }) {
   /* RESOLVED ONCE, HERE. Everything downstream — the derivation, the
      check key, the exclusion key — takes a real integer, so this is the
      only line in the app where "today" means anything. */
-  const groceryDay = groceryDayRaw ?? todayIndex(weekPlan)
+  /* WHICH DAY IS TODAY, in the plan's own terms. Today, Track and the
+     grocery default all resolve through this one call so they cannot
+     disagree about what day it is. */
+  const planToday = todayIndex(weekPlan)
+  const groceryDay = groceryDayRaw ?? planToday
 
   /* THE LIST IS DERIVED HERE, ONCE.
      The screen and the nav badge both need it, and two derivations of
@@ -318,6 +322,32 @@ export function AppStoreProvider({ children }) {
     writePlan(user?.uid, plan)
   }, [user, writePlan])
 
+  /* ── EDITING THE PLAN ────────────────────────────────────────────
+     weekPlan is the single source of truth, so these are the only
+     writes that move Today, the grocery list and Track's planned rows.
+     Nothing else needs to be told. */
+
+  /** Put a recipe in the first free slot of `dayIndex`. */
+  const assignMeal = useCallback((dayIndex, recipeId) => {
+    const day = weekPlan[dayIndex]
+    if (!day) return false
+    const slot = (day.ids || []).findIndex(x => !x)
+    if (slot < 0) return false                       // full; the caller says so
+    const next = weekPlan.map((d, i) =>
+      i !== dayIndex ? d : { ...d, ids: d.ids.map((x, j) => (j === slot ? recipeId : x)) })
+    setWeekPlan(next)
+    writePlan(user?.uid, next)
+    return true
+  }, [weekPlan, user, writePlan])
+
+  /** Clear one slot. The slot stays — a day has a fixed shape. */
+  const removeMeal = useCallback((dayIndex, slot) => {
+    const next = weekPlan.map((d, i) =>
+      i !== dayIndex ? d : { ...d, ids: d.ids.map((x, j) => (j === slot ? null : x)) })
+    setWeekPlan(next)
+    writePlan(user?.uid, next)
+  }, [weekPlan, user, writePlan])
+
   const toggleFavorite = useCallback((recipeId) => {
     const next = new Set(favorites)
     next.has(recipeId) ? next.delete(recipeId) : next.add(recipeId)
@@ -398,6 +428,7 @@ export function AppStoreProvider({ children }) {
     favorites,
     groceryChecks,
     groceryExcluded,
+    planToday,
     groceryDay,
     groceryRows,
     groceryUnchecked,
@@ -415,6 +446,8 @@ export function AppStoreProvider({ children }) {
     logMeal,
     removeLoggedMeal,
     shuffleWeekPlan,
+    assignMeal,
+    removeMeal,
     toggleFavorite,
     toggleGroceryItem,
     checkAllGrocery,

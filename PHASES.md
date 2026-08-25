@@ -223,8 +223,10 @@ and Track's planned list all follow — must be re-run before block C is done.
 Commit per screen. Natural split point if it runs long: **after the sheets and
 Today**. The remaining three screens are the same shape repeated.
 
-- **C1 RecipeSheet** — the one detail surface, reached identically from Today,
-  Plan, Recipes and Track.
+- [x] **C1 RecipeSheet** — done. Ingredients render as whole lines per the
+      markup; the prototype's heading classifier is replaced (it demoted 407
+      real ingredients). No generated description, no defaulted servings, no
+      derived prep time.
 - **C2 Settings** — bottom sheet, not a tab.
 - **C3 Today** — logo lockup, date eyebrow, macro card, meals card, `ALSO LOGGED`.
 - **C4 Plan** — week stat strip, seven flat `#141619` day cards.

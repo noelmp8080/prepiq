@@ -291,6 +291,61 @@ why `checkAllGrocery` takes a list rather than being called in a loop.
 
 ---
 
+## 7. Block C: the fourth contradiction, and it is structural
+
+The first three were a colour stop, a paint mechanism and a merge rule. This one
+changes what the components ARE, so it was put to the user rather than resolved
+under the standing prior. **All three resolved toward the markup**, which is now
+four for four.
+
+| Surface | README prose | Prototype markup | Built |
+| --- | --- | --- | --- |
+| Today macro card | 2x2 four-cell grid, 6px bars `rgba(0,0,0,0.3)` | 2 cells (KCAL, PROTEIN), 3px bars `rgba(0,0,0,0.42)`, C/F summary row | markup |
+| Track macro card | "the same four-cell grid as Today" | 30px kcal + 4px bar + three stacked rows | markup |
+| Sheet ingredients | name column + mono quantity column | one whole line, 14px sans, accent dot | markup |
+| Fallback tile | "no icon, no initial" | initials in mono, every size | markup |
+| Sheet radius | top radius 20px | `18px 18px 0 0`, on BOTH sheets | markup |
+
+The radius was not put to the user: the two sheets in the markup agree with each
+other and disagree with one line of prose, which is the same shape as the three
+already ruled on.
+
+### Three things in the prototype are NOT ported
+
+Structure and values come from the markup. Its **logic** does not, where the
+logic is measurably wrong or fabricates content.
+
+1. **`isLabel = t.startsWith('(') || t.endsWith(')')`** classifies 581 of 4,949
+   ingredient lines as section headings, and **407 of them are real
+   ingredients** ending in a parenthetical — `60ml (2.1oz) Buffalo Hot Sauce (or
+   hot sauce of choice)` renders as a heading. The replacement takes the yield
+   form only: 107 hits, all genuine, none carrying a quantity. Both numbers are
+   asserted in `recipeSheet.test.jsx` against the shipped data, so the claim is
+   a test rather than this paragraph.
+
+2. **`servings: details?.servings || 4`** prints "MAKES 4 SERVINGS" for the 88
+   of 260 recipes with no servings value. That is a number the cookbook does not
+   give.
+
+3. **`prepTime(r.cal)`** derives a preparation time from the calorie count. It
+   reads as extracted data and is arithmetic on an unrelated field.
+
+2 and 3 are `Never invent, paraphrase, or substitute recipe content`. The
+`generateDescription()` in the pre-redesign RecipeSheet — which built cookbook
+prose out of tag lookups — is deleted for the same reason.
+
+### The photo assumption is inverted for this app
+
+The README builds the thumbnail rules around "most recipes have no photo".
+Measured: **all 260 recipes carry an `image` path and all 260 files exist.** The
+bundle was written against a thinner set. The fallback tile is kept and covered
+anyway — `image` is set whether or not the file resolves, so a missing file has
+nothing but the tile's error path to catch it.
+
+**Approved:** the four markup rulings, by the user. The rest recorded here.
+
+---
+
 ## The handoff contradicts itself — the prior for the fourth time
 
 Three internal contradictions have surfaced so far — the **accent ramp** (prose

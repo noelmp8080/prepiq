@@ -1,370 +1,358 @@
-import { useEffect, useState } from 'react'
-import { Heart, X } from 'lucide-react'
+import { useState } from 'react'
+import Sheet from './Sheet'
+import Thumb from './Thumb'
 import { useAppStore } from '../store/useAppStore'
-import { getIngredients } from '../data/ingredients'
 import { getRecipeDetails } from '../data/recipeDetails'
 
-// Per-recipe hero photos extracted from the source cookbooks (public/recipes/).
-// Missing photo -> neutral placeholder, so a gap is visible rather than disguised.
-const PLACEHOLDER = '/recipes/_placeholder.svg'
-const getImg = recipe => recipe.image || PLACEHOLDER
+/* ── The recipe sheet — the ONE detail surface ────────────────────────
+ *
+ * Reached identically from Today, Plan, Recipes and Track. There is no
+ * second detail view anywhere in the app, which is why this is built
+ * before the four screens that open it.
+ *
+ * NOTHING HERE IS GENERATED. The version this replaces built a
+ * description out of the recipe's tags — "A high-protein meal perfect
+ * for meal prep, featuring tender chicken" — text that appeared to come
+ * from the cookbook and came from a lookup table. Every string below is
+ * either from `recipe-details.json`, from the recipe catalog, or a
+ * fixed label.
+ *
+ * TWO THINGS IN THE PROTOTYPE ARE DELIBERATELY NOT PORTED, for the same
+ * reason:
+ *
+ *   `servings: details?.servings || 4` — 88 of 260 recipes have no
+ *   servings value, and the prototype prints "MAKES 4 SERVINGS" for
+ *   every one of them. That is a number the cookbook does not give.
+ *
+ *   `prepTime(r.cal)` — a preparation time computed from the calorie
+ *   count. It reads as extracted data and is arithmetic on an unrelated
+ *   field.
+ *
+ * Both are simply absent here. The meta line says what is known and
+ * stops.
+ */
 
-const DAILY_GOALS = { cal: 1800, protein: 180, carbs: 200, fat: 60 }
+const SOURCE = { jalal: "JALAL'S", mealprep: 'MEAL PREP' }
 
-const CATEGORY_COLORS = {
-  protein:   '#4F3FD4',
-  carbs:     '#F5A623',
-  sauce:     '#0DC8A0',
-  veg:       '#52D9A0',
-  aromatics: '#9B8EC4',
-  seasoning: 'var(--ink4)',
-  garnish:   '#48CAE4',
+/* ── Which ingredient lines are section headings? ─────────────────────
+ *
+ * The extracted lists interleave two kinds of line: ingredients, and the
+ * component headings the books use to split a recipe ("(4 Servings)
+ * Crispy Chicken", then its ingredients, then "(2 Servings) Cheese
+ * Sauce"). The prototype renders them differently and so does this.
+ *
+ * ITS RULE IS NOT PORTED, BECAUSE IT IS MEASURABLY WRONG.
+ * `t.startsWith('(') || t.endsWith(')')` classifies 581 of 4,949 lines
+ * as headings, and 407 of those are real ingredients that merely end in
+ * a parenthetical — "60ml (2.1oz) Buffalo Hot Sauce (or hot sauce of
+ * choice)" would render as a section heading. Seven out of ten hits
+ * wrong, and the failure is invisible: the food is still on screen,
+ * dressed as a label.
+ *
+ * The rule below is the YIELD FORM — a leading parenthetical holding a
+ * number and a portion word. Measured across all 4,949 lines:
+ *
+ *     matches                  107   all genuine headings
+ *     never carries a quantity    0   no "(4 Servings) 200g ..." exists
+ *     appears mid-line            0   so anchoring at the start is free
+ *
+ * The eight leading-paren lines it does NOT take are five `(Optional)`
+ * ingredients and three parenthetical notes. Leaving those as ingredient
+ * rows is the safe direction: a note shown as an ingredient is odd, an
+ * ingredient shown as a heading is food you stop seeing.
+ *
+ * Unbalanced-paren lines are left as ingredients too. There are 22, and
+ * they are extraction damage of both kinds at once — "(for 3- 4 Crispy
+ * Chicken" is half a heading, "300g 10.6oz) Raw Chicken Breast" is a
+ * whole ingredient missing a bracket. Too few and too mixed to rule on.
+ */
+const YIELD_HEADING = /^\(\s*\d+\s*(?:[-–]\s*\d+\s*)?[A-Za-z][A-Za-z ]*\)/
+
+export const isHeading = line => YIELD_HEADING.test(String(line || ''))
+
+export function metaLine(recipe, details) {
+  const parts = [SOURCE[recipe.source] || 'RECIPE']
+  /* Only when the book actually gives one — see above. */
+  if (details?.servings) parts.push(`${details.servings} SERV`)
+  return parts.join(' · ')
 }
 
-function generateDescription(recipe) {
-  const t = recipe.tags
-  const parts = []
-  if      (t.includes('high-protein'))   parts.push('A high-protein meal perfect for meal prep')
-  else if (t.includes('under-400'))      parts.push('A light, low-calorie meal')
-  else                                   parts.push('A delicious, satisfying meal')
-  if      (t.includes('chicken'))        parts.push('featuring tender chicken')
-  else if (t.includes('beef'))           parts.push('featuring seasoned beef')
-  else if (t.includes('seafood'))        parts.push('featuring fresh seafood')
-  if      (t.includes('pasta'))          parts.push('served with pasta')
-  else if (t.includes('rice-bowls'))     parts.push('served over rice')
-  else if (t.includes('handheld'))       parts.push('wrapped and ready to go')
-  if (t.includes('low-fat') && parts.length < 3) parts.push('and kept low in fat')
-  if (parts.length === 1) return parts[0] + '.'
-  if (parts.length === 2) return `${parts[0]}, ${parts[1]}.`
-  return `${parts[0]}, ${parts[1]}, ${parts[2]}.`
+const MONO_LABEL = {
+  fontFamily: 'var(--pq-mono)',
+  fontSize: 'var(--pq-size-label)',
+  fontWeight: 600,
+  color: 'var(--pq-text-3)',
+  letterSpacing: 'var(--pq-track-section)',
 }
 
-function prepTime(cal) {
-  if (cal < 400) return '20 mins'
-  if (cal <= 500) return '25 mins'
-  return '30 mins'
+/* 36px is the drawn size in the prototype; 44px is the floor the handoff
+   sets for every button. Both are honoured — the button is 44px and the
+   tile it paints is 36px, so the target is never smaller than a thumb
+   even where the design wants a small control. */
+const ICON_BUTTON = {
+  width: 'var(--pq-tap-min)', height: 'var(--pq-tap-min)', flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
 }
-
-function MacroBar({ val, goal, color }) {
-  const pct = Math.min(Math.round((val / goal) * 100) || 0, 100)
-  return (
-    <div style={{ height: '4px', background: 'var(--bg2)', borderRadius: '3px', overflow: 'hidden' }}>
-      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: '3px' }} />
-    </div>
-  )
+const ICON_TILE = {
+  width: 36, height: 36, borderRadius: 9,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  background: 'var(--pq-thumb-fallback)',
+  boxShadow: 'var(--pq-thumb-fallback-lip)',
 }
 
 export default function RecipeSheet({ recipe, onClose }) {
-  const { favorites, toggleFavorite, logMeal } = useAppStore()
-  const [open,  setOpen]  = useState(false)
-  const [added, setAdded] = useState(false)
+  const { favorites, toggleFavorite, logMeal, weekPlan, assignMeal } = useAppStore()
+  const [picking, setPicking] = useState(false)
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setOpen(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
+  if (!recipe) return null
 
-  function handleClose() {
-    setOpen(false)
-    setTimeout(onClose, 250)
-  }
+  const details = getRecipeDetails(recipe)
+  const ingredients = details?.ingredients || []
+  const steps = details?.steps || []
+  const faved = favorites.has(recipe.id)
 
-  function handleAddToday() {
-    logMeal(recipe.id, 'Dinner')
-    setAdded(true)
-    setTimeout(handleClose, 900)
-  }
-
-  const sourceLabel  = recipe.source === 'jalal' ? "Jalal's" : 'Meal Prep'
-  const sourceColor  = recipe.source === 'jalal' ? '#7B6EF5' : '#0DC8A0'
-  const isFav        = favorites.has(recipe.id)
-
-  const details      = getRecipeDetails(recipe)
-  const fakeIngredients = details ? null : getIngredients(recipe)
-  const servingsText = details?.servings
-    ? `Makes ${details.servings} serving${details.servings !== 1 ? 's' : ''}`
-    : 'Makes 4 servings'
-  const servingsPill = details?.servings
-    ? `👥 ${details.servings} serving${details.servings !== 1 ? 's' : ''}`
-    : '👥 4 servings'
+  const macros = [
+    { val: recipe.cal,           label: 'KCAL',    accent: true },
+    { val: `${recipe.protein}g`, label: 'PROTEIN' },
+    { val: `${recipe.carbs}g`,   label: 'CARBS' },
+    { val: `${recipe.fat}g`,     label: 'FAT' },
+  ]
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {/* Dark overlay */}
-      <div
-        onClick={handleClose}
-        style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.55)',
-          opacity: open ? 1 : 0,
-          transition: 'opacity 250ms ease',
-        }}
-      />
-
-      {/* Modal card */}
-      <div style={{
-        position: 'relative',
-        width: 'calc(100% - 32px)',
-        maxWidth: '420px',
-        maxHeight: '85vh',
-        background: 'var(--card)',
-        borderRadius: '24px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-        display: 'flex',
-        flexDirection: 'column',
-        transform: open ? 'scale(1)' : 'scale(0.92)',
-        opacity: open ? 1 : 0,
-        transition: 'transform 250ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 250ms ease',
-        zIndex: 1,
-      }}>
-        {/* Close button */}
-        <button
-          onClick={handleClose}
-          style={{
-            position: 'absolute', top: '12px', right: '12px',
-            background: 'var(--surface2)', border: 'none',
-            borderRadius: '50%', width: '32px', height: '32px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', zIndex: 2, flexShrink: 0,
-          }}
-        >
-          <X size={15} strokeWidth={2.5} color='var(--ink3)' />
-        </button>
-
-        {/* Scrollable area */}
+    <>
+      <Sheet open onClose={onClose} title={recipe.name}>
+        {/* ── Header ─────────────────────────────────────────────── */}
         <div style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
-          overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch',
-          borderRadius: '24px 24px 0 0',
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12,
+          padding: '16px var(--pq-gutter) 12px',
+          borderBottom: '1px solid var(--pq-rule-cell)',
         }}>
-          {/* Top section: 2-column layout */}
-          <div style={{ padding: '20px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-            {/* Left: image */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <img
-                src={getImg(recipe)}
-                alt={recipe.name}
-                style={{ width: '120px', height: '120px', borderRadius: '16px', objectFit: 'cover', display: 'block' }}
-              />
-              <button
-                onClick={() => toggleFavorite(recipe.id)}
-                style={{
-                  position: 'absolute', top: '7px', right: '7px',
-                  background: 'rgba(255,255,255,0.92)', border: 'none',
-                  borderRadius: '50%', width: '26px', height: '26px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', boxShadow: '0 1px 6px rgba(0,0,0,0.15)',
-                }}
-              >
-                <Heart size={12} strokeWidth={2} color={isFav ? '#FF5C5C' : '#B4ADCA'} fill={isFav ? '#FF5C5C' : 'none'} />
-              </button>
-            </div>
+          <Thumb recipe={recipe} size={56} src={recipe.image} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 'var(--pq-size-sheet)', fontWeight: 700,
+              color: 'var(--pq-text)', letterSpacing: '-.01em', lineHeight: 1.25,
+            }}>{recipe.name}</div>
+            <div style={{
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
+              color: 'var(--pq-text-muted)', marginTop: 4,
+              letterSpacing: 'var(--pq-track-chip)',
+            }}>{metaLine(recipe, details)}</div>
+          </div>
 
-            {/* Right: info column */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '7px', minWidth: 0, paddingTop: '2px' }}>
-              <span style={{
-                display: 'inline-block', alignSelf: 'flex-start',
-                background: sourceColor, color: '#fff',
-                fontSize: '9px', fontWeight: 700,
-                padding: '3px 7px', borderRadius: '5px',
-                letterSpacing: '.06em',
+          <button
+            onClick={() => toggleFavorite(recipe.id)}
+            aria-label={faved ? 'Remove from favourites' : 'Add to favourites'}
+            aria-pressed={faved}
+            style={ICON_BUTTON}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24"
+              fill={faved ? 'var(--pq-accent)' : 'none'}
+              stroke={faved ? 'var(--pq-accent)' : 'var(--pq-text-3)'}
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+            </svg>
+          </button>
+
+          <button onClick={onClose} aria-label="Close" style={ICON_BUTTON}>
+            <span style={ICON_TILE}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="var(--pq-text-muted)" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        {/* ── Body ───────────────────────────────────────────────── */}
+        <div style={{
+          flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain',
+        }}>
+          {/* Macro strip. The last cell keeps its right rule, as in the
+              prototype — the strip is flush to the sheet edge and the
+              rule reads as the panel's own edge rather than a stray. */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
+            borderBottom: '1px solid var(--pq-rule-cell)',
+          }}>
+            {macros.map(m => (
+              <div key={m.label} style={{
+                padding: '12px 14px', borderRight: '1px solid var(--pq-rule-row)',
               }}>
-                {sourceLabel}
-              </span>
-              <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-.03em', margin: 0, lineHeight: 1.2, paddingRight: '28px' }}>
-                {recipe.name}
-              </h2>
-              <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: 'var(--ink4)', fontWeight: 500 }}>
-                <span>⏱ {prepTime(recipe.cal)}</span>
-                <span>{servingsPill}</span>
+                <div style={{
+                  fontFamily: 'var(--pq-mono)', fontSize: 16, fontWeight: 600,
+                  lineHeight: 1,
+                  color: m.accent ? 'var(--pq-accent)' : 'var(--pq-text)',
+                }}>{m.val}</div>
+                <div style={{
+                  fontFamily: 'var(--pq-mono)', fontSize: 9,
+                  color: 'var(--pq-text-3)',
+                  letterSpacing: 'var(--pq-track-label)', marginTop: 5,
+                }}>{m.label}</div>
               </div>
-              {/* 4 macro pills */}
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                {[
-                  { label: String(recipe.cal),   sub: 'cal', bg: 'rgba(79,63,212,0.08)',  color: '#4F3FD4' },
-                  { label: `${recipe.protein}g`, sub: 'P',   bg: 'rgba(79,63,212,0.08)',  color: '#4F3FD4' },
-                  { label: `${recipe.carbs}g`,   sub: 'C',   bg: 'rgba(13,200,160,0.09)', color: '#0DC8A0' },
-                  { label: `${recipe.fat}g`,     sub: 'F',   bg: 'rgba(245,166,35,0.09)', color: '#F5A623' },
-                ].map(m => (
-                  <div key={m.sub} style={{ background: m.bg, borderRadius: '8px', padding: '4px 7px', display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: m.color, letterSpacing: '-.02em', lineHeight: 1 }}>{m.label}</span>
-                    <span style={{ fontSize: '9px', color: 'var(--ink4)', fontWeight: 600 }}>{m.sub}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Divider */}
-          <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 20px' }} />
+          {/* ── Ingredients ─────────────────────────────────────────
+              ONE LINE, AS THE BOOK WROTE IT. The README describes a name
+              column and a mono quantity column; the prototype renders
+              the whole line and so does this. Splitting would mean
+              parsing 4,949 free-text lines into two fields, and the
+              block-B pipeline needed five stages and a named exclusion
+              list to do that safely — while a single slash rule still
+              turned "Light/Fat Free Evaporated Milk" into "light". The
+              quantity is already in the line; it does not need moving to
+              be read. */}
+          <div style={{ padding: '16px var(--pq-gutter) 0' }}>
+            <div style={{ ...MONO_LABEL, marginBottom: 8 }}>INGREDIENTS</div>
 
-          {/* Nutrition section */}
-          <div style={{ padding: '16px 20px 0' }}>
-            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
-              Nutrition per serving
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {[
-                { label: 'Calories', value: recipe.cal,     unit: '',  goal: DAILY_GOALS.cal,     color: '#4F3FD4', dotBg: 'rgba(79,63,212,0.12)'  },
-                { label: 'Protein',  value: recipe.protein, unit: 'g', goal: DAILY_GOALS.protein, color: '#4F3FD4', dotBg: 'rgba(79,63,212,0.12)'  },
-                { label: 'Carbs',    value: recipe.carbs,   unit: 'g', goal: DAILY_GOALS.carbs,   color: '#0DC8A0', dotBg: 'rgba(13,200,160,0.12)' },
-                { label: 'Fat',      value: recipe.fat,     unit: 'g', goal: DAILY_GOALS.fat,     color: '#F5A623', dotBg: 'rgba(245,166,35,0.12)' },
-              ].map(row => (
-                <div key={row.label}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '6px', background: row.dotBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: row.color }} />
-                      </div>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink2)' }}>{row.label}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: row.color, fontFamily: 'DM Mono, monospace' }}>{row.value}{row.unit}</span>
-                      <span style={{ fontSize: '10px', color: 'var(--ink4)', fontWeight: 500 }}>/ {row.goal}{row.unit}</span>
-                    </div>
-                  </div>
-                  <MacroBar val={row.value} goal={row.goal} color={row.color} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div style={{ padding: '16px 20px 0' }}>
-            <p style={{ fontSize: '13px', color: 'var(--ink3)', fontWeight: 500, lineHeight: 1.6, margin: 0 }}>
-              {generateDescription(recipe)}
-            </p>
-          </div>
-
-          {/* Ingredients */}
-          <div style={{ padding: '20px 20px 0' }}>
-            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 3px' }}>
-              Ingredients
-            </p>
-            <p style={{ fontSize: '11px', color: 'var(--ink4)', fontWeight: 500, margin: '0 0 12px' }}>
-              {servingsText}
-            </p>
-
-            {details ? (
-              /* Real ingredients: plain string array from the cookbook */
-              <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
-                {details.ingredients.map((ing, i) => {
-                  const isLabel = ing.startsWith('(') || ing.endsWith(')')
-                  return (
-                    <div key={i}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px' }}>
-                        {isLabel ? (
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink4)', lineHeight: 1.3, fontStyle: 'italic', flex: 1 }}>
-                            {ing}
-                          </span>
-                        ) : (
-                          <>
-                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4F3FD4', flexShrink: 0 }} />
-                            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3, flex: 1 }}>{ing}</span>
-                          </>
-                        )}
-                      </div>
-                      {i < details.ingredients.length - 1 && (
-                        <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              /* Generated ingredients fallback */
-              <div style={{ background: 'var(--surface2)', borderRadius: '16px', overflow: 'hidden' }}>
-                {fakeIngredients.map((ing, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                        <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: CATEGORY_COLORS[ing.category] || 'var(--ink4)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', lineHeight: 1.3 }}>{ing.item}</span>
-                      </div>
-                      <span style={{ fontSize: '12px', color: 'var(--ink3)', fontFamily: 'DM Mono, monospace', flexShrink: 0, marginLeft: '10px', textAlign: 'right' }}>{ing.amount}</span>
-                    </div>
-                    {i < fakeIngredients.length - 1 && (
-                      <div style={{ height: '1px', background: 'var(--border-c)', margin: '0 14px' }} />
-                    )}
-                  </div>
-                ))}
-              </div>
+            {ingredients.length === 0 && (
+              <p style={{
+                fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-3)',
+                fontStyle: 'italic', margin: '0 0 4px',
+              }}>Ingredients coming soon</p>
             )}
+
+            {ingredients.map((line, i) => isHeading(line) ? (
+              <div key={i} style={{
+                padding: '10px 0 4px',
+                fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
+                fontWeight: 600, color: 'var(--pq-text-muted)',
+                letterSpacing: 'var(--pq-track-chip)',
+              }}>{line}</div>
+            ) : (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'baseline', gap: 10,
+                padding: '9px 0', borderBottom: '1px solid var(--pq-rule-meal)',
+              }}>
+                <span aria-hidden="true" style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: 'var(--pq-accent)',
+                  flexShrink: 0, position: 'relative', top: -2,
+                }} />
+                <span style={{
+                  flex: 1, fontSize: 'var(--pq-size-row)', fontWeight: 400,
+                  color: 'var(--pq-text-2)', lineHeight: 1.4,
+                }}>{line}</span>
+              </div>
+            ))}
           </div>
 
-          {/* Instructions — always rendered; placeholder shown when steps are missing */}
-          <div style={{ padding: '20px 20px 28px' }}>
-            <p style={{ fontSize: '9px', fontWeight: 700, color: 'var(--ink4)', letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 14px' }}>
-              Instructions
-            </p>
-            {details && details.steps && details.steps.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {details.steps.map((step, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{
-                      flexShrink: 0,
-                      width: '22px', height: '22px', borderRadius: '8px',
-                      background: 'rgba(79,63,212,0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#4F3FD4', lineHeight: 1 }}>{i + 1}</span>
-                    </div>
-                    <p style={{ fontSize: '13px', color: 'var(--ink2)', fontWeight: 500, lineHeight: 1.6, margin: 0, flex: 1 }}>
-                      {step}
-                    </p>
-                  </div>
-                ))}
-              </div>
+          {/* ── Steps ──────────────────────────────────────────────── */}
+          <div style={{ padding: '20px var(--pq-gutter) 24px' }}>
+            <div style={{ ...MONO_LABEL, marginBottom: 10 }}>INSTRUCTIONS</div>
+            {steps.length === 0 ? (
+              <p style={{
+                fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-3)',
+                fontStyle: 'italic', margin: 0,
+              }}>Instructions coming soon</p>
             ) : (
-              <p style={{ fontSize: '13px', color: 'var(--ink4)', fontStyle: 'italic', margin: 0 }}>
-                Instructions coming soon
-              </p>
+              <ol style={{
+                listStyle: 'none', margin: 0, padding: 0,
+                display: 'flex', flexDirection: 'column', gap: 12,
+              }}>
+                {steps.map((text, i) => (
+                  <li key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{
+                      flexShrink: 0, fontFamily: 'var(--pq-mono)',
+                      fontSize: 12, fontWeight: 600,
+                      color: 'var(--pq-accent)', paddingTop: 2,
+                    }}>{String(i + 1).padStart(2, '0')}</span>
+                    <p style={{
+                      flex: 1, margin: 0, fontSize: 13.5, fontWeight: 400,
+                      color: 'var(--pq-text-2)', lineHeight: 1.6,
+                    }}>{text}</p>
+                  </li>
+                ))}
+              </ol>
             )}
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* ── Actions ────────────────────────────────────────────── */}
         <div style={{
-          flexShrink: 0,
-          padding: '12px 16px',
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
-          background: 'var(--card)',
-          borderTop: '1px solid var(--border-c)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          borderRadius: '0 0 24px 24px',
+          flexShrink: 0, display: 'flex', gap: 8,
+          padding: '12px var(--pq-gutter) 16px',
+          borderTop: '1px solid var(--pq-rule-cell)',
         }}>
           <button
-            onClick={handleAddToday}
+            onClick={() => { logMeal(recipe.id, 'meal'); onClose?.() }}
             style={{
-              width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 700,
-              fontFamily: 'Plus Jakarta Sans, sans-serif',
-              background: added ? '#0DC8A0' : 'linear-gradient(135deg,#4F3FD4 0%,#7B6EF5 100%)',
-              color: '#fff',
-              boxShadow: added ? '0 4px 16px rgba(13,200,160,0.35)' : '0 4px 16px rgba(79,63,212,0.35)',
-              transition: 'background .2s, box-shadow .2s',
-            }}
-          >
-            {added ? '✓ Added to today!' : "Add to Today's Plan"}
-          </button>
+              flex: 1, minHeight: 'var(--pq-tap-min)', padding: 14,
+              borderRadius: 'var(--pq-r-button)', border: 'none', cursor: 'pointer',
+              background: 'var(--pq-accent-grad)',
+              boxShadow: 'var(--pq-accent-raise)',
+              color: 'var(--pq-on-accent-ink)',
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-body)',
+              fontWeight: 600, letterSpacing: '.04em',
+            }}>ATE THIS</button>
           <button
-            onClick={handleClose}
+            onClick={() => setPicking(true)}
             style={{
-              width: '100%', padding: '12px', borderRadius: '14px',
-              border: '1.5px solid #0DC8A0', background: 'transparent',
-              cursor: 'pointer', fontSize: '13px', fontWeight: 700,
-              fontFamily: 'Plus Jakarta Sans, sans-serif', color: '#0DC8A0',
-            }}
-          >
-            Add to Week Plan
-          </button>
+              flex: 1, minHeight: 'var(--pq-tap-min)', padding: 14,
+              borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
+              border: '1px solid var(--pq-rule-strong)', background: 'transparent',
+              color: 'var(--pq-text-2)',
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-body)',
+              fontWeight: 600, letterSpacing: '.04em',
+            }}>ADD TO PLAN</button>
         </div>
-      </div>
-    </div>
+      </Sheet>
+
+      {/* A second sheet rather than a slot inside this one: the day list
+          is a separate decision, and replacing the sheet's body would
+          lose the recipe you were reading. Stacks over it, as in the
+          prototype. */}
+      {picking && (
+        <Sheet open onClose={() => setPicking(false)} title="Add to plan">
+          <div style={{
+            flexShrink: 0, padding: '16px var(--pq-gutter) 12px',
+            borderBottom: '1px solid var(--pq-rule-cell)',
+          }}>
+            <div style={{
+              fontSize: 16, fontWeight: 700, color: 'var(--pq-text)',
+              letterSpacing: '-.01em',
+            }}>Add to plan</div>
+            <div style={{
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
+              color: 'var(--pq-text-3)', marginTop: 3,
+              letterSpacing: 'var(--pq-track-chip)',
+            }}>{recipe.name.toUpperCase()}</div>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px var(--pq-gutter)' }}>
+            {weekPlan.map((day, i) => {
+              const full = (day.ids || []).every(Boolean)
+              return (
+                <button
+                  key={day.day}
+                  onClick={() => { assignMeal(i, recipe.id); setPicking(false); onClose?.() }}
+                  disabled={full}
+                  style={{
+                    width: '100%', minHeight: 'var(--pq-tap-min)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12, marginBottom: 6, padding: '11px 14px',
+                    borderRadius: 'var(--pq-r-button)',
+                    border: '1px solid var(--pq-rule-soft)',
+                    background: 'var(--pq-panel)',
+                    cursor: full ? 'default' : 'pointer',
+                    opacity: full ? 0.45 : 1,
+                    fontFamily: 'var(--pq-mono)',
+                  }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, color: 'var(--pq-text)',
+                    letterSpacing: 'var(--pq-track-label)',
+                  }}>{day.day.toUpperCase()}</span>
+                  <span style={{ fontSize: 11, color: 'var(--pq-text-3)' }}>
+                    {full ? 'FULL' : `${(day.ids || []).filter(Boolean).length}/${(day.ids || []).length} PLANNED`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </Sheet>
+      )}
+    </>
   )
 }
