@@ -237,3 +237,25 @@ describe('chrome', () => {
     expect(marker.querySelector('svg')).toBeTruthy()
   })
 })
+
+/* The same defect Today had: gating PLANNED on rows that exist rather
+   than rows that render draws an empty Card for a plan whose ids have
+   been retired. */
+describe('a plan holding retired recipe ids', () => {
+  const emptyCards = () => [...host.querySelectorAll('*')]
+    .filter(e => e.style.background === 'var(--pq-card-bg)' && e.textContent.trim() === '')
+
+  it('draws no empty PLANNED Card when every id is gone', async () => {
+    await mount([999999, 888888])
+    expect(emptyCards()).toHaveLength(0)
+    expect(text()).not.toContain('PLANNED · ONE TAP TO LOG')
+    expect(plannedRows()).toHaveLength(0)
+  })
+
+  it('still offers the ones that survive', async () => {
+    await mount([1, 999999])
+    expect(emptyCards()).toHaveLength(0)
+    expect(plannedRows()).toHaveLength(1)
+    expect(text()).toContain(recipeById[1].name)
+  })
+})

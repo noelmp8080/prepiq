@@ -207,5 +207,12 @@
   :root { --pq-gutter: 24px; }
 }
 @media (min-width: 1400px) {
-  :root { --pq-gutter: 32px; }
+  :root {
+    --pq-gutter: 32px;
+    /* The prototype's `h1Size: wide ? '34px' : '28px'`, where its `wide`
+       flag means DESKTOP rather than "either wide surface". So the title
+       grows at 1512, not on the iPad — where the content column is
+       narrower and 28px is already the right weight against it. */
+    --pq-size-title: 34px;
+  }
 }

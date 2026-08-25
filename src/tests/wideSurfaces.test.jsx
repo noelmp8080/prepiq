@@ -406,3 +406,86 @@ describe('a first-time visitor gets from the spinner to the app', () => {
     sessionStorage.clear()
   })
 })
+
+/* ── Values that differ between the two WIDE surfaces ─────────────────
+ *
+ * The prototype's `wide` flag means DESKTOP, not "either wide surface".
+ * Three values key off it, and reading it as "wide" would have given the
+ * iPad a 34px title and two-up meals in a 300px column.
+ */
+describe('iPad and desktop are not the same wide surface', () => {
+  it('is iPad at 1248 and desktop only past 1400', () => {
+    expect(surfaceFor(1248)).toBe('tablet')
+    expect(surfaceFor(1399)).toBe('tablet')
+    expect(surfaceFor(1400)).toBe('desktop')
+    expect(surfaceFor(1512)).toBe('desktop')
+  })
+
+  it('grows the title only at desktop, through the token', () => {
+    /* base stays 28px; the override rides the same breakpoint as the
+       gutter, so a screen cannot get one without the other */
+    expect(TOKENS).toMatch(/--pq-size-title:\s*28px/)
+    const desktopBlock = TOKENS.slice(TOKENS.indexOf('@media (min-width: 1400px)'))
+    expect(desktopBlock).toMatch(/--pq-size-title:\s*34px/)
+    expect(desktopBlock).toMatch(/--pq-gutter:\s*32px/)
+
+    const tabletBlock = TOKENS.slice(
+      TOKENS.indexOf('@media (min-width: 900px)'),
+      TOKENS.indexOf('@media (min-width: 1400px)'))
+    expect(tabletBlock).toMatch(/--pq-gutter:\s*24px/)
+    expect(tabletBlock).not.toMatch(/--pq-size-title/)
+  })
+
+  it('every screen title reads the token rather than a literal', async () => {
+    for (const f of ['Today', 'Plan', 'Recipes', 'Track']) {
+      const src = readFileSync(`src/components/${f}.jsx`, 'utf8')
+      const h1 = src.slice(src.indexOf('<h1'), src.indexOf('</h1>'))
+      expect(h1, f).toContain('var(--pq-size-title)')
+      expect(h1, f).not.toMatch(/fontSize:\s*'?\d+px/)
+    }
+  })
+
+  it('stacks the meals on iPad and goes two-up on desktop', async () => {
+    const { default: Today } = await import('../components/Today')
+    const { lsKey: key, todayIndex } = await import('../store/storeLogic')
+    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    const idx = todayIndex(DAYS.map(d => ({ day: d, ids: [] })))
+
+    const mealGrid = async surface => {
+      localStorage.clear()
+      localStorage.setItem(key(null, 'weekplan'), JSON.stringify(
+        DAYS.map((day, i) => ({ day, ids: i === idx ? [1, 2] : [null, null] }))))
+      const h = document.createElement('div'); document.body.appendChild(h)
+      const r = createRoot(h)
+      await act(async () => {
+        r.render(<ThemeProvider><AppStoreProvider>
+          <Today onChange={() => {}} surface={surface} />
+        </AppStoreProvider></ThemeProvider>)
+      })
+      await act(async () => { await authCb(null) })
+      const card = [...h.querySelectorAll('*')]
+        .find(e => e.style.background === 'var(--pq-card-bg)' && e.textContent.includes('ATE IT'))
+      const cols = card?.style.gridTemplateColumns || ''
+      act(() => { r.unmount() }); h.remove()
+      return cols
+    }
+
+    expect(await mealGrid('tablet')).toBe('')                        // stacked
+    expect(await mealGrid('desktop')).toBe('repeat(2,minmax(0,1fr))')
+  })
+
+  /* `1fr` is `minmax(auto, 1fr)`, so a track can be forced wider than
+     its share by its own content. Every column in this app uses the
+     minmax(0,…) form so it cannot be. */
+  it('never uses a bare 1fr in a column definition', () => {
+    for (const f of ['Today', 'Track', 'Plan', 'Recipes', 'Grocery']) {
+      const src = readFileSync(`src/components/${f}.jsx`, 'utf8')
+      for (const m of src.match(/gridTemplateColumns:[^,\n]*/g) || []) {
+        expect(m, `${f}.jsx: ${m}`).not.toMatch(/(^|[^)0-9])1fr/)
+      }
+      for (const m of src.match(/(tablet|desktop):\s*'[^']*1fr[^']*'/g) || []) {
+        expect(m, `${f}.jsx: ${m}`).toContain('minmax(0,1fr)')
+      }
+    }
+  })
+})

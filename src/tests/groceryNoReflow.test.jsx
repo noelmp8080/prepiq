@@ -494,7 +494,7 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
   it('lays the same rows out in three regions', () => {
     expect(wRows()).toHaveLength(VISIBLE_ROWS)
     expect(wList().style.display).toBe('grid')
-    expect(wList().style.gridTemplateColumns).toBe('1fr 320px')
+    expect(wList().style.gridTemplateColumns).toBe('minmax(0,1fr) 320px')
     expect(wHost.querySelector('[data-grocery-side]')).toBeTruthy()
 
     /* two INDEPENDENT columns, not one flowed pair */

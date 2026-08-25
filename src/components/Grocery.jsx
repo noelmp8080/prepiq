@@ -289,7 +289,12 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           padding: '10px var(--pq-gutter)',
           ...(wide ? {
             display: 'grid',
-            gridTemplateColumns: desktop ? '1fr 320px' : '1fr 280px',
+            /* minmax(0,…), not a bare 1fr — see Today's macro card.
+               A sections region forced wider than its track pushes the
+               side pane off the viewport, and body{overflow-x:hidden}
+               makes that read as a cut-off rather than a scrollbar. */
+            gridTemplateColumns: desktop
+              ? 'minmax(0,1fr) 320px' : 'minmax(0,1fr) 280px',
             gap: desktop ? 26 : 20, alignItems: 'start',
           } : null),
         }}>

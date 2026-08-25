@@ -189,8 +189,11 @@ describe('ALSO LOGGED', () => {
 
 /* ── The macro card, as ruled ─────────────────────────────────────── */
 describe('the macro card', () => {
+  /* Two equal halves, in the minmax(0,…) form so a wide value cannot
+     force the track past its share — see the comment in Today.jsx. */
+  const MACRO_COLS = 'minmax(0,1fr) minmax(0,1fr)'
   const grid = () => [...host.querySelectorAll('div')]
-    .find(d => d.style.gridTemplateColumns === '1fr 1fr')
+    .find(d => d.style.gridTemplateColumns === MACRO_COLS)
 
   it('is two cells, per the markup ruling — not the four the prose describes', async () => {
     await mountWith()
@@ -282,5 +285,50 @@ describe('chrome', () => {
     const thumbs = [...host.querySelectorAll('img, div')].filter(e => e.style.width === '48px')
     expect(thumbs.length).toBeGreaterThan(0)
     for (const t of thumbs) expect(t.style.borderRadius).toBe('9px')
+  })
+})
+
+/* ── A PLAN THAT POINTS AT A RETIRED RECIPE ───────────────────────────
+ *
+ * Recipe ids are non-contiguous up to 384 and the catalog has retired
+ * some, so a stored plan can hold an id that no longer resolves. The row
+ * for one renders nothing — and gating the Card on `planned.length`
+ * therefore drew an EMPTY CARD: a bordered, rounded, completely blank
+ * box with "0/2 · 0 KCAL" beside it. Reproduced before fixing.
+ */
+describe('a plan holding retired recipe ids', () => {
+  const emptyCards = () => [...host.querySelectorAll('*')]
+    .filter(e => e.style.background === 'var(--pq-card-bg)' && e.textContent.trim() === '')
+
+  it('draws no empty Card when every planned id is gone', async () => {
+    await mountWith([999999, 888888])
+    expect(emptyCards()).toHaveLength(0)
+    /* the dashed block instead, which is what "nothing to show" looks
+       like everywhere else in this app */
+    expect(text()).toContain('Nothing planned for today')
+    expect(eatButtons()).toHaveLength(0)
+  })
+
+  it('does not claim a count or a calorie total for rows it cannot draw', async () => {
+    await mountWith([999999, 888888])
+    expect(text()).not.toContain('0/2')
+    expect(text()).not.toMatch(/\d+\/\d+ · \d+ KCAL/)
+  })
+
+  it('still draws the ones that survive, and counts only those', async () => {
+    await mountWith([1, 999999])
+    expect(emptyCards()).toHaveLength(0)
+    expect(eatButtons()).toHaveLength(1)
+    expect(text()).toContain(recipeById[1].name)
+    /* 1 row, not 2 — the retired slot is not counted against you */
+    expect(text()).toContain(`0/1 · ${recipeById[1].cal} KCAL`)
+  })
+
+  it('never leaves a Card with nothing in it, on any of these plans', async () => {
+    for (const ids of [[1, 2], [1, 999999], [999999, 888888], [null, null]]) {
+      await mountWith(ids)
+      expect(emptyCards(), `plan ${JSON.stringify(ids)}`).toHaveLength(0)
+      act(() => root.unmount()); host.remove(); root = null
+    }
   })
 })

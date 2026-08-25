@@ -521,6 +521,30 @@ affordance sizes" change, and this satisfies it.
 
 **Not approved separately** — recorded as a scoping call.
 
+### Costed, on request
+
+| | |
+| --- | --- |
+| Components changed | **6** — `Today`, `Plan`, `Recipes`, `Track` lose their header block; `App` renders it and supplies eyebrow/title/actions per tab; `Shell` gains a header slot above the scroller |
+| Components untouched | `Grocery` — it has no `<h1>`; its sticky bar is a control, not a title |
+| Test files touched | **7** |
+| Assertions to re-aim | **12** |
+| `it` blocks in those files | 103 — most do not touch the header and would not move |
+
+The work is not the markup, it is that per-tab header CONTENT becomes App's
+concern: Plan's SHUFFLE button, Track's LOG button, Today's settings gear and
+the recipe count on Recipes all currently live beside their own titles. A shared
+header needs each screen to declare `{eyebrow, title, actions}` — which is a
+prop contract across five screens, not a move.
+
+**What it buys:** a full-width bar with `border-bottom: 1px rgba(255,255,255,0.09)`
+and `headPad: 24px 32px 20px`, so the title sits above a rule that spans both
+columns instead of floating in the left one. That is the largest remaining
+visual gap from the prototype.
+
+**What is already done without it:** the 34px title at desktop, and the
+`bodyPad` horizontal values, both arrive through tokens.
+
 ---
 
 ## 12. Block E: the gate line about photoless lists is dropped

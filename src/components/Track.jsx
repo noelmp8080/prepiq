@@ -49,7 +49,7 @@ function Bar({ value, goal, height, fill }) {
   )
 }
 
-const COLS = { tablet: '300px 1fr', desktop: '360px 1fr' }
+const COLS = { tablet: '300px minmax(0,1fr)', desktop: '360px minmax(0,1fr)' }
 
 export default function Track({ onChange, surface = 'phone' }) {
   const cols = COLS[surface]
@@ -62,7 +62,10 @@ export default function Track({ onChange, surface = 'phone' }) {
 
   const day = weekPlan[planToday]
   const { planned } = planVsLog(day?.ids || [], mealLog)
-  const uneaten = planned.filter(p => !p.log)
+  /* Renderable, not merely planned — a retired recipe id renders nothing,
+     and gating the Card on the unfiltered count draws an empty box. Same
+     defect as Today's. */
+  const uneaten = planned.filter(p => !p.log && recipeById[p.recipeId])
 
   const left = goals.calories - consumed.calories
 
@@ -161,7 +164,6 @@ export default function Track({ onChange, surface = 'phone' }) {
           <Card>
             {uneaten.map(({ recipeId, slot }) => {
               const r = recipeById[recipeId]
-              if (!r) return null
               return (
                 <button
                   key={`${slot}-${recipeId}`}

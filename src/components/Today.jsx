@@ -77,7 +77,11 @@ function MacroCell({ label, value, goal, suffix = '', accent, fill, style }) {
 /* Wide splits the stack into two columns: the numbers on the left, the
    meals on the right. Nothing is added or restyled — the same cards move
    from stacked to side by side, which is the whole brief for this block. */
-const COLS = { tablet: '300px 1fr', desktop: '360px 1fr' }
+const COLS = { tablet: '300px minmax(0,1fr)', desktop: '360px minmax(0,1fr)' }
+/* The prototype's `mealCols`. Its `wide` flag means DESKTOP, not "either
+   wide surface" — so the meals go two-up at 1512 and stay stacked on the
+   iPad, where the right column is narrower. */
+const MEAL_COLS = { desktop: 'repeat(2,minmax(0,1fr))' }
 
 export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
   const cols = COLS[surface]
@@ -90,7 +94,16 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
 
   const day = weekPlan[planToday]
   const { planned, extras } = planVsLog(day?.ids || [], mealLog)
-  const plannedTotals = sumMacros(planned.map(p => p.recipeId), recipeById)
+
+  /* ROWS THAT WILL ACTUALLY RENDER, not rows that exist.
+     A plan can hold a retired recipe id — ids are non-contiguous up to
+     384 and the catalog has retired some — and the row for one renders
+     nothing. Gating the Card on `planned.length` therefore drew an
+     EMPTY CARD: a bordered, rounded, completely blank box, with the
+     eyebrow reading "0/2 · 0 KCAL" beside it. Measured, not guessed;
+     two retired ids reproduce it exactly. */
+  const rows = planned.filter(p => recipeById[p.recipeId])
+  const plannedTotals = sumMacros(rows.map(p => p.recipeId), recipeById)
 
   const remaining = goals.calories - consumed.calories
 
@@ -155,7 +168,15 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
       {/* ── Macro card ──────────────────────────────────────────── */}
       <Card style={{ margin: cols ? '20px 0 0' : '20px var(--pq-gutter) 0' }}>
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          /* minmax(0,…), not a bare 1fr. A bare `1fr` is
+             `minmax(auto, 1fr)`, so a cell whose content is wider than
+             half the card forces the TRACK wider — and this card sits in
+             a fixed 300px column, so the overflow pushes the whole
+             two-column grid past the viewport. With body{overflow-x:
+             hidden} that reads as the right column being cut off rather
+             than as a scrollbar. A four-digit intake against a
+             four-digit goal needs ~142px of a 150px half. \*/
+          display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)',
           borderBottom: CARD_CELL_RULE,
         }}>
           <MacroCell
@@ -191,13 +212,13 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
         }}>
           <span style={EYEBROW}>PLANNED TODAY</span>
           <span style={{ ...MONO, fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-3)' }}>
-            {planned.length
-              ? `${planned.filter(p => p.log).length}/${planned.length} · ${plannedTotals.calories} KCAL`
+            {rows.length
+              ? `${rows.filter(p => p.log).length}/${rows.length} · ${plannedTotals.calories} KCAL`
               : ''}
           </span>
         </div>
 
-        {planned.length === 0 ? (
+        {rows.length === 0 ? (
           <EmptyBlock
             as="button"
             onClick={() => onChange?.('plan')}
@@ -212,10 +233,11 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
             </p>
           </EmptyBlock>
         ) : (
-          <Card>
-            {planned.map(({ recipeId, slot, log }) => {
+          <Card style={MEAL_COLS[surface]
+            ? { display: 'grid', gridTemplateColumns: MEAL_COLS[surface] }
+            : undefined}>
+            {rows.map(({ recipeId, slot, log }) => {
               const r = recipeById[recipeId]
-              if (!r) return null
               const done = !!log
               return (
                 <div key={`${slot}-${recipeId}`} style={{
