@@ -44,7 +44,7 @@ must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
 | — | Phase 1 — tokens | **Done** — `504c3ea` |
 | A | Phase 2 — shell, nav, logo, primitives | **Done** |
 | B | Phase 3 — connected model + migrations | **Done** |
-| C | Sheets, then Today / Plan / Recipes / Track | Not started |
+| C | Sheets, then Today / Plan / Recipes / Track | **Done** |
 | D | Grocery | Not started |
 | E | iPad + desktop | Not started |
 
@@ -214,9 +214,23 @@ cannot be walked yet must be walked when it can.
 
 ## Block C — sheets, then read screens
 
-**Carried in from block B:** finish the derived chain. Today and Track must
-read `weekPlan`, and the full walk — change a meal on Plan, see Today, grocery
-and Track's planned list all follow — must be re-run before block C is done.
+**Carried in from block B: DONE.** Today and Track read `weekPlan`. The full
+walk, measured under one store with all four surfaces mounted at once:
+
+```
+plan today = [1, 2]   Spicy Chicken Wraps + Honey BBQ Chicken Mac & Cheese
+BEFORE          Today  2 | Plan  2 | Track  2 | Grocery  19 rows (derived 25)
+-> remove Spicy Chicken Wraps
+AFTER REMOVE    Today  1 | Plan  1 | Track  1 | Grocery  11 rows (derived 14)
+-> assign Creamy Chicken Mac and Cheese
+AFTER ASSIGN    Today  2 | Plan  2 | Track  2 | Grocery  17 rows (derived 22)
+-> log one from Track
+AFTER LOG       Today  2 | Plan  2 | Track  1 | Grocery  17 rows (derived 22)
+```
+
+Logging moves Today and Track and leaves Plan and Grocery alone — eating
+something does not un-plan it or un-buy its ingredients. Kept as
+`connectedChain.test.jsx` rather than a one-off probe.
 
 
 

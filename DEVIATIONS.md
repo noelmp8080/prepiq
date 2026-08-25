@@ -342,6 +342,30 @@ bundle was written against a thinner set. The fallback tile is kept and covered
 anyway — `image` is set whether or not the file resolves, so a missing file has
 nothing but the tile's error path to catch it.
 
+### Further markup-over-prose calls in this block
+
+Same class, not put to the user again — the ruling above settled the policy.
+
+| Surface | README prose | Built (markup) |
+| --- | --- | --- |
+| Recipes row, trailing control | "button to assign the recipe to a day" | favourite heart; assigning is the sheet's ADD TO PLAN |
+| Plan meal name | 13px/600 | 14px/500 |
+| Today empty state | "accent button that navigates to Plan" | whole dashed block taps through |
+| Today meals eyebrow | "Today's meals" | `PLANNED TODAY` |
+
+One call went the other way, and it is the only one: **macro bar tracks use
+`--pq-track-bg` / `--pq-track-shadow`, not the markup's one-off
+`rgba(0,0,0,0.42)` / `inset 0 1px 2px rgba(0,0,0,0.5)`.** Same recessed channel,
+0.12 apart in alpha behind a card, and the brief also says to use the existing
+token layer. The 3px and 4px bar HEIGHTS are the markup's.
+
+### Two new components
+
+`Thumb.jsx` and the picker sheet inside `Plan.jsx`. Neither is a competing
+surface primitive — Card, Sheet and Logo are still the only ones. `Thumb` holds
+the 36/48/56 -> 7/9/10 mapping, which is a standing verification item; four
+copies of it is four places for 48/10 to appear and never be noticed.
+
 **Approved:** the four markup rulings, by the user. The rest recorded here.
 
 ---
