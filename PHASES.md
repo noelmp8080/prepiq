@@ -234,7 +234,9 @@ Today**. The remaining three screens are the same shape repeated.
 - [x] **C3 Today** — done, and the block B chain link with it: Today now reads
       weekPlan. Macro card is two cells per the markup ruling, not the four the
       prose describes.
-- **C4 Plan** — week stat strip, seven flat `#141619` day cards.
+- [x] **C4 Plan** — done. Day cards are flat panels, not Cards: seven
+      translucent surfaces down one screen would each read a different
+      lightness through the fixed ramp.
 - **C5 Recipes** — search field, filter chips, result rows.
 - **C6 Track** — macro card, `PLANNED · ONE TAP TO LOG`, `LOGGED`.
 

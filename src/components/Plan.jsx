@@ -1,138 +1,318 @@
-import { useState } from 'react'
-import { Shuffle } from 'lucide-react'
-import { recipeById } from '../data/recipes'
-import { useAppStore } from '../store/useAppStore'
+import { useState, useMemo } from 'react'
+import Card, { CARD_ROW_RULE, CARD_CELL_RULE } from './Card'
+import Sheet from './Sheet'
+import Thumb from './Thumb'
 import RecipeSheet from './RecipeSheet'
+import { useAppStore } from '../store/useAppStore'
+import { recipes, recipeById } from '../data/recipes'
+import { sumMacros } from '../store/storeLogic'
 
-const MEAL_LABELS = ['Meal 1', 'Meal 2']
-const TODAY_NAME  = new Date().toLocaleDateString('en-US', { weekday:'short' })
+/* ── Plan — the source of truth, and the only screen that writes it ───
+ *
+ * Everything else in the app is a view of this: Today is one day of it,
+ * the grocery list is one day's ingredients, Track pre-fills from it.
+ * That is why the footer line is not decoration — it is the one place
+ * the app tells you a change here reaches somewhere else.
+ *
+ * DAY CARDS ARE FLAT PANELS, NOT CARDS. `#141619` is opaque and does not
+ * participate in the shell ramp; Card.jsx is translucent and does. Seven
+ * translucent cards stacked down a screen would each read a different
+ * lightness, which is right for one card and noise for a list. The
+ * stat strip above them IS a Card, because there is one of it.
+ */
 
-const WEEK_START = (() => {
-  const d = new Date()
-  const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  const monday = new Date(d)
-  monday.setDate(d.getDate() + diff)
-  return monday
-})()
+const MONO = { fontFamily: 'var(--pq-mono)' }
 
-function formatDateRange() {
-  const end = new Date(WEEK_START)
-  end.setDate(end.getDate() + 6)
-  const opts = { month:'short', day:'numeric' }
-  return `${WEEK_START.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`
+function weekRange(date = new Date()) {
+  const monday = new Date(date)
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const f = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${f(monday)} – ${f(sunday)}`.toUpperCase()
+}
+
+function StatCell({ value, label, accent, style }) {
+  return (
+    <div style={{ padding: '14px 16px', ...style }}>
+      <div style={{
+        ...MONO, fontSize: 'var(--pq-size-stat)', fontWeight: 600, lineHeight: 1,
+        color: accent ? 'var(--pq-accent)' : 'var(--pq-text)',
+      }}>{value}</div>
+      <div style={{
+        ...MONO, fontSize: 'var(--pq-size-label)', color: 'var(--pq-text-3)',
+        letterSpacing: 'var(--pq-track-label)', marginTop: 6,
+      }}>{label}</div>
+    </div>
+  )
+}
+
+/* The picker. A sheet rather than a trip to the Recipes tab: choosing a
+   meal for Thursday is a decision about Thursday, and leaving the screen
+   loses the row you were filling. */
+function RecipePicker({ dayLabel, onPick, onClose }) {
+  const [query, setQuery] = useState('')
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const pool = q ? recipes.filter(r => r.name.toLowerCase().includes(q)) : recipes
+    return pool.slice(0, 60)
+  }, [query])
+
+  return (
+    <Sheet open onClose={onClose} title={`Add a meal to ${dayLabel}`}>
+      <div style={{
+        flexShrink: 0, padding: '16px var(--pq-gutter) 12px',
+        borderBottom: '1px solid var(--pq-rule-cell)',
+      }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pq-text)', letterSpacing: '-.01em' }}>
+          Add a meal
+        </div>
+        <div style={{
+          ...MONO, fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-3)',
+          marginTop: 3, letterSpacing: 'var(--pq-track-chip)',
+        }}>{dayLabel.toUpperCase()}</div>
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search recipes"
+          aria-label="Search recipes"
+          style={{
+            width: '100%', minHeight: 'var(--pq-tap-min)', marginTop: 12,
+            padding: '11px 14px', borderRadius: 'var(--pq-r-button)',
+            background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
+            color: 'var(--pq-text)', fontSize: 'var(--pq-size-row)',
+            fontFamily: 'var(--pq-sans)', outline: 'none',
+          }}
+        />
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain' }}>
+        {results.length === 0 && (
+          <p style={{
+            ...MONO, padding: '24px var(--pq-gutter)', margin: 0,
+            fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-3)', textAlign: 'center',
+          }}>NOTHING MATCHES “{query.trim().toUpperCase()}”</p>
+        )}
+        {results.map(r => (
+          <button
+            key={r.id}
+            onClick={() => onPick(r.id)}
+            style={{
+              width: '100%', minHeight: 'var(--pq-tap-min)',
+              display: 'flex', alignItems: 'center', gap: 11,
+              padding: '10px var(--pq-gutter)',
+              background: 'none', border: 'none', borderBottom: CARD_ROW_RULE,
+              cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--pq-sans)',
+            }}>
+            <Thumb recipe={r} size={36} src={r.image} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{
+                display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 500,
+                color: 'var(--pq-text)',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{r.name}</span>
+              <span style={{
+                ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
+                color: 'var(--pq-text-3)', marginTop: 2,
+              }}>{r.cal} KCAL · {r.protein}G</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </Sheet>
+  )
 }
 
 export default function Plan() {
-  const { weekPlan, shuffleWeekPlan } = useAppStore()
-  const [selectedRecipe, setSelectedRecipe] = useState(null)
+  const { weekPlan, planToday, assignMeal, removeMeal, shuffleWeekPlan } = useAppStore()
+  const [picking, setPicking] = useState(null)          // { dayIndex, label }
+  const [sheetRecipe, setSheetRecipe] = useState(null)
 
-  function totalCal(day) {
-    return day.ids.filter(Boolean).reduce((s, id) => s + (recipeById[id]?.cal || 0), 0)
-  }
-
-  function dayDate(i) {
-    const d = new Date(WEEK_START)
-    d.setDate(d.getDate() + i)
-    return d.getDate()
-  }
-
-  function isToday(day) {
-    return day.day.toLowerCase() === TODAY_NAME.toLowerCase()
-  }
+  const dayTotals = weekPlan.map(d => sumMacros((d.ids || []).filter(Boolean), recipeById))
+  const daysWithMeals = dayTotals.filter(t => t.calories > 0).length
+  const weekKcal = dayTotals.reduce((t, d) => t + d.calories, 0)
+  const weekProtein = dayTotals.reduce((t, d) => t + d.protein, 0)
+  /* Averaged over the days that HAVE meals, not over seven. A half-planned
+     week otherwise reads as though every day were half-sized. */
+  const avgKcal = daysWithMeals ? Math.round(weekKcal / daysWithMeals) : 0
+  const avgProtein = daysWithMeals ? Math.round(weekProtein / daysWithMeals) : 0
 
   return (
-    <div style={{ paddingBottom:'88px' }}>
-      {/* Header */}
-      <div style={{ background:'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding:'28px 20px 28px' }}>
-        <p style={{ textAlign:'center', display:'block', fontSize:'36px', fontWeight:800, letterSpacing:'-.04em', lineHeight:1, padding:'12px 0 8px', fontFamily:'Plus Jakarta Sans, sans-serif', margin:0 }}>
-          <span style={{ color:'#fff' }}>Prep</span><span style={{ color:'#C4B5FD' }}>IQ</span>
-        </p>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'4px' }}>
-          <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', margin:0 }}>Weekly Plan</h1>
-          <button onClick={shuffleWeekPlan} style={{ display:'flex', alignItems:'center', gap:'5px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.2)', borderRadius:'12px', padding:'8px 12px', cursor:'pointer', color:'#fff', fontSize:'11px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
-            <Shuffle size={13} strokeWidth={2.5} /> Shuffle
-          </button>
+    <div>
+      <div style={{
+        padding: '24px 20px 0', display: 'flex',
+        alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+      }}>
+        <div>
+          <div style={{
+            ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+            color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-eyebrow)',
+            marginBottom: 6,
+          }}>{weekRange()}</div>
+          <h1 style={{
+            margin: 0, fontSize: 'var(--pq-size-title)', fontWeight: 700,
+            letterSpacing: 'var(--pq-tight-title)', lineHeight: 1, color: 'var(--pq-text)',
+          }}>Week</h1>
         </div>
-        <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500, marginBottom:'20px' }}>{formatDateRange()}</p>
-
-        {/* Day strip */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'6px' }}>
-          {weekPlan.map((d, i) => {
-            const today = isToday(d)
-            return (
-              <div key={d.day} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'6px' }}>
-                <span style={{ fontSize:'9px', fontWeight:700, color: today ? '#C4B5FD' : 'rgba(255,255,255,0.4)', letterSpacing:'.08em', textTransform:'uppercase' }}>{d.day[0]}</span>
-                <div style={{
-                  width:'32px', height:'32px', borderRadius:'50%',
-                  background: today ? '#4F3FD4' : 'rgba(255,255,255,0.08)',
-                  border: today ? '2px solid #C4B5FD' : '2px solid transparent',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                }}>
-                  <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : 'rgba(255,255,255,0.6)' }}>{dayDate(i)}</span>
-                </div>
-                <span style={{ fontSize:'8px', fontWeight:600, color:'rgba(255,255,255,0.35)' }}>{totalCal(d)}</span>
-              </div>
-            )
-          })}
-        </div>
+        <button
+          onClick={shuffleWeekPlan}
+          style={{
+            flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
+            borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
+            background: 'var(--pq-thumb-fallback)',
+            border: '1px solid var(--pq-rule-strong)',
+            boxShadow: 'var(--pq-thumb-fallback-lip)',
+            color: 'var(--pq-text-2)',
+            ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
+          }}>SHUFFLE</button>
       </div>
 
-      {/* Day cards */}
-      <div style={{ padding:'16px' }}>
-        {weekPlan.map((d, i) => {
-          const today = isToday(d)
+      <Card style={{ margin: '20px var(--pq-gutter) 0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
+          <StatCell value={weekKcal.toLocaleString()} label="WEEK KCAL"
+                    style={{ borderRight: CARD_CELL_RULE }} />
+          <StatCell value={avgKcal.toLocaleString()} label="AVG / DAY"
+                    style={{ borderRight: CARD_CELL_RULE }} />
+          <StatCell value={`${avgProtein}g`} label="AVG PROTEIN" accent />
+        </div>
+      </Card>
+
+      <div style={{
+        padding: '20px var(--pq-gutter) 0',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}>
+        {weekPlan.map((day, dayIndex) => {
+          const isToday = dayIndex === planToday
+          const totals = dayTotals[dayIndex]
           return (
-            <div key={d.day} style={{ marginBottom:'12px', background:'var(--card)', borderRadius:'20px', overflow:'hidden', boxShadow: today ? '0 4px 20px rgba(79,63,212,0.15)' : '0 2px 8px rgba(79,63,212,0.05)', border: today ? '2px solid rgba(79,63,212,0.25)' : '2px solid transparent' }}>
-              <div style={{ padding:'14px 16px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid var(--border-c)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                  <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: today ? '#4F3FD4' : 'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <span style={{ fontSize:'13px', fontWeight:800, color: today ? '#fff' : 'var(--ink3)' }}>{dayDate(i)}</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize:'14px', fontWeight:700, color:'var(--ink)' }}>{d.day}</span>
-                    {today && <span style={{ marginLeft:'6px', fontSize:'9px', fontWeight:700, color:'#4F3FD4', background:'rgba(79,63,212,0.1)', padding:'2px 6px', borderRadius:'5px', letterSpacing:'.08em' }}>TODAY</span>}
-                  </div>
+            <div key={day.day} style={{
+              background: 'var(--pq-panel)',
+              border: `1px solid ${isToday ? 'var(--pq-accent)' : 'var(--pq-rule-soft)'}`,
+              borderRadius: 'var(--pq-r-card)', overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '11px 14px', borderBottom: CARD_ROW_RULE,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    ...MONO, fontSize: 12, fontWeight: 600,
+                    letterSpacing: 'var(--pq-track-label)',
+                    color: isToday ? 'var(--pq-accent)' : 'var(--pq-text-3)',
+                  }}>{day.day.toUpperCase()}</span>
+                  {isToday && (
+                    <span style={{
+                      ...MONO, fontSize: 9, fontWeight: 600,
+                      color: 'var(--pq-on-accent-ink)', background: 'var(--pq-accent-grad)',
+                      padding: '2px 6px', borderRadius: 4,
+                      letterSpacing: 'var(--pq-track-label)',
+                    }}>TODAY</span>
+                  )}
                 </div>
-                <span style={{ fontSize:'12px', fontWeight:500, color: today ? '#4F3FD4' : 'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{totalCal(d)} cal</span>
+                <span style={{
+                  ...MONO, fontSize: 12, color: 'var(--pq-text-muted)', whiteSpace: 'nowrap',
+                }}>
+                  {totals.calories ? `${totals.calories} KCAL · ${totals.protein}G` : 'EMPTY'}
+                </span>
               </div>
 
-              <div style={{ padding:'10px 16px 12px', display:'flex', flexDirection:'column', gap:'8px' }}>
-                {d.ids.map((id, j) => {
-                  const recipe = id ? recipeById[id] : null
-                  if (!recipe) return (
-                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px', border:'1.5px dashed rgba(79,63,212,0.15)' }}>
-                      <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:'var(--bg2)', flexShrink:0 }} />
-                      <span style={{ fontSize:'12px', color:'var(--ink4)', fontWeight:500 }}>{MEAL_LABELS[j]} — empty</span>
-                    </div>
-                  )
+              {(day.ids || []).map((id, slot) => {
+                const r = id ? recipeById[id] : null
+                if (!r) {
                   return (
-                    <div
-                      key={j}
-                      onClick={() => setSelectedRecipe(recipe)}
-                      style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 12px', background:'var(--surface2)', borderRadius:'12px', cursor:'pointer' }}
-                    >
-                      <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: j === 0 ? '#4F3FD4' : '#0DC8A0', flexShrink:0 }} />
-                      <div style={{ flex:1 }}>
-                        <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', marginBottom:'2px' }}>{recipe.name}</p>
-                        <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500 }}>{recipe.protein}g protein · {recipe.cal} cal</p>
-                      </div>
-                      <span style={{ fontSize:'13px', fontWeight:500, color:'var(--ink3)', fontFamily:'DM Mono, monospace' }}>{recipe.cal}</span>
-                    </div>
+                    <button
+                      key={slot}
+                      onClick={() => setPicking({ dayIndex, label: day.day })}
+                      style={{
+                        width: '100%', minHeight: 'var(--pq-tap-min)',
+                        display: 'flex', alignItems: 'center', gap: 11,
+                        padding: '12px 14px', background: 'none', border: 'none',
+                        borderBottom: '1px solid var(--pq-rule-meal)',
+                        cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--pq-sans)',
+                      }}>
+                      <span style={{
+                        width: 36, height: 36, borderRadius: 7, flexShrink: 0,
+                        border: 'var(--pq-rule-dashed)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--pq-text-3)" strokeWidth="2"
+                          strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14" /><path d="M12 5v14" />
+                        </svg>
+                      </span>
+                      <span style={{
+                        fontSize: 'var(--pq-size-body)', fontWeight: 500, color: 'var(--pq-text-3)',
+                      }}>Add a meal</span>
+                    </button>
                   )
-                })}
-              </div>
+                }
+                return (
+                  <div key={slot} style={{
+                    display: 'flex', alignItems: 'center',
+                    borderBottom: '1px solid var(--pq-rule-meal)',
+                  }}>
+                    <button
+                      onClick={() => setSheetRecipe(r)}
+                      style={{
+                        flex: 1, minWidth: 0, minHeight: 'var(--pq-tap-min)',
+                        display: 'flex', alignItems: 'center', gap: 11,
+                        padding: '10px 0 10px 14px',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        textAlign: 'left', fontFamily: 'var(--pq-sans)',
+                      }}>
+                      <Thumb recipe={r} size={36} src={r.image} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{
+                          display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 500,
+                          color: 'var(--pq-text)',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>{r.name}</span>
+                        <span style={{
+                          ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
+                          color: 'var(--pq-text-3)', marginTop: 2,
+                        }}>{r.cal} KCAL · {r.protein}G · {r.carbs}C · {r.fat}F</span>
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => removeMeal(dayIndex, slot)}
+                      aria-label={`Remove ${r.name} from ${day.day}`}
+                      style={{
+                        flexShrink: 0, width: 'var(--pq-tap-min)', height: 56,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        color: 'var(--pq-text-3)',
+                      }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2"
+                        strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )
         })}
       </div>
 
-      {selectedRecipe && (
-        <RecipeSheet
-          recipe={selectedRecipe}
-          onClose={() => setSelectedRecipe(null)}
+      {/* The one place the app says out loud that these screens are
+          connected. It is true, and it is why there is no "add to list"
+          anywhere in Grocery. */}
+      <p style={{
+        ...MONO, padding: '14px 20px 0', margin: 0,
+        fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-3)', lineHeight: 1.6,
+      }}>CHANGES HERE UPDATE THE GROCERY LIST AUTOMATICALLY</p>
+
+      {picking && (
+        <RecipePicker
+          dayLabel={picking.label}
+          onClose={() => setPicking(null)}
+          onPick={id => { assignMeal(picking.dayIndex, id); setPicking(null) }}
         />
       )}
+      <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
     </div>
   )
 }
