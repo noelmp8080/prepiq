@@ -45,7 +45,7 @@ must not move: **B alone** (state surgery), **D alone** (highest-risk screen),
 | A | Phase 2 — shell, nav, logo, primitives | **Done** |
 | B | Phase 3 — connected model + migrations | **Done** |
 | C | Sheets, then Today / Plan / Recipes / Track | **Done** |
-| D | Grocery | Not started |
+| D | Grocery | **Done** |
 | E | iPad + desktop | Not started |
 
 **Ordering note:** the original phase list built the four list screens before
@@ -287,6 +287,33 @@ preserve". The load-bearing ones:
 
 **Verify:** run the deterministic reflow harness. A row's `top` must be
 identical before and after a check, and no row below may move.
+
+### Built — and the harness got stricter
+
+The checkbox is a 22px box that always contains its check mark, at
+`opacity: 0` when unchecked, and declares the same 1.5px border in both states.
+So a tap adds no node and changes no width: the SVG-internals exemption the old
+harness needed is **gone**, and every node in the list is snapshotted now.
+
+Two gaps in the harness itself, both found by running it: the `background`
+shorthand expands to a different set of longhands for a flat rgba() than for a
+gradient (all paint, now named), and the `border` shorthand carries its colour
+(compared on width and style only, colour left to `border-color` — putting
+`border` in PAINT_ONLY would have stopped it seeing a width change).
+
+Mutation-checked against every change the block forbids: sinking checked rows
+(4 fail), removing them (4), animating the row height (4), dropping the
+checkbox border (5), rendering the check conditionally (5).
+
+**Quantities are in the expander, not on the row.** Confirmed with the user
+before building — see DEVIATIONS.md §8.
+
+### Carried in from block B — both done
+
+- [x] `SyncErrorBanner` out of the Shell overlay, into its agreed slot under the
+      grocery header and above the day chips.
+- [x] Grocery migrated off the pre-redesign tokens. `Auth.jsx` is the only file
+      left on them, and it is outside the redesign's six screens.
 
 ---
 

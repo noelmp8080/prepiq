@@ -370,6 +370,100 @@ copies of it is four places for 48/10 to appear and never be noticed.
 
 ---
 
+## 8. Block D: quantities are in the expander, not on the row
+
+**Handoff:** the row diagram shows `[✓] Chicken thighs   1.5 lb`, and the prose
+says "Quantity: mono, right-aligned, so the column scans vertically."
+
+**Built:** the row is checkbox + name. Quantities render in the expanded block,
+each beside the recipe that asked for it.
+
+**Why — measured, not preferred.** `1.5 lb` assumes a normalised amount field.
+This catalog stores whole ingredient lines. Across one real day:
+
+```
+quantity strings on Monday :  7
+length                     :  min 26, median 34, max 53 characters
+under 12 characters        :  0 of 7
+shortest                   :  "100g (3.5oz) Fat Free Yogurt"
+rows carrying two          :  1  (chicken breast, from two recipes)
+```
+
+There is no right-hand column that holds those beside an 18px name at 375px.
+The prototype markup puts them in the expander, and the user's own earlier
+grocery session had already ruled the same way ("quantities on the expanded
+chip"). Put to the user before building; confirmed.
+
+**Approved:** yes.
+
+---
+
+## Block D pre-check: is the paren heuristic that bit block C here too?
+
+Block C found the prototype's `isLabel` — `startsWith('(') || endsWith(')')` —
+demoting 407 real ingredients to section headings. The grocery path was checked
+for the same shape before block D was built, rather than assumed clean because
+it is a different function.
+
+**It carries three paren-shape rules**, all in `shopping_name()`
+(`tools/build-merge-map.py`): strip a leading parenthetical, peel nested pairs,
+strip any unclosed remainder. 2,048 of 4,949 ingredient lines contain a paren —
+41.4%, so the rules run constantly.
+
+**Measured: clean.** Stripping collapses ten groups of raw lines into one
+shopping name, and every one is genuinely the same purchase stated twice:
+
+| collapsed to | from |
+| --- | --- |
+| raw argentinian shrimp | `…Raw Argentinian Shrimp` / `…(or any shrimp)` |
+| natural yogurt | `…Natural Yogurt` / `…(or any yogurt)` |
+| chopped tomato | `…(400g, 14.1oz)` / `…(400g, 14oz)` |
+| spicy mayo | two different bracketed recipes for the same sauce |
+
+The failure that would have mattered — `Chicken (Thighs)` and `Chicken (Breast)`
+collapsing into one item — **does not occur in the ingredient data at all**. The
+distinguishing-content case exists in recipe NAMES, where it was handled
+deliberately in July, and not in ingredients.
+
+### One adjacent defect found, different cause, not fixed here
+
+`"1 and 1/2 Green Chilli, deseeded"` (Chilli Lime Chicken) produces a catalog
+item literally named **`and`**, in section Other. The green chilli is lost from
+that recipe's shopping list. The cause is the mixed-number form `1 and 1/2`,
+not parentheses.
+
+Scope: one recipe, one ingredient, out of 3,990 card-item pairs. Fixing it means
+a pipeline change and a catalog rebuild, which renumbers item ids and invalidates
+every stored exclusion — not something to do inside the screen block that
+depends on those ids. **Recorded for its own pass.** Two neighbours checked at
+the same time and cleared: `ice` (from `Handful Ice Cubes` — ice is what you
+buy) and `egg`, both correct.
+
+Also noted while measuring: `byCard` holds 2 keys (385, 386) with no recipe in
+`recipes.js`, leaving exactly one catalog item (`low carb tortilla wrap`)
+unreachable. Harmless — `buildGroceryItems` only ever iterates real plan ids —
+and in the same pass.
+
+---
+
+## 9. The sync banner is on Grocery only
+
+**Built (block D):** `SyncErrorBanner` moved out of the Shell overlay into the
+grocery header, between the header row and the day chips — the position agreed
+in phase 0 (§3) and parked since block B because neither existed until block D.
+
+**The consequence, accepted:** a failed write made on Plan is no longer
+announced on Plan. It is **not lost** — `syncErrors` is keyed by writer and
+persists until that writer succeeds or the user dismisses it — so the message is
+waiting the next time Grocery opens. Delayed, not silent.
+
+The overlay could not be reused for it: undo owns the space above the nav for
+3500ms, and a failed write is exactly what happens right after a clear.
+
+**Approved:** yes (§3, confirmed in the block D brief).
+
+---
+
 ## The handoff contradicts itself — the prior for the fourth time
 
 Three internal contradictions have surfaced so far — the **accent ramp** (prose
