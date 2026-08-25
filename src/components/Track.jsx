@@ -1,304 +1,269 @@
 import { useState } from 'react'
-import { Plus, X, Search } from 'lucide-react'
-import { recipes, recipeById } from '../data/recipes'
+import Card, { CARD_ROW_RULE, EmptyBlock } from './Card'
+import RecipeSheet from './RecipeSheet'
+import ScreenHeader from './ScreenHeader'
 import { useAppStore } from '../store/useAppStore'
+import { recipeById } from '../data/recipes'
+import { planVsLog, pct } from '../store/storeLogic'
 
-const SLOTS = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
-const SLOT_EMOJI = { Breakfast:'🍳', Lunch:'🥗', Dinner:'🍽️', Snack:'🍎' }
+/* ── Track — what I actually ate ──────────────────────────────────────
+ *
+ * The other end of the same pairing Today draws. Today marks planned
+ * meals already eaten; Track offers the ones that are not, under
+ * `PLANNED · ONE TAP TO LOG`. Both call planVsLog, because two
+ * implementations of "is this one logged?" is how Today ticks a meal
+ * while Track still offers it — and the tap logs it twice.
+ *
+ * THE MACRO CARD IS NOT TODAY'S. The README says Track uses "the same
+ * four-cell grid as Today"; the markup gives it a different treatment
+ * entirely — a large kcal readout over a 4px bar, then three stacked
+ * label/value rows with 3px bars. Ruled toward the markup. It is also
+ * the better fit: Track is where you look at how the day went, so the
+ * number gets the room.
+ */
 
-const FOOD_IMGS = [
-  'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=120&q=70',
-  'https://images.unsplash.com/photo-1547592180-85f173990554?w=120&q=70',
-  'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=120&q=70',
-  'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=120&q=70',
-  'https://images.unsplash.com/photo-1544025162-d76694265947?w=120&q=70',
-  'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=120&q=70',
-  'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=120&q=70',
-  'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=120&q=70',
-]
+const MONO = { fontFamily: 'var(--pq-mono)' }
 
-function Bar({ val, goal, color }) {
-  const pct = Math.min(Math.round((val / goal) * 100) || 0, 100)
+const EYEBROW = {
+  ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+  color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-section)',
+  marginBottom: 10,
+}
+
+function dateEyebrow(date = new Date()) {
+  const day = date.toLocaleDateString('en-US', { weekday: 'short' })
+  const rest = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${day} · ${rest}`.toUpperCase()
+}
+
+function Bar({ value, goal, height, fill }) {
   return (
-    <div style={{ height:'8px', background:'var(--bg2)', borderRadius:'6px', overflow:'hidden' }}>
-      <div style={{ height:'100%', width:`${pct}%`, background:color, borderRadius:'6px', transition:'width .4s ease' }} />
+    <div style={{
+      height, borderRadius: 2, overflow: 'hidden',
+      background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
+    }}>
+      <div style={{
+        height: '100%', width: `${pct(value, goal)}%`, borderRadius: 2,
+        background: fill, transition: 'width .3s',
+      }} />
     </div>
   )
 }
 
-function LogMealModal({ onClose }) {
-  const { logMeal } = useAppStore()
-  const [query,    setQuery]    = useState('')
-  const [selected, setSelected] = useState(null)
-  const [slot,     setSlot]     = useState('Breakfast')
+const COLS = { tablet: '300px minmax(0,1fr)', desktop: '360px minmax(0,1fr)' }
 
-  const filtered = query
-    ? recipes.filter(r => r.name.toLowerCase().includes(query.toLowerCase()))
-    : recipes
+export default function Track({ onChange, surface = 'phone' }) {
+  const cols = COLS[surface]
+  const {
+    weekPlan, planToday, mealLog, goals, consumed,
+    logMeal, removeLoggedMeal,
+  } = useAppStore()
 
-  function confirm() {
-    if (!selected) return
-    logMeal(selected.id, slot)
-    onClose()
-  }
+  const [sheetRecipe, setSheetRecipe] = useState(null)
+
+  const day = weekPlan[planToday]
+  const { planned } = planVsLog(day?.ids || [], mealLog)
+  /* Renderable, not merely planned — a retired recipe id renders nothing,
+     and gating the Card on the unfiltered count draws an empty box. Same
+     defect as Today's. */
+  const uneaten = planned.filter(p => !p.log && recipeById[p.recipeId])
+
+  const left = goals.calories - consumed.calories
 
   return (
-    <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(26,22,38,0.55)', zIndex:200 }} />
-
-      {/* Sheet */}
-      <div style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:201, background:'var(--card)', borderRadius:'24px 24px 0 0', maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ padding:'16px 20px 12px', borderBottom:'1px solid var(--border-c)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <p style={{ fontSize:'16px', fontWeight:800, color:'var(--ink)', letterSpacing:'-.02em', margin:0 }}>
-            {selected ? `${selected.name}` : 'Choose a recipe'}
-          </p>
-          <button onClick={onClose} style={{ background:'var(--bg)', border:'none', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <X size={16} strokeWidth={2.5} color='var(--ink3)' />
+    <div>
+      <ScreenHeader
+        surface={surface}
+        eyebrow={dateEyebrow()}
+        title="Track"
+        actions={
+          <button
+            onClick={() => onChange?.('recipes')}
+            style={{
+              flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
+              display: 'flex', alignItems: 'center', gap: 6,
+              borderRadius: 'var(--pq-r-button)', border: 'none', cursor: 'pointer',
+              background: 'var(--pq-accent-grad)', boxShadow: 'var(--pq-accent-raise)',
+              color: 'var(--pq-on-accent-ink)',
+              ...MONO, fontSize: 12, fontWeight: 600, letterSpacing: '.04em',
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" /><path d="M12 5v14" />
+            </svg>
+            LOG
           </button>
-        </div>
+        }
+      />
 
-        {!selected ? (
-          <>
-            {/* Search */}
-            <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border-c)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:'8px', background:'var(--surface2)', borderRadius:'14px', padding:'10px 14px' }}>
-                <Search size={15} strokeWidth={2} color='var(--ink4)' />
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder={`Search ${recipes.length} recipes…`}
-                  style={{ flex:1, background:'none', border:'none', outline:'none', fontSize:'14px', color:'var(--ink)', fontFamily:'Plus Jakarta Sans, sans-serif' }}
-                />
-              </div>
-            </div>
-
-            {/* Recipe list */}
-            <div style={{ overflowY:'auto', flex:1, WebkitOverflowScrolling:'touch' }}>
-              {filtered.slice(0, 60).map(r => (
-                <div
-                  key={r.id}
-                  onClick={() => setSelected(r)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                    borderBottom: '1px solid var(--border-c)',
-                    transition: 'background .15s',
-                  }}
-                >
-                  {/* Food image */}
-                  <img
-                    src={FOOD_IMGS[r.id % FOOD_IMGS.length]}
-                    alt={r.name}
-                    style={{
-                      width: '52px',
-                      height: '52px',
-                      borderRadius: '12px',
-                      objectFit: 'cover',
-                      flexShrink: 0,
-                    }}
-                  />
-                  {/* Recipe info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      color: 'var(--ink)',
-                      letterSpacing: '-.01em',
-                      marginBottom: '3px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {r.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--ink3)', fontWeight: 500 }}>
-                      {r.protein}g pro · {r.carbs}g carbs · {r.fat}g fat
-                    </div>
-                  </div>
-                  {/* Calorie badge */}
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: 800,
-                    color: '#4F3FD4',
-                    letterSpacing: '-.02em',
-                    flexShrink: 0,
-                  }}>
-                    {r.cal}
-                    <span style={{ fontSize: '10px', fontWeight: 500, color: 'var(--ink3)', marginLeft: '2px' }}>cal</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div style={{ padding:'20px', display:'flex', flexDirection:'column', gap:'16px' }}>
-            {/* Macro summary */}
-            <div style={{ background:'var(--surface2)', borderRadius:'16px', padding:'16px', display:'flex', justifyContent:'space-around' }}>
-              <div style={{ textAlign:'center' }}>
-                <p style={{ fontSize:'20px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.04em', margin:0 }}>{selected.cal}</p>
-                <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, margin:'2px 0 0' }}>cal</p>
-              </div>
-              {[{l:'Protein',v:selected.protein,c:'#4F3FD4'},{l:'Carbs',v:selected.carbs,c:'#0DC8A0'},{l:'Fat',v:selected.fat,c:'#F5A623'}].map(m => (
-                <div key={m.l} style={{ textAlign:'center' }}>
-                  <p style={{ fontSize:'20px', fontWeight:800, color:m.c, letterSpacing:'-.04em', margin:0 }}>{m.v}g</p>
-                  <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, margin:'2px 0 0' }}>{m.l}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Slot picker */}
-            <div>
-              <p style={{ fontSize:'12px', fontWeight:700, color:'var(--ink3)', marginBottom:'10px', letterSpacing:'.04em', textTransform:'uppercase' }}>Meal slot</p>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'8px' }}>
-                {SLOTS.map(s => (
-                  <button key={s} onClick={() => setSlot(s)} style={{
-                    padding:'10px 4px', borderRadius:'12px', border:'none', cursor:'pointer',
-                    fontSize:'11px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif',
-                    background: slot === s ? '#4F3FD4' : 'var(--bg)',
-                    color:      slot === s ? '#fff'    : 'var(--ink3)',
-                    display:'flex', flexDirection:'column', alignItems:'center', gap:'3px',
-                  }}>
-                    <span style={{ fontSize:'16px' }}>{SLOT_EMOJI[s]}</span>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setSelected(null)} style={{ flex:1, padding:'14px', borderRadius:'14px', border:'1.5px solid var(--border-c)', background:'var(--card)', cursor:'pointer', fontSize:'13px', fontWeight:700, color:'var(--ink3)', fontFamily:'Plus Jakarta Sans, sans-serif' }}>
-                Back
-              </button>
-              <button onClick={confirm} style={{ flex:2, padding:'14px', borderRadius:'14px', border:'none', background:'#4F3FD4', cursor:'pointer', fontSize:'14px', fontWeight:700, color:'#fff', fontFamily:'Plus Jakarta Sans, sans-serif', boxShadow:'0 4px 14px rgba(79,63,212,0.35)' }}>
-                Log {slot}
-              </button>
-            </div>
+      <div style={cols ? {
+        display: 'grid', gridTemplateColumns: cols,
+        gap: surface === 'desktop' ? 26 : 20,
+        alignItems: 'start', padding: '0 var(--pq-gutter)',
+      } : undefined}>
+      {/* ── Macro card ──────────────────────────────────────────── */}
+      <Card style={{ margin: cols ? '20px 0 0' : '20px var(--pq-gutter) 0', padding: 16 }}>
+        <div style={{
+          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+          marginBottom: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{
+              ...MONO, fontSize: 30, fontWeight: 600, lineHeight: 1,
+              color: 'var(--pq-accent)',
+            }}>{consumed.calories}</span>
+            <span style={{ ...MONO, fontSize: 13, color: 'var(--pq-text-3)' }}>
+              / {goals.calories} kcal
+            </span>
           </div>
+          <span style={{ ...MONO, fontSize: 12, color: 'var(--pq-text-muted)' }}>
+            {left >= 0 ? `${left} LEFT` : `${Math.abs(left)} OVER`}
+          </span>
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <Bar value={consumed.calories} goal={goals.calories} height={4} fill="var(--pq-accent-bar)" />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[
+            { label: 'PROTEIN', value: consumed.protein, goal: goals.protein },
+            { label: 'CARBS',   value: consumed.carbs,   goal: goals.carbs },
+            { label: 'FAT',     value: consumed.fat,     goal: goals.fat },
+          ].map(m => (
+            <div key={m.label}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'baseline', marginBottom: 5,
+              }}>
+                <span style={{
+                  ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+                  color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-label)',
+                }}>{m.label}</span>
+                <span style={{ ...MONO, fontSize: 12, color: 'var(--pq-text-2)' }}>
+                  {m.value}g / {m.goal}g
+                </span>
+              </div>
+              <Bar value={m.value} goal={m.goal} height={3} fill="var(--pq-text)" />
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div>
+      {/* ── Planned, not yet logged ─────────────────────────────── */}
+      {uneaten.length > 0 && (
+        <div style={{ padding: cols ? '20px 0 0' : '24px var(--pq-gutter) 0' }}>
+          <div style={EYEBROW}>PLANNED · ONE TAP TO LOG</div>
+          <Card>
+            {uneaten.map(({ recipeId, slot }) => {
+              const r = recipeById[recipeId]
+              return (
+                <button
+                  key={`${slot}-${recipeId}`}
+                  onClick={() => logMeal(r.id, 'planned')}
+                  aria-label={`Log ${r.name}`}
+                  style={{
+                    width: '100%', minHeight: 'var(--pq-tap-min)',
+                    display: 'flex', alignItems: 'center', gap: 12, padding: 12,
+                    background: 'none', border: 'none', borderBottom: CARD_ROW_RULE,
+                    cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--pq-sans)',
+                  }}>
+                  <span aria-hidden="true" style={{
+                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                    border: '1.5px dashed var(--pq-rule-strong)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="var(--pq-text-muted)" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" /><path d="M12 5v14" />
+                    </svg>
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{
+                      display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 600,
+                      color: 'var(--pq-text)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{r.name}</span>
+                    <span style={{
+                      ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
+                      color: 'var(--pq-text-muted)', marginTop: 2,
+                    }}>{r.protein}G PROTEIN · {r.carbs}C · {r.fat}F</span>
+                  </span>
+                  <span style={{
+                    ...MONO, fontSize: 13, color: 'var(--pq-text-muted)', flexShrink: 0,
+                  }}>{r.cal}</span>
+                </button>
+              )
+            })}
+          </Card>
+        </div>
+      )}
+
+      {/* ── Logged ──────────────────────────────────────────────── */}
+      <div style={{ padding: cols ? '24px 0 0' : '24px var(--pq-gutter) 0' }}>
+        <div style={EYEBROW}>LOGGED</div>
+        {mealLog.length === 0 ? (
+          <EmptyBlock style={{ padding: 22 }}>
+            <p style={{
+              margin: 0, fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-3)',
+            }}>Nothing logged yet today</p>
+          </EmptyBlock>
+        ) : (
+          <Card>
+            {mealLog.map(entry => {
+              const r = recipeById[entry.recipeId]
+              return (
+                <div key={entry.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 4px 12px 12px', borderBottom: CARD_ROW_RULE,
+                }}>
+                  <button
+                    onClick={() => r && setSheetRecipe(r)}
+                    style={{
+                      flex: 1, minWidth: 0, minHeight: 'var(--pq-tap-min)',
+                      display: 'block', textAlign: 'left',
+                      background: 'none', border: 'none', padding: 0,
+                      cursor: r ? 'pointer' : 'default', fontFamily: 'var(--pq-sans)',
+                    }}>
+                    <span style={{
+                      display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 600,
+                      color: 'var(--pq-text)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{r?.name || 'Removed recipe'}</span>
+                    <span style={{
+                      ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
+                      color: 'var(--pq-text-muted)', marginTop: 2,
+                    }}>{r ? `${r.protein}G PROTEIN` : '—'}{entry.time ? ` · ${entry.time}` : ''}</span>
+                  </button>
+                  <span style={{
+                    ...MONO, fontSize: 13, color: 'var(--pq-accent)', flexShrink: 0,
+                  }}>{r?.cal ?? 0}</span>
+                  <button
+                    onClick={() => removeLoggedMeal(entry.id)}
+                    aria-label={`Remove ${r?.name || 'entry'}`}
+                    style={{
+                      flexShrink: 0, width: 'var(--pq-tap-min)', height: 'var(--pq-tap-min)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                      color: 'var(--pq-text-3)',
+                    }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+          </Card>
         )}
       </div>
-    </>
-  )
-}
 
-export default function Track() {
-  const { mealLog, goals, consumed, removeLoggedMeal } = useAppStore()
-  const [showModal, setShowModal] = useState(false)
-
-  const meals = mealLog.map(l => ({ ...l, recipe: recipeById[l.recipeId] })).filter(m => m.recipe)
-
-  const macros = [
-    { label:'Protein', key:'protein', color:'#4F3FD4', unit:'g' },
-    { label:'Carbs',   key:'carbs',   color:'#0DC8A0', unit:'g' },
-    { label:'Fat',     key:'fat',     color:'#F5A623', unit:'g' },
-  ]
-
-  const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })
-
-  return (
-    <>
-      <div style={{ paddingBottom:'88px' }}>
-        {/* Header */}
-        <div style={{ background:'linear-gradient(160deg,#1A1044 0%,#2D1B8C 60%,#4F3FD4 100%)', padding:'28px 20px 28px' }}>
-          <p style={{ textAlign:'center', display:'block', fontSize:'36px', fontWeight:800, letterSpacing:'-.04em', lineHeight:1, padding:'12px 0 8px', fontFamily:'Plus Jakarta Sans, sans-serif', margin:0 }}>
-            <span style={{ color:'#fff' }}>Prep</span><span style={{ color:'#C4B5FD' }}>IQ</span>
-          </p>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <div>
-              <h1 style={{ fontSize:'26px', fontWeight:800, color:'#fff', letterSpacing:'-.04em', marginBottom:'4px' }}>Track</h1>
-              <p style={{ fontSize:'12px', color:'rgba(255,255,255,0.5)', fontWeight:500 }}>{today}</p>
-            </div>
-            <button onClick={() => setShowModal(true)} style={{ display:'flex', alignItems:'center', gap:'6px', background:'rgba(255,255,255,0.15)', border:'1.5px solid rgba(255,255,255,0.2)', borderRadius:'14px', padding:'9px 14px', cursor:'pointer', color:'#fff', fontSize:'12px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
-              <Plus size={14} strokeWidth={2.5} />
-              Log meal
-            </button>
-          </div>
-        </div>
-
-        <div style={{ padding:'0 16px', marginTop:'-12px', position:'relative', zIndex:10 }}>
-          {/* Calorie card */}
-          <div style={{ background:'var(--card)', borderRadius:'24px', padding:'20px', boxShadow:'0 4px 24px rgba(79,63,212,0.12)', marginBottom:'12px' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'16px' }}>
-              <div>
-                <p style={{ fontSize:'12px', color:'var(--ink4)', fontWeight:600, marginBottom:'2px' }}>Calories</p>
-                <div style={{ display:'flex', alignItems:'baseline', gap:'4px' }}>
-                  <span style={{ fontSize:'36px', fontWeight:800, color:'#4F3FD4', letterSpacing:'-.05em', lineHeight:1 }}>{consumed.calories}</span>
-                  <span style={{ fontSize:'14px', color:'var(--ink4)', fontWeight:500 }}>/ {goals.calories}</span>
-                </div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                <p style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500, marginBottom:'2px' }}>Remaining</p>
-                <p style={{ fontSize:'22px', fontWeight:800, color:'#0DC8A0', letterSpacing:'-.04em' }}>{Math.max(0, goals.calories - consumed.calories)}</p>
-              </div>
-            </div>
-            <Bar val={consumed.calories} goal={goals.calories} color='#4F3FD4' />
-            <p style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500, marginTop:'6px', textAlign:'right' }}>
-              {goals.calories > 0 ? Math.round(consumed.calories / goals.calories * 100) : 0}% of daily goal
-            </p>
-          </div>
-
-          {/* Macros */}
-          <div style={{ background:'var(--card)', borderRadius:'24px', padding:'20px', boxShadow:'0 4px 24px rgba(79,63,212,0.12)', marginBottom:'12px' }}>
-            <p style={{ fontSize:'14px', fontWeight:800, color:'var(--ink)', letterSpacing:'-.02em', marginBottom:'16px' }}>Macros</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-              {macros.map(m => (
-                <div key={m.key}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
-                    <span style={{ fontSize:'12px', fontWeight:600, color:'var(--ink2)' }}>{m.label}</span>
-                    <div style={{ display:'flex', alignItems:'baseline', gap:'3px' }}>
-                      <span style={{ fontSize:'16px', fontWeight:500, color:m.color, fontFamily:'DM Mono, monospace' }}>{consumed[m.key]}</span>
-                      <span style={{ fontSize:'11px', color:'var(--ink4)', fontWeight:500 }}>/ {goals[m.key]}{m.unit}</span>
-                    </div>
-                  </div>
-                  <Bar val={consumed[m.key]} goal={goals[m.key]} color={m.color} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Logged meals */}
-          <div style={{ background:'var(--card)', borderRadius:'24px', padding:'20px', boxShadow:'0 4px 24px rgba(79,63,212,0.12)' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px' }}>
-              <p style={{ fontSize:'14px', fontWeight:800, color:'var(--ink)', letterSpacing:'-.02em', margin:0 }}>Logged today</p>
-              <button onClick={() => setShowModal(true)} style={{ display:'flex', alignItems:'center', gap:'4px', background:'rgba(79,63,212,0.08)', border:'none', borderRadius:'10px', padding:'6px 10px', cursor:'pointer', color:'#4F3FD4', fontSize:'11px', fontWeight:700, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
-                <Plus size={12} strokeWidth={2.5} /> Add
-              </button>
-            </div>
-
-            {meals.length === 0 ? (
-              <div style={{ textAlign:'center', padding:'24px 0' }}>
-                <p style={{ fontSize:'13px', color:'var(--ink4)', fontWeight:500 }}>Nothing logged yet today</p>
-              </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                {meals.map((m) => (
-                  <div key={m.id} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px', background:'var(--surface2)', borderRadius:'14px' }}>
-                    <div style={{ width:'40px', height:'40px', borderRadius:'12px', background:'rgba(79,63,212,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'18px' }}>
-                      {SLOT_EMOJI[m.slot] || '🍽️'}
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'2px' }}>
-                        <p style={{ fontSize:'13px', fontWeight:700, color:'var(--ink)', letterSpacing:'-.01em', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.recipe.name}</p>
-                        <span style={{ fontSize:'14px', fontWeight:500, color:'#4F3FD4', fontFamily:'DM Mono, monospace', flexShrink:0, marginLeft:'8px' }}>{m.recipe.cal}</span>
-                      </div>
-                      <p style={{ fontSize:'10px', color:'var(--ink4)', fontWeight:500, margin:0 }}>{m.slot} · {m.time} · {m.recipe.protein}g P · {m.recipe.carbs}g C · {m.recipe.fat}g F</p>
-                    </div>
-                    <button onClick={() => removeLoggedMeal(m.id)} style={{ background:'rgba(229,62,62,0.08)', border:'none', borderRadius:'50%', width:'28px', height:'28px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <X size={13} strokeWidth={2.5} color='#E53E3E' />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      </div>
       </div>
 
-      {showModal && <LogMealModal onClose={() => setShowModal(false)} />}
-    </>
+      <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
+    </div>
   )
 }
