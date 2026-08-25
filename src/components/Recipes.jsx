@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import Card, { CARD_ROW_RULE } from './Card'
 import Thumb from './Thumb'
+import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipes } from '../data/recipes'
@@ -71,17 +72,14 @@ export default function Recipes({ surface = 'phone' }) {
 
   return (
     <div>
-      <div style={{ padding: '24px 20px 0' }}>
-        <div style={{
-          ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
-          color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-eyebrow)',
-          marginBottom: 6,
-        }}>{filtered.length} OF {recipes.length} RECIPES</div>
-        <h1 style={{
-          margin: 0, fontSize: 'var(--pq-size-title)', fontWeight: 700,
-          letterSpacing: 'var(--pq-tight-title)', lineHeight: 1, color: 'var(--pq-text)',
-        }}>Recipes</h1>
-      </div>
+      {/* The eyebrow is component-local — it counts the CURRENT filter
+          and search. That is why the header renders here rather than in
+          App: hoisting the markup would mean hoisting this state. */}
+      <ScreenHeader
+        surface={surface}
+        eyebrow={`${filtered.length} OF ${recipes.length} RECIPES`}
+        title="Recipes"
+      />
 
       <div style={{ padding: '16px var(--pq-gutter) 0' }}>
         <div style={{

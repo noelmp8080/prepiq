@@ -436,12 +436,21 @@ describe('iPad and desktop are not the same wide surface', () => {
     expect(tabletBlock).not.toMatch(/--pq-size-title/)
   })
 
-  it('every screen title reads the token rather than a literal', async () => {
-    for (const f of ['Today', 'Plan', 'Recipes', 'Track']) {
+  /* RE-AIMED, NOT LOOSENED. This used to read each screen's own <h1>.
+     There is exactly one now, in ScreenHeader — so the assertion gets
+     STRONGER: the token is checked in the one place that sets it, AND no
+     screen is allowed to grow a second title. An assertion that only
+     checked the token still existed somewhere would have stopped testing
+     anything. */
+  it('there is one title definition, and it reads the token', () => {
+    const hdr = readFileSync('src/components/ScreenHeader.jsx', 'utf8')
+    const h1 = hdr.slice(hdr.indexOf('<h1'), hdr.indexOf('</h1>'))
+    expect(h1).toContain('var(--pq-size-title)')
+    expect(h1).not.toMatch(/fontSize:\s*'?\d+px/)
+
+    for (const f of ['Today', 'Plan', 'Recipes', 'Track', 'Grocery']) {
       const src = readFileSync(`src/components/${f}.jsx`, 'utf8')
-      const h1 = src.slice(src.indexOf('<h1'), src.indexOf('</h1>'))
-      expect(h1, f).toContain('var(--pq-size-title)')
-      expect(h1, f).not.toMatch(/fontSize:\s*'?\d+px/)
+      expect(src, `${f}.jsx still renders its own <h1>`).not.toContain('<h1')
     }
   })
 

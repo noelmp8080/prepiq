@@ -504,7 +504,57 @@ Measured on real days, the alternating split lands within 13%:
 
 ---
 
-## 11. Block E: the wide layout keeps each screen's own header
+## 11. The shared screen header — BUILT (was: deferred)
+
+Deferred through block E, costed on request, then built on
+`feat/shared-header`. The estimate was 6 components / 7 test files / 12
+assertions; the actual was **6 components, 1 new, 2 test files touched, 1
+assertion re-aimed** — lower because the header content turned out to fit three
+props without any screen bending, so most tests never saw it move.
+
+### The contract is three fields
+
+`{ eyebrow, title, actions }`. Every titled screen declares exactly those.
+`surface` selects values and `style` is layout-only — the same convention
+`Card.jsx` uses — and neither is header CONTENT.
+
+**It held for all four screens with no escape hatches.** `style` was needed
+once, by Today, because a logo lockup sits above it on phone and the gap is
+14px rather than 24px. A test asserts that at runtime: if a second screen ever
+needs it, the contract is wrong and should be re-cut rather than widened.
+
+### The header stays inside the screen, and that is the finding
+
+The prototype hoists it into shared chrome. That works there because its header
+content is static. **It is not static here:** Recipes' eyebrow is
+`{filtered.length} OF 260 RECIPES`, and `filtered` is component-local state
+derived from a search box and a filter chip. Hoisting the markup would mean
+hoisting that state to App, handing App a render callback, or re-registering the
+header through a context on every keystroke — the last two being exactly the
+escape hatches the brief ruled out.
+
+What §11 was actually for is bought either way: one definition of the bar, one
+place for `headPad`, and the rule spanning both columns. The header renders
+ABOVE the screen's grid with its own horizontal padding, so the 1px
+`rgba(255,255,255,0.09)` runs the full content width rather than stopping at
+the first column. A test asserts the header is a SIBLING of the grid, not a
+child of a column — which is the thing that was visibly wrong.
+
+### Duplicated chrome, surface-conditional
+
+Today's logo lockup and settings gear are hidden on wide: the rail carries the
+lockup, and Goals is its own destination there. Two `[IQ]` tiles on one screen
+is the app saying twice where you are. **Conditional, not deleted** — the phone
+has no rail and would lose its only wordmark and its only route to Settings.
+
+Grocery is untouched: no `<h1>`, its sticky bar is a control, and it had just
+come through block D.
+
+**Approved:** yes.
+
+---
+
+## 11a. Superseded — the original deferral note
 
 **Handoff:** the wide prototype hoists a shared content header — eyebrow, `h1`,
 and page actions — above the body, outside each screen.

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Card, { CARD_ROW_RULE, CARD_CELL_RULE, EmptyBlock } from './Card'
 import Logo from './Logo'
+import ScreenHeader from './ScreenHeader'
 import Thumb from './Thumb'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
@@ -85,6 +86,7 @@ const MEAL_COLS = { desktop: 'repeat(2,minmax(0,1fr))' }
 
 export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
   const cols = COLS[surface]
+  const wide = surface === 'tablet' || surface === 'desktop'
   const {
     weekPlan, planToday, mealLog, goals, consumed,
     logMeal, removeLoggedMeal,
@@ -109,54 +111,52 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
 
   return (
     <div>
-      {/* ── Logo lockup ─────────────────────────────────────────── */}
-      <div style={{ padding: '18px 20px 0' }}>
-        <Logo size={30} />
-      </div>
-
-      {/* ── Date, title, settings ───────────────────────────────── */}
-      <div style={{
-        padding: '14px 20px 0', display: 'flex',
-        alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-      }}>
-        <div>
-          <div style={{
-            ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
-            color: 'var(--pq-text-muted)', letterSpacing: 'var(--pq-track-eyebrow)',
-            marginBottom: 6,
-          }}>{dateEyebrow()}</div>
-          <h1 style={{
-            margin: 0, fontSize: 'var(--pq-size-title)', fontWeight: 700,
-            letterSpacing: 'var(--pq-tight-title)', lineHeight: 1,
-            color: 'var(--pq-text)',
-          }}>Today</h1>
+      {/* ── Logo lockup — PHONE ONLY ──────────────────────────────
+          The rail carries the lockup on wide, and two [IQ] tiles on one
+          screen is the app telling you twice where you are. Surface
+          -conditional rather than deleted: the phone has no rail and
+          would lose its only wordmark. */}
+      {!wide && (
+        <div style={{ padding: '18px 20px 0' }}>
+          <Logo size={30} />
         </div>
-        {/* The tile is the design's 40px; the target around it is the
-            handoff's own 44px floor. */}
-        <button
-          onClick={() => onOpenSettings?.()}
-          aria-label="Settings"
-          style={{
-            width: 'var(--pq-tap-min)', height: 'var(--pq-tap-min)', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-          }}>
-          <span style={{
-            width: 40, height: 40, borderRadius: 'var(--pq-r-button)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'var(--pq-thumb-fallback)',
-            border: '1px solid var(--pq-rule-strong)',
-            boxShadow: 'var(--pq-thumb-fallback-lip)',
-          }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-              stroke="var(--pq-text-2)" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </span>
-        </button>
-      </div>
+      )}
+
+      <ScreenHeader
+        surface={surface}
+        eyebrow={dateEyebrow()}
+        title="Today"
+        /* SETTINGS IS PHONE-ONLY for the same reason: the rail has Goals
+           as its own destination on wide. */
+        actions={wide ? null : (
+          <button
+            onClick={() => onOpenSettings?.()}
+            aria-label="Settings"
+            style={{
+              width: 'var(--pq-tap-min)', height: 'var(--pq-tap-min)', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>
+            <span style={{
+              width: 40, height: 40, borderRadius: 'var(--pq-r-button)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--pq-thumb-fallback)',
+              border: '1px solid var(--pq-rule-strong)',
+              boxShadow: 'var(--pq-thumb-fallback-lip)',
+            }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+                stroke="var(--pq-text-2)" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </span>
+          </button>
+        )}
+        /* Layout only, per the Card convention: on phone the lockup
+           above already supplies the top space. */
+        style={wide ? undefined : { padding: '14px 20px 0' }}
+      />
 
       <div style={cols ? {
         display: 'grid', gridTemplateColumns: cols,
