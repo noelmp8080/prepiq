@@ -42,7 +42,12 @@
  * The page behind the shell is `--pq-page`, so an overscroll bounce
  * reveals the ramp's own ground rather than white.
  */
-export default function Shell({ children, nav, overlay, wide = false }) {
+export default function Shell({ children, nav, rail, overlay, wide = false }) {
+  /* WIDE PUTS THE RAIL BESIDE THE SCROLLER, not above it. The ramp layer
+     is unchanged — still absolute, still inset:0, still clipped by the
+     same fixed frame — so every card on every surface sits on the same
+     painted gradient. Block E swaps ONE token and adds a flex row; that
+     was the whole point of building it this way in block A. */
   return (
     <div style={{
       position: 'fixed', inset: 0,
@@ -65,16 +70,28 @@ export default function Shell({ children, nav, overlay, wide = false }) {
       />
 
       {/* THE SCROLLER. Transparent by construction — anything opaque
-          here would sever every card from the ramp at once. */}
+          here would sever every card from the ramp at once.
+
+          On wide the rail is a flex sibling of the scroller rather than
+          a layer over it: a fixed bar would have to be positioned
+          against the frame and would then overlap content at every
+          width the rail is not exactly as wide as expected. */}
       <div style={{
         position: 'absolute', inset: 0,
-        overflowY: 'auto',
-        overscrollBehavior: 'contain',
-        WebkitOverflowScrolling: 'touch',
-        /* clears the 64px bar with breathing room, per the handoff */
-        paddingBottom: 'var(--pq-nav-clearance)',
+        display: 'flex', minHeight: 0,
       }}>
-        {children}
+        {rail}
+        <div style={{
+          flex: 1, minWidth: 0,
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          /* clears the 64px bar with breathing room, per the handoff.
+             No bar on wide, so no clearance to reserve. */
+          paddingBottom: rail ? 0 : 'var(--pq-nav-clearance)',
+        }}>
+          {children}
+        </div>
       </div>
 
       {overlay}

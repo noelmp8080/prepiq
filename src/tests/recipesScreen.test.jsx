@@ -280,8 +280,12 @@ describe('the shell ramp at 260 rows', () => {
     expect(ramp.style.height).toBe('')
     expect(ramp.contains(listed[0])).toBe(false)
 
-    const scroller = frame.children[1]
-    expect(scroller.style.overflowY).toBe('auto')
+    /* The scroller is inside the flex row that also holds the rail on
+       wide surfaces — one wrapper, both layouts, one ramp behind them. */
+    const row = frame.children[1]
+    expect(row.style.display).toBe('flex')
+    const scroller = [...row.children].find(c => c.style.overflowY === 'auto')
+    expect(scroller).toBeTruthy()
     expect(scroller.contains(listed[0])).toBe(true)
     expect(scroller.contains(listed[listed.length - 1])).toBe(true)
     /* the scroller paints nothing, so every card sits on the ramp */

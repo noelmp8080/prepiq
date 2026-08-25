@@ -6,7 +6,7 @@ import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
          CHECKS_VERSION, EXCLUDED_VERSION, hydrateLocal, lastScope,
-         rememberScope, buildGroceryItems } from './storeLogic'
+         rememberScope, buildGroceryItems, readRail, writeRail } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
@@ -54,6 +54,9 @@ export function AppStoreProvider({ children }) {
      is the ONLY place that means resolves to an index — buildGroceryItems
      takes a real integer so date handling stays out of the derivation. */
   const [groceryDayRaw, setGroceryDay] = useState(null)
+  /* null = never chosen; the surface decides until it is. See
+     railIsExpanded in storeLogic. */
+  const [railStored, setRailStored] = useState(() => readRail(lastScope()))
   /* RESOLVED ONCE, HERE. Everything downstream — the derivation, the
      check key, the exclusion key — takes a real integer, so this is the
      only line in the app where "today" means anything. */
@@ -138,6 +141,7 @@ export function AppStoreProvider({ children }) {
       /* Remembered for the NEXT cold start, so it boots into the right
          scope instead of guessing anon. */
       rememberScope(u?.uid)
+      setRailStored(readRail(u?.uid))
       if (u) {
         /* ADOPT BEFORE READING, not after. The signed-out plan has to be
            in this account's scope by the time loadFromFirestore looks for
@@ -348,6 +352,13 @@ export function AppStoreProvider({ children }) {
     writePlan(user?.uid, next)
   }, [weekPlan, user, writePlan])
 
+  /* Local only — a sidebar width is not account data, and syncing it
+     would let a phone session rearrange a desktop one. */
+  const setRailExpanded = useCallback((value) => {
+    setRailStored(!!value)
+    writeRail(user?.uid, !!value)
+  }, [user])
+
   const toggleFavorite = useCallback((recipeId) => {
     const next = new Set(favorites)
     next.has(recipeId) ? next.delete(recipeId) : next.add(recipeId)
@@ -429,6 +440,8 @@ export function AppStoreProvider({ children }) {
     groceryChecks,
     groceryExcluded,
     planToday,
+    railStored,
+    setRailExpanded,
     groceryDay,
     groceryRows,
     groceryUnchecked,

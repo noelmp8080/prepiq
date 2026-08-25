@@ -50,7 +50,8 @@ async function render() {
   await act(async () => {
     root.render(
       <ThemeProvider><AppStoreProvider>
-        <Probe /><Today onChange={box.onChange = vi.fn()} />
+        <Probe /><Today onChange={box.onChange = vi.fn()}
+                        onOpenSettings={box.onOpenSettings = vi.fn()} />
       </AppStoreProvider></ThemeProvider>)
   })
   await act(async () => { await authCb(null) })
@@ -239,15 +240,20 @@ describe('chrome', () => {
     expect(text()).toMatch(/[A-Z]{3} · [A-Z]{3} \d{1,2}/)
   })
 
-  it('opens Settings as a sheet rather than a tab', async () => {
+  /* Today ASKS for Settings; App owns it. That moved in block E so the
+     same mounted component can be a sheet on phone and a pane on wide
+     without losing a half-typed goal on a resize. */
+  it('asks App to open Settings rather than owning it', async () => {
     await mountWith()
     expect(host.querySelector('[role="dialog"]')).toBe(null)
     act(() => {
       [...host.querySelectorAll('button')]
         .find(b => b.getAttribute('aria-label') === 'Settings').click()
     })
-    expect(host.querySelector('[role="dialog"]')).toBeTruthy()
-    expect(text()).toContain('NUTRITION TARGETS')
+    expect(box.onOpenSettings).toHaveBeenCalled()
+    /* and it did NOT render one itself */
+    expect(host.querySelector('[role="dialog"]')).toBe(null)
+    expect(text()).not.toContain('NUTRITION TARGETS')
   })
 
   it('opens the recipe sheet from a meal row', async () => {

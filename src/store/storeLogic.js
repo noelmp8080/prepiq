@@ -439,3 +439,35 @@ export function pct(value, goal) {
   if (!goal || goal <= 0) return 0
   return Math.min(100, Math.round((value / goal) * 100))
 }
+
+/* ── THE RAIL IS A CHOICE, NOT A BREAKPOINT ───────────────────────────
+ *
+ * The handoff is explicit that rail width is "a user choice rather than
+ * a function of screen size", and it is available on BOTH wide surfaces.
+ * So it cannot be derived from the viewport — it has to be stored.
+ *
+ * `null` means "never chosen", and only then does the surface decide:
+ * expanded on desktop, collapsed on iPad. The moment the user touches
+ * the control it becomes a real boolean and the surface stops having an
+ * opinion. Defaulting to `false` instead would have made desktop open
+ * collapsed; defaulting per-surface without storing the choice would
+ * have thrown it away on every resize.
+ *
+ * LOCAL ONLY, not written to Firestore. How wide your sidebar is on this
+ * machine is not account data, and syncing it would mean a phone session
+ * silently rearranging a desktop one.
+ */
+export const railKey = uid => lsKey(uid, 'rail_expanded')
+
+export function readRail(uid) {
+  const v = loadLS(railKey(uid), null)
+  return typeof v === 'boolean' ? v : null
+}
+
+export function writeRail(uid, value) {
+  return saveLS(railKey(uid), !!value)
+}
+
+/** Resolve the stored choice against the surface it is being shown on. */
+export const railIsExpanded = (stored, surface) =>
+  typeof stored === 'boolean' ? stored : surface === 'desktop'

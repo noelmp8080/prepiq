@@ -2,7 +2,6 @@ import { useState } from 'react'
 import Card, { CARD_ROW_RULE, CARD_CELL_RULE, EmptyBlock } from './Card'
 import Logo from './Logo'
 import Thumb from './Thumb'
-import Settings from './Settings'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
@@ -75,13 +74,12 @@ function MacroCell({ label, value, goal, suffix = '', accent, fill, style }) {
   )
 }
 
-export default function Today({ onChange }) {
+export default function Today({ onChange, onOpenSettings }) {
   const {
     weekPlan, planToday, mealLog, goals, consumed,
     logMeal, removeLoggedMeal,
   } = useAppStore()
 
-  const [showSettings, setShowSettings] = useState(false)
   const [sheetRecipe, setSheetRecipe] = useState(null)
 
   const day = weekPlan[planToday]
@@ -117,7 +115,7 @@ export default function Today({ onChange }) {
         {/* The tile is the design's 40px; the target around it is the
             handoff's own 44px floor. */}
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={() => onOpenSettings?.()}
           aria-label="Settings"
           style={{
             width: 'var(--pq-tap-min)', height: 'var(--pq-tap-min)', flexShrink: 0,
@@ -317,7 +315,6 @@ export default function Today({ onChange }) {
           }}>+ Log something else</button>
       </div>
 
-      <Settings open={showSettings} onClose={() => setShowSettings(false)} />
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
     </div>
   )

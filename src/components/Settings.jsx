@@ -86,7 +86,18 @@ function Toggle({ checked, onChange, label, hint }) {
   )
 }
 
-export default function Settings({ open, onClose }) {
+/* ── ONE COMPONENT, TWO FORMS ─────────────────────────────────────────
+ *
+ * A sheet on phone, a pane on wide. The difference is the wrapper; the
+ * body is identical, which is the handoff's "nothing about the visual
+ * language changes between surfaces, only the layout".
+ *
+ * IT IS ALWAYS MOUNTED. `open` gates what it RENDERS, not whether it
+ * exists — so the draft survives being closed, and survives the window
+ * being narrowed from pane to sheet mid-edit. Rendering it conditionally
+ * in App would unmount it on a resize and silently discard whatever was
+ * typed, which is the exact failure the block E brief names. */
+export default function Settings({ open, onClose, inline = false }) {
   const { goals, updateGoals } = useAppStore()
   const { theme, toggleTheme } = useTheme()
 
@@ -114,8 +125,8 @@ export default function Settings({ open, onClose }) {
     onClose?.()
   }
 
-  return (
-    <Sheet open={open} onClose={onClose} title="Daily goals">
+  const body = (
+    <>
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'flex-start',
         justifyContent: 'space-between', gap: 12,
@@ -224,6 +235,39 @@ export default function Settings({ open, onClose }) {
             fontWeight: 600, letterSpacing: 'var(--pq-track-chip)',
           }}>SAVE GOALS</button>
       </div>
+    </>
+  )
+
+  if (!open) return null
+
+  /* The pane. Not a Card: a card is translucent over the shell and would
+     tint as the column scrolls, and this is a full-height surface rather
+     than a block within one. Same sheet gradient, all four corners
+     rounded because nothing is anchored to an edge here. */
+  if (inline) {
+    return (
+      <div
+        role="region"
+        aria-label="Daily goals"
+        data-settings-pane
+        style={{
+          maxWidth: 520, margin: '0 auto',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: '100%',
+          background: 'var(--pq-sheet-bg)',
+          border: 'var(--pq-card-border)',
+          borderRadius: 'var(--pq-r-card)',
+          boxShadow: 'var(--pq-card-shadow)',
+          overflow: 'hidden',
+        }}>
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Daily goals">
+      {body}
     </Sheet>
   )
 }

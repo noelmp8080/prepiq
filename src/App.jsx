@@ -1,19 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppStoreProvider, useAppStore } from './store/useAppStore'
 import { ThemeProvider } from './store/useTheme'
+import { useSurface, isWide } from './store/useSurface'
+import { railIsExpanded } from './store/storeLogic'
 import BottomNav from './components/BottomNav'
+import Rail      from './components/Rail'
 import Shell     from './components/Shell'
 import Today    from './components/Today'
 import Plan     from './components/Plan'
 import Recipes  from './components/Recipes'
 import Grocery  from './components/Grocery'
 import Track    from './components/Track'
+import Settings from './components/Settings'
 import Auth     from './components/Auth'
 
 function AppInner() {
-  const { user, bootScope, groceryUnchecked } = useAppStore()
+  const {
+    user, bootScope, groceryUnchecked, railStored, setRailExpanded,
+  } = useAppStore()
+  const surface = useSurface()
+  const wide = isWide(surface)
   const [tab,      setTab]      = useState('today')
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
+  const [phoneSettings, setPhoneSettings] = useState(false)
 
   /* THE GATE IS AUTH-ONLY NOW.
      Data is read off the device at construction, so nothing here is
@@ -39,16 +48,49 @@ function AppInner() {
     )
   }
 
+  const railExpanded = railIsExpanded(railStored, surface)
+
+  /* GOALS IS A DESTINATION ON WIDE AND A SHEET ON PHONE, and it is the
+     SAME MOUNTED COMPONENT either way. App owns whether it is open, so
+     Settings never unmounts and a half-typed goal survives the window
+     being narrowed from pane to sheet. Rendering it inside the wide
+     branch would have thrown the draft away on a resize. */
+  const settingsOpen = wide ? tab === 'goals' : phoneSettings
+
+  /* Narrowing off a destination the phone does not have: the pane
+     becomes the sheet in place rather than closing. */
+  useEffect(() => {
+    if (!wide && tab === 'goals') { setTab('today'); setPhoneSettings(true) }
+  }, [wide, tab])
+
   return (
     <Shell
-      nav={<BottomNav active={tab} onChange={setTab}
-                      badges={{ grocery: groceryUnchecked > 0 }} />}
+      wide={wide}
+      rail={wide ? (
+        <Rail
+          active={tab}
+          onChange={setTab}
+          expanded={railExpanded}
+          onToggle={setRailExpanded}
+          badges={{ grocery: groceryUnchecked }}
+        />
+      ) : null}
+      nav={wide ? null : (
+        <BottomNav active={tab} onChange={setTab}
+                   badges={{ grocery: groceryUnchecked > 0 }} />
+      )}
     >
-      {tab === 'today'   && <Today   onChange={setTab} />}
-      {tab === 'plan'    && <Plan />}
-      {tab === 'recipes' && <Recipes />}
-      {tab === 'grocery' && <Grocery onChange={setTab} />}
-      {tab === 'track'   && <Track   onChange={setTab} />}
+      {tab === 'today'   && <Today   onChange={setTab} surface={surface}
+                                     onOpenSettings={() => setPhoneSettings(true)} />}
+      {tab === 'plan'    && <Plan    surface={surface} />}
+      {tab === 'recipes' && <Recipes surface={surface} />}
+      {tab === 'grocery' && <Grocery onChange={setTab} surface={surface} />}
+      {tab === 'track'   && <Track   onChange={setTab} surface={surface} />}
+      <Settings
+        open={settingsOpen}
+        inline={wide}
+        onClose={() => { setPhoneSettings(false); if (wide) setTab('today') }}
+      />
     </Shell>
   )
 }
