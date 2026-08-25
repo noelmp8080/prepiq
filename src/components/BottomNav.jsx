@@ -28,7 +28,7 @@ const TABS = [
   { id: 'track',   label: 'TRACK',   Icon: ChartColumn },
 ]
 
-export default function BottomNav({ active, onChange }) {
+export default function BottomNav({ active, onChange, badges = {} }) {
   return (
     <nav
       aria-label="Primary"
@@ -62,13 +62,14 @@ export default function BottomNav({ active, onChange }) {
               fontFamily: 'var(--pq-mono)',
             }}
           >
-            {/* TODO(phase-3): the badge marks a day whose list still has
-                unchecked items. It needs per-day `checks` and
-                `groceryDay`, neither of which exists until block B, so it
-                is deliberately not wired — a badge fed by week-wide
-                checks would be wrong on six days out of seven. Tracked in
-                PHASES.md under "Carried forward into block B". */}
-            {badge && false && (
+            {/* The badge marks a day whose list still has unchecked
+                items — the DAY's, not the week's. It waited for block B
+                because a badge fed by week-wide checks would have been
+                wrong on six days out of seven: it would light on Monday
+                because Thursday has something unbought.
+                `badges.grocery` comes from the same derivation the
+                screen renders, so the dot and the list cannot disagree. */}
+            {badge && badges[id] && (
               <span style={{
                 position: 'absolute', top: 9, right: 'calc(50% - 16px)',
                 width: 6, height: 6, borderRadius: '50%',

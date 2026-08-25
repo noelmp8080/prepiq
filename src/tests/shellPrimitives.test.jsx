@@ -127,11 +127,36 @@ describe('BottomNav', () => {
     expect((html.match(/width="20" height="20"/g) || []).length).toBe(5)
   })
 
-  /* The badge is deliberately unwired until block B — a badge fed by
-     week-wide checks would be wrong on six days out of seven. */
-  it('does not render the grocery badge yet, and says why', () => {
-    expect(html).not.toContain('border-radius:50%')
-    expect(readFileSync('src/components/BottomNav.jsx', 'utf8')).toContain('TODO(phase-3)')
+  /* WIRED IN BLOCK B, and only there. A badge fed by week-wide checks
+     would light on Monday because Thursday has something unbought —
+     wrong on six days out of seven, and wrong in the direction that
+     teaches you to ignore it. */
+  it('shows the dot only when that day still has something to buy', () => {
+    const off = render(<BottomNav active="today" onChange={() => {}} badges={{ grocery: false }} />)
+    expect(off).not.toContain('border-radius:50%')
+
+    const on = render(<BottomNav active="today" onChange={() => {}} badges={{ grocery: true }} />)
+    expect((on.match(/border-radius:50%/g) || []).length).toBe(1)
+    expect(on).toContain('width:6px')
+    expect(on).toContain('var(--pq-accent)')
+  })
+
+  it('defaults to no badge rather than throwing when none is passed', () => {
+    expect(render(<BottomNav active="today" onChange={() => {}} />)).not.toContain('border-radius:50%')
+  })
+
+  /* Only grocery carries one. A dot on TRACK would mean something else
+     entirely and nothing defines it. */
+  it('badges only the grocery tab', () => {
+    const all = render(<BottomNav active="today" onChange={() => {}}
+                                  badges={{ grocery: true, track: true, plan: true }} />)
+    expect((all.match(/border-radius:50%/g) || []).length).toBe(1)
+  })
+
+  it('has no stub left behind', () => {
+    const src = readFileSync('src/components/BottomNav.jsx', 'utf8')
+    expect(src).not.toContain('TODO(phase-3)')
+    expect(src).not.toMatch(/&&\s*false\s*&&/)
   })
 })
 

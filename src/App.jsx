@@ -12,7 +12,7 @@ import Auth     from './components/Auth'
 import SyncErrorBanner from './components/SyncErrorBanner'
 
 function AppInner() {
-  const { user, bootScope } = useAppStore()
+  const { user, bootScope, groceryUnchecked } = useAppStore()
   const [tab,      setTab]      = useState('today')
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
 
@@ -42,7 +42,8 @@ function AppInner() {
 
   return (
     <Shell
-      nav={<BottomNav active={tab} onChange={setTab} />}
+      nav={<BottomNav active={tab} onChange={setTab}
+                      badges={{ grocery: groceryUnchecked > 0 }} />}
       /* App-wide: a failed cloud write can happen on any screen, and the
          writer that costs the most (the weekly plan) fails on Plan, not
          here. Kept against the design, which has no error state because

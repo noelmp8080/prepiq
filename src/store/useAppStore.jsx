@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '../firebase'
@@ -6,7 +6,8 @@ import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
          CHECKS_VERSION, EXCLUDED_VERSION, hydrateLocal, lastScope,
-         rememberScope } from './storeLogic'
+         rememberScope, buildGroceryItems } from './storeLogic'
+import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
 
@@ -57,6 +58,21 @@ export function AppStoreProvider({ children }) {
      check key, the exclusion key — takes a real integer, so this is the
      only line in the app where "today" means anything. */
   const groceryDay = groceryDayRaw ?? todayIndex(weekPlan)
+
+  /* THE LIST IS DERIVED HERE, ONCE.
+     The screen and the nav badge both need it, and two derivations of
+     the same thing is how a badge ends up disagreeing with the list it
+     points at. Grocery is never stored — there is no "add to list"
+     anywhere — so changing a day's meal changes this on the next render
+     with nothing to sync. */
+  const groceryRows = useMemo(
+    () => buildGroceryItems(weekPlan, groceryCatalog, groceryExcluded, groceryDay),
+    [weekPlan, groceryExcluded, groceryDay])
+
+  const groceryUnchecked = useMemo(
+    () => groceryRows.reduce(
+      (n, r) => n + (groceryChecks.has(dayKey(groceryDay, r.id)) ? 0 : 1), 0),
+    [groceryRows, groceryChecks, groceryDay])
 
   // Load from localStorage (offline/no-auth path)
   /* ONE READER, used at construction and again whenever the scope
@@ -383,6 +399,8 @@ export function AppStoreProvider({ children }) {
     groceryChecks,
     groceryExcluded,
     groceryDay,
+    groceryRows,
+    groceryUnchecked,
     /* Non-null when the device booted straight into a known scope, so
        the app can render before auth resolves. */
     bootScope: boot.scope,

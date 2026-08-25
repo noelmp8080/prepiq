@@ -181,9 +181,12 @@ in this same migration.
 
 ### Carried forward into block B
 
-- [ ] Wire the grocery nav badge to per-day checks + `groceryDay`
-      (`TODO(phase-3)` stub from block A). A merged block is exactly where a
-      stub survives unnoticed — check this off explicitly.
+- [x] Wire the grocery nav badge to per-day checks + `groceryDay`
+      (`TODO(phase-3)` stub from block A). Done — `groceryUnchecked` in the
+      store, fed by the same derivation the screen renders, so the dot and the
+      list cannot disagree. A test asserts no `TODO(phase-3)` and no
+      `&& false &&` remain in `BottomNav.jsx`, because a checked box in a
+      document is not what stops a stub from surviving a merge.
 - [x] Namespace `saveLS` keys by uid, alongside the two version resets. Done —
       `lsKey(uid, name)`, anon scope `prepiq_anon_*`, per-key adoption on first
       sign-in.

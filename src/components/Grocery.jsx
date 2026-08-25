@@ -1,7 +1,7 @@
 import { useState, useRef, useLayoutEffect, useMemo } from 'react'
 import { CheckSquare, Square, ChevronRight, ChevronDown, Undo2 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore'
-import { buildGroceryItems, groupBySection, dayKey } from '../store/storeLogic'
+import { groupBySection, dayKey } from '../store/storeLogic'
 import catalog from '../data/groceryCatalog.json'
 
 /* ── The grocery list ─────────────────────────────────────────────────
@@ -39,7 +39,7 @@ const HEADER = 72
 
 export default function Grocery() {
   const {
-    weekPlan, groceryChecks, groceryExcluded, groceryDay, toggleGroceryItem,
+    groceryRows: rows, groceryChecks, groceryDay, toggleGroceryItem,
     clearGrocery, undoClear, startNewGroceryList,
   } = useAppStore()
 
@@ -48,9 +48,8 @@ export default function Grocery() {
   const [undo, setUndo] = useState(null)
   const scrollPin = useRef(null)
 
-  const rows = useMemo(
-    () => buildGroceryItems(weekPlan, catalog, groceryExcluded, groceryDay),
-    [weekPlan, groceryExcluded, groceryDay])
+  /* Derived in the store, not here — the nav badge needs the same rows
+     and two derivations would eventually disagree. */
   const sections = useMemo(() => groupBySection(rows, catalog), [rows])
 
   /* Checks are keyed dayIndex:itemId, same as exclusions. The row knows

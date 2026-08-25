@@ -493,3 +493,79 @@ describe('the store boots from the device, not from the network', () => {
     unmount()
   })
 })
+
+/* ── THE BADGE COUNTS THE DAY, NOT THE WEEK ───────────────────────────
+ *
+ * The reason this waited for block B. Fed by week-wide checks it would
+ * light on Monday because Thursday has something unbought — wrong six
+ * days out of seven, and wrong in the direction that teaches you to
+ * ignore it.
+ */
+describe('the grocery badge', () => {
+  const PLAN = [
+    { day: 'Mon', ids: [3, 4] }, { day: 'Tue', ids: [1, 2] },
+    { day: 'Wed', ids: [5, 6] }, { day: 'Thu', ids: [7, 8] },
+    { day: 'Fri', ids: [9, 10] }, { day: 'Sat', ids: [11, null] },
+    { day: 'Sun', ids: [12, null] },
+  ]
+  beforeEach(() => {
+    localStorage.clear()
+    saveLSRaw(lsKey(null, 'weekplan'), PLAN)
+  })
+
+  async function anonAt(day) {
+    const { box, unmount } = mountStore()
+    await act(async () => { await authCallback(null) })
+    await act(async () => { box.store.setGroceryDay(day) })
+    return { box, unmount }
+  }
+
+  it('counts what is still unbought on the day being shown', async () => {
+    const { box, unmount } = await anonAt(1)
+    expect(box.store.groceryRows.length).toBe(25)
+    expect(box.store.groceryUnchecked).toBe(25)
+
+    await act(async () => { box.store.toggleGroceryItem(box.store.groceryRows[0].id) })
+    expect(box.store.groceryUnchecked).toBe(24)
+    unmount()
+  })
+
+  it('goes dark only when that day is finished', async () => {
+    const { box, unmount } = await anonAt(1)
+    await act(async () => { box.store.checkAllGrocery(box.store.groceryRows.map(r => r.id)) })
+    expect(box.store.groceryUnchecked).toBe(0)
+    unmount()
+  })
+
+  /* THE FAILURE THE STUB EXISTED TO AVOID. Finishing Tuesday must not
+     dim Thursday, and Thursday's leftovers must not light Tuesday. */
+  it('does not let one day speak for another', async () => {
+    const { box, unmount } = await anonAt(1)
+    await act(async () => { box.store.checkAllGrocery(box.store.groceryRows.map(r => r.id)) })
+    expect(box.store.groceryUnchecked).toBe(0)
+
+    await act(async () => { box.store.setGroceryDay(3) })
+    expect(box.store.groceryRows.length).toBe(30)
+    expect(box.store.groceryUnchecked).toBe(30)
+    unmount()
+  })
+
+  /* One derivation. If the screen and the badge ever read different rows
+     they will eventually disagree, and the dot is the half nobody
+     double-checks. */
+  it('counts the same rows the screen renders', async () => {
+    const { box, unmount } = await anonAt(1)
+    const derived = buildGroceryItems(PLAN, catalog, box.store.groceryExcluded, 1)
+    expect(box.store.groceryRows.map(r => r.id)).toEqual(derived.map(r => r.id))
+    unmount()
+  })
+
+  it('drops cleared items out of the count too', async () => {
+    const { box, unmount } = await anonAt(1)
+    await act(async () => { box.store.toggleGroceryItem(box.store.groceryRows[0].id) })
+    await act(async () => { box.store.clearGrocery() })
+    expect(box.store.groceryRows.length).toBe(24)
+    expect(box.store.groceryUnchecked).toBe(24)
+    unmount()
+  })
+})
