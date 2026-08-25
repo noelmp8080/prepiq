@@ -240,7 +240,9 @@ Today**. The remaining three screens are the same shape repeated.
 - [x] **C5 Recipes** — done. Paginated at 40. Trailing control is the heart per
       the markup, not the assign button the prose describes; assigning happens
       in the sheet. Ramp confirmed at all 260 rows.
-- **C6 Track** — macro card, `PLANNED · ONE TAP TO LOG`, `LOGGED`.
+- [x] **C6 Track** — done, and the second block B chain link with it. Macro
+      card is the markup's own treatment, not "the same four-cell grid as
+      Today" the prose describes.
 
 Exact values per screen: handoff README, "Screens".
 

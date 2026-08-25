@@ -54,7 +54,7 @@ function AppInner() {
       {tab === 'plan'    && <Plan />}
       {tab === 'recipes' && <Recipes />}
       {tab === 'grocery' && <Grocery />}
-      {tab === 'track'   && <Track />}
+      {tab === 'track'   && <Track   onChange={setTab} />}
     </Shell>
   )
 }
