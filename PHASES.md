@@ -227,7 +227,10 @@ Today**. The remaining three screens are the same shape repeated.
       markup; the prototype's heading classifier is replaced (it demoted 407
       real ingredients). No generated description, no defaulted servings, no
       derived prep time.
-- **C2 Settings** — bottom sheet, not a tab.
+- [x] **C2 Settings** — done. Four goal fields held locally until SAVE, one
+      preference toggle (theme is the only preference that exists). The
+      prototype PRESETS row is NOT built — its values are placeholders, and
+      choosing them would be issuing nutrition guidance.
 - **C3 Today** — logo lockup, date eyebrow, macro card, meals card, `ALSO LOGGED`.
 - **C4 Plan** — week stat strip, seven flat `#141619` day cards.
 - **C5 Recipes** — search field, filter chips, result rows.
