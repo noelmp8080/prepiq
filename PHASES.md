@@ -396,6 +396,43 @@ the font payload against the baseline in `DEVIATIONS.md`.
 
 ---
 
+## Block F — Grocery by day *(in progress)*
+
+Spec: `docs/design/grocery-by-day/GROCERY_BY_DAY_SPEC.md`, the readable
+extraction of four Claude Design frames. The `.html` beside it needs that
+runtime to render — open it to confirm a detail, not to view a page.
+
+The grocery screen gains a day selector and shows the selected day's planned
+meals as **recipe groups** (photo, eyebrow, title, that recipe's rows). The
+consolidated store-walk list stays reachable as **WEEK** mode. Four phases.
+
+### Phase 1 — the data layer *(done)*
+
+`src/lib/groceryByDay.js`. `groupsForDay(weekPlan, catalog, excluded, dayIndex)`
+returns one group per planned recipe, each carrying only its own ingredients,
+in `day.ids` position order with items walked in catalog section order.
+
+- **No new sort.** Item order comes from `groupBySection`, the same function the
+  consolidated list walks, so the two cannot drift into different shop orders.
+- **No new derivation of what is on the list.** A parity block asserts the union
+  of every group's items is the same id set `buildGroceryItems` returns for that
+  day — on every day of the harness fixture, and again with an exclusion
+  applied. The failure it guards is an ingredient present in one view and absent
+  from the other, which neither screen can show on its own.
+- **One group for a recipe planned twice**, carrying `timesPlanned` so the
+  eyebrow can say `x2` rather than the repeat being silently dropped. Same call
+  `buildGroceryItems` makes with `seenCards`.
+- **Exclusions stay day-wide**, keyed `dayIndex:itemId` as they already are, so
+  clearing an item removes it from every group it appears in that day.
+- `groupItemKey` defines a third key space, `dayIndex:instanceId:itemId` — one
+  ingredient can be in two groups on one day and the two checks are independent.
+  Nothing persists it yet; that is phase 3.
+
+39 assertions, mutation-checked: ignoring exclusions fails 3, splitting a
+repeated recipe into two groups fails 2.
+
+---
+
 ## Standing verification
 
 Before calling any block done:
