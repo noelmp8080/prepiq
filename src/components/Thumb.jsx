@@ -34,6 +34,15 @@ const SIZES = {
   36: { radius: 7, font: 11 },
   48: { radius: 9, font: 13 },
   56: { radius: 10, font: 15 },
+  /* Block F. The grocery day view's recipe photo: 88px square on phone,
+     and a 340x210 / 280x180 panel on the wide surfaces, which is not a
+     square and passes its box in `style`. Both keep radius 10 — the
+     mapping stops climbing at 56 in the handoff, and a 10px radius reads
+     the same on a 88px tile as on a 56px one, where 14px would start to
+     look like a card. Added here rather than inlined at the call site
+     for the reason this map exists: one definition, so 88/10 cannot
+     quietly become 88/14 on one screen. */
+  88: { radius: 10, font: 20 },
 }
 
 /** Up to two initials from the recipe name.

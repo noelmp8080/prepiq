@@ -344,6 +344,12 @@ describe('wide works with the network down', () => {
     expect(box.store.bootScope).toBe('u1')
     expect(box.store.railStored).toBe(true)
     expect(h.querySelector('[data-rail]')).toBeTruthy()
+    /* Block F: the side pane belongs to the consolidated list, which is
+       now behind the WEEK pill. The day view is the default and has no
+       side pane — the selector moved into the header on every surface.
+       Selected here so this stays a test about a wide screen filling
+       itself from disk, which is what it is for. */
+    await act(async () => { h.querySelector('[data-week-pill]').click() })
     expect(h.querySelector('[data-grocery-side]')).toBeTruthy()
     expect(h.textContent).toContain('25 left')
 

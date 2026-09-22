@@ -1,8 +1,11 @@
 import { useState, useRef, useLayoutEffect, useMemo, useEffect } from 'react'
 import { EmptyBlock } from './Card'
 import SyncErrorBanner from './SyncErrorBanner'
+import GroceryRow, { GroceryRowPanel } from './GroceryRow'
+import GroceryDay from './GroceryDay'
 import { useAppStore } from '../store/useAppStore'
 import { groupBySection, dayKey } from '../store/storeLogic'
+import { groupsForDay, groupItemKey } from '../lib/groceryByDay'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -86,7 +89,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
   const wide = surface === 'tablet' || surface === 'desktop'
   const desktop = surface === 'desktop'
   const {
-    weekPlan, planToday, groceryRows: rows, groceryChecks, groceryDay,
+    weekPlan, planToday, groceryRows: rows, groceryChecks, groceryExcluded, groceryDay,
     groceryDayIsToday, setGroceryDay, toggleGroceryItem,
     clearGrocery, undoClear, startNewGroceryList,
   } = useAppStore()
@@ -144,9 +147,53 @@ export default function Grocery({ onChange, surface = 'phone' }) {
     }
   }
 
-  const headerLabel = rows.length === 0 ? 'Nothing to buy'
-    : left === 0 ? 'All done'
-    : `${left} left`
+  /* ── DAY VIEW (block F) ─────────────────────────────────────────────
+     A second reading of the same day: recipe groups instead of a
+     store-walk. `mode` is which reading is on screen, NOT which day —
+     WEEK keeps the selected day and shows the consolidated list for it.
+
+     Checks live in a THIRD key space, `dayIndex:instanceId:itemId`,
+     because one ingredient can sit in two groups on one day and
+     checking it under Monday's wrap must not check it under Monday's
+     curry. Local UI state for now: persistence, the version constant
+     and CLEAR's real semantics are phase 3. The consolidated list's own
+     `dayIndex:itemId` Set is untouched by any of this. */
+  const [mode, setMode] = useState('day')
+  const [dayChecks, setDayChecks] = useState(() => new Set())
+
+  const dayGroups = useMemo(
+    () => groupsForDay(weekPlan, catalog, groceryExcluded, groceryDay),
+    [weekPlan, groceryExcluded, groceryDay])
+
+  const dayItemKeys = useMemo(
+    () => dayGroups.flatMap(g =>
+      g.items.map(i => groupItemKey(groceryDay, g.instanceId, i.itemId))),
+    [dayGroups, groceryDay])
+
+  const dayDone = dayItemKeys.filter(k => dayChecks.has(k)).length
+  const dayLeft = dayItemKeys.length - dayDone
+
+  const toggleDayItem = key => setDayChecks(prev => {
+    const next = new Set(prev)
+    next.has(key) ? next.delete(key) : next.add(key)
+    return next
+  })
+
+  /* PROVISIONAL. In the consolidated list CLEAR means "these are in the
+     basket, take them off the list" — an exclusion plus an Undo. Here it
+     only unchecks, because there is nowhere yet to record an exclusion
+     against the new key space. Phase 3 gives it the real meaning. */
+  const clearDayChecks = () => setDayChecks(new Set())
+
+  const dayView = mode === 'day'
+
+  const headerLabel = dayView
+    ? (dayItemKeys.length === 0 ? 'Nothing planned'
+      : dayLeft === 0 ? 'All done'
+      : `${dayLeft} left`)
+    : rows.length === 0 ? 'Nothing to buy'
+      : left === 0 ? 'All done'
+      : `${left} left`
 
   const dayName = (day?.day || '').toUpperCase()
   const subLine = [
@@ -181,19 +228,24 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               letterSpacing: 'var(--pq-track-label)', marginTop: 3,
             }}>{subLine}</div>
           </div>
+          {/* One control, two meanings, and the day view's is the weaker
+              one on purpose: it only unchecks, because there is nowhere
+              yet to record an exclusion against the new key space.
+              Phase 3 gives it the consolidated list's semantics —
+              exclusion plus Undo. */}
           <button
-            onClick={onClear}
-            disabled={done === 0}
+            onClick={dayView ? clearDayChecks : onClear}
+            disabled={(dayView ? dayDone : done) === 0}
             style={{
               flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
               borderRadius: 9, border: 'none',
-              cursor: done ? 'pointer' : 'default',
-              background: done ? 'var(--pq-accent-grad)' : 'transparent',
-              boxShadow: done ? 'var(--pq-accent-raise)' : 'none',
-              color: done ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-faint)',
+              cursor: (dayView ? dayDone : done) ? 'pointer' : 'default',
+              background: (dayView ? dayDone : done) ? 'var(--pq-accent-grad)' : 'transparent',
+              boxShadow: (dayView ? dayDone : done) ? 'var(--pq-accent-raise)' : 'none',
+              color: (dayView ? dayDone : done) ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-faint)',
               ...MONO, fontSize: 'var(--pq-size-body)', fontWeight: 600,
               letterSpacing: '.04em',
-            }}>{done ? `CLEAR ${done}` : 'CLEAR'}</button>
+            }}>{(dayView ? dayDone : done) ? `CLEAR ${dayView ? dayDone : done}` : 'CLEAR'}</button>
         </div>
 
         {/* Its agreed slot — under the header row, above the day chips.
@@ -203,7 +255,23 @@ export default function Grocery({ onChange, surface = 'phone' }) {
         {/* ── Day chips ─────────────────────────────────────────────
             On wide these move to the side pane, where there is room for
             full day labels and the progress bar beside them. */}
-        {!wide && <div style={{ display: 'flex', gap: 5 }}>
+        {/* ── Day pills ─────────────────────────────────────────────
+            MON…SUN plus WEEK, on every surface now: the day view puts
+            the selector in the header on all four frames, and a second
+            copy in the wide side pane would be two controls for one
+            choice. The side pane keeps the progress readout and drops
+            its day list — see DEVIATIONS §18.
+
+            WEEK IS A MODE, NOT AN EIGHTH DAY, and the spec's "eighth
+            pill after SUN" is followed in place but not in behaviour.
+            Mutually exclusive pills would mean nothing is lit on MON…SUN
+            while WEEK is active — and the consolidated list underneath
+            it is DAY-SCOPED (DEVIATIONS §4), so the one thing the user
+            most needs to see is which day it is for. So the day pills
+            show the selected day whatever the mode, WEEK toggles the
+            reading, and two pills are lit at once on purpose: "Monday",
+            and "the whole list for it". See DEVIATIONS §17. */}
+        <div style={{ display: 'flex', gap: wide ? 8 : 6, flexWrap: wide ? 'wrap' : 'nowrap' }}>
           {weekPlan.map((d, i) => {
             const on = i === groceryDay
             const hasMeals = (d.ids || []).some(Boolean)
@@ -215,26 +283,28 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                  treatment as the filter chips and the close tile. */
               <button
                 key={d.day}
+                data-day-pill
                 onClick={() => setGroceryDay(i)}
                 aria-pressed={on}
                 aria-label={`${d.day}${hasMeals ? '' : ', no meals'}`}
                 style={{
-                  flex: 1, minHeight: 'var(--pq-tap-min)',
+                  flex: wide ? '0 0 auto' : 1, minHeight: 'var(--pq-tap-min)',
                   display: 'flex', alignItems: 'center',
                   background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                 }}>
                 <span style={{
                   flex: 1, minHeight: 36, borderRadius: 'var(--pq-r-chip)',
+                  padding: wide ? '0 18px' : 0,
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 2,
                   background: on ? 'var(--pq-accent-grad)' : 'transparent',
                   boxShadow: on ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
                   border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
                   color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
-                  ...MONO, fontSize: 10, fontWeight: 600,
+                  ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
                   letterSpacing: 'var(--pq-track-chip)',
                 }}>
-                  {DAY_LETTERS[i]}
+                  {wide ? d.day.toUpperCase() : DAY_LETTERS[i]}
                   <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>
                     {hasMeals ? '•' : ' '}
                   </span>
@@ -242,7 +312,35 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               </button>
             )
           })}
-        </div>}
+
+          <button
+            data-day-pill
+            data-week-pill
+            onClick={() => setMode(m => (m === 'week' ? 'day' : 'week'))}
+            aria-pressed={!dayView}
+            aria-label="Week — the whole shopping list for this day"
+            style={{
+              flex: wide ? '0 0 auto' : 1, minHeight: 'var(--pq-tap-min)',
+              display: 'flex', alignItems: 'center',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>
+            <span style={{
+              flex: 1, minHeight: 36, borderRadius: 'var(--pq-r-chip)',
+              padding: wide ? '0 18px' : 0,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 2,
+              background: !dayView ? 'var(--pq-accent-grad)' : 'transparent',
+              boxShadow: !dayView ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
+              border: `1px solid ${!dayView ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+              color: !dayView ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+              ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
+              letterSpacing: 'var(--pq-track-chip)',
+            }}>
+              {wide ? 'WEEK' : 'W'}
+              <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>{' '}</span>
+            </span>
+          </button>
+        </div>
 
         {/* ── Progress ────────────────────────────────────────────────
             A fixed 4px track that clips its fill, so the width change on
@@ -253,7 +351,11 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
         }}>
           <div data-progress-fill style={{
-            height: '100%', width: `${pct}%`, borderRadius: 2,
+            height: '100%',
+            width: `${dayView
+              ? (dayItemKeys.length ? Math.round((dayDone / dayItemKeys.length) * 100) : 0)
+              : pct}%`,
+            borderRadius: 2,
             background: 'var(--pq-accent-bar)', transition: 'width .4s ease',
           }} />
         </div>
@@ -262,7 +364,19 @@ export default function Grocery({ onChange, surface = 'phone' }) {
       {/* ── Empty day ───────────────────────────────────────────────
           The dashed block, NOT a header with empty sections under it.
           Empty sections would read as a list you had finished. */}
-      {rows.length === 0 ? (
+      {/* Two readings of the same day. The day view is the default; WEEK
+          hands back the consolidated store-walk list below, unchanged. */}
+      {dayView ? (
+        <GroceryDay
+          weekPlan={weekPlan}
+          dayIndex={groceryDay}
+          excluded={groceryExcluded}
+          surface={surface}
+          checked={dayChecks}
+          onToggle={toggleDayItem}
+          onChange={onChange}
+        />
+      ) : rows.length === 0 ? (
         <div style={{ padding: '28px var(--pq-gutter) 0' }}>
           <EmptyBlock>
             <p style={{
@@ -340,109 +454,40 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                   const checked = isChecked(item.id)
                   const open = openRow === item.id
                   return (
-                    <div key={item.id}>
-                      <div style={{
-                        display: 'flex', alignItems: 'stretch',
-                        borderBottom: '1px solid var(--pq-rule-row)',
-                      }}>
-                        {/* THE WHOLE ROW IS THE TARGET. Only paint changes. */}
-                        <button
-                          onClick={() => toggleGroceryItem(item.id)}
-                          aria-pressed={checked}
-                          style={{
-                            flex: 1, minWidth: 0, height: 'var(--pq-row-grocery)',
-                            display: 'flex', alignItems: 'center', gap: 14,
-                            background: 'transparent', border: 'none', cursor: 'pointer',
-                            textAlign: 'left', padding: 0, fontFamily: 'var(--pq-sans)',
-                            opacity: checked ? 0.45 : 1,
-                            transition: 'opacity var(--pq-t-paint)',
+                    <GroceryRow
+                      key={item.id}
+                      name={item.name}
+                      checked={checked}
+                      onToggle={() => toggleGroceryItem(item.id)}
+                      open={open}
+                      onToggleOpen={() => setOpenRow(open ? null : item.id)}
+                      badge={item.meals.length}
+                      expanderLabel={`${item.meals.length} meal${item.meals.length === 1 ? '' : 's'} need ${item.name}`}
+                    >
+                      <GroceryRowPanel>
+                        <p style={{
+                          margin: '0 0 6px', fontSize: 'var(--pq-size-body)', fontWeight: 600,
+                          color: 'var(--pq-text)', wordBreak: 'break-word',
+                        }}>{item.name}</p>
+                        {item.qty.map((q, i) => (
+                          <p key={i} style={{
+                            ...MONO, margin: '0 0 2px', fontSize: 12,
+                            color: 'var(--pq-text-muted)',
                           }}>
-                          {/* Same box, same border width, both states —
-                              only colour, background and shadow move. */}
-                          <span style={{
-                            width: 'var(--pq-check)', height: 'var(--pq-check)',
-                            borderRadius: 'var(--pq-r-check)', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            border: `1.5px solid ${checked ? 'transparent' : 'rgba(255,255,255,0.3)'}`,
-                            background: checked ? 'var(--pq-accent-grad)' : 'rgba(0,0,0,0.28)',
-                            boxShadow: checked
-                              ? 'var(--pq-accent-raise)'
-                              : 'inset 0 2px 4px rgba(0,0,0,0.45)',
-                          }}>
-                            {/* Always present, so a tap adds no node. */}
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                              aria-hidden="true" stroke="#0E1012" strokeWidth="3"
-                              strokeLinecap="round" strokeLinejoin="round"
-                              style={{ opacity: checked ? 1 : 0 }}>
-                              <path d="M20 6 9 17l-5-5" />
-                            </svg>
-                          </span>
-                          <span style={{
-                            flex: 1, minWidth: 0,
-                            fontSize: 'var(--pq-size-grocery)', fontWeight: 500,
-                            color: 'var(--pq-text)',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            textDecoration: checked ? 'line-through' : 'none',
-                          }}>{item.name}</span>
-                        </button>
-
-                        {/* The expander answers "why am I buying this"
-                            without costing a line on every row. Tap row =
-                            check, tap here = why. No swipe, no long-press. */}
-                        <button
-                          onClick={() => setOpenRow(open ? null : item.id)}
-                          aria-expanded={open}
-                          aria-label={`${item.meals.length} meal${item.meals.length === 1 ? '' : 's'} need ${item.name}`}
-                          style={{
-                            flexShrink: 0, width: 'var(--pq-expander-w)',
-                            height: 'var(--pq-row-grocery)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-                            gap: 3, background: 'transparent', border: 'none',
-                            cursor: 'pointer', padding: 0, color: 'var(--pq-text-3)',
-                            ...MONO, fontSize: 13, fontWeight: 500,
-                          }}>
-                          {item.meals.length}
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                            aria-hidden="true" stroke="currentColor" strokeWidth="2"
-                            strokeLinecap="round" strokeLinejoin="round"
-                            style={{
-                              transform: open ? 'rotate(90deg)' : 'none',
-                              transition: 'transform var(--pq-t-paint)',
-                            }}>
-                            <path d="m9 18 6-6-6-6" />
-                          </svg>
-                        </button>
-                      </div>
-
-                      {open && (
-                        <div style={{
-                          padding: '6px 0 14px 36px',
-                          borderBottom: '1px solid var(--pq-rule-row)',
-                        }}>
-                          <p style={{
-                            margin: '0 0 6px', fontSize: 'var(--pq-size-body)', fontWeight: 600,
-                            color: 'var(--pq-text)', wordBreak: 'break-word',
-                          }}>{item.name}</p>
-                          {item.qty.map((q, i) => (
-                            <p key={i} style={{
-                              ...MONO, margin: '0 0 2px', fontSize: 12,
-                              color: 'var(--pq-text-muted)',
-                            }}>
-                              {q}
-                              <span style={{ display: 'block', opacity: 0.7 }}>
-                                — {recipeById[item.qtyFrom?.[i]]?.name || 'this day'}
-                              </span>
-                            </p>
-                          ))}
-                          <p style={{
-                            margin: '6px 0 0', fontSize: 12, color: 'var(--pq-text-3)',
-                            lineHeight: 1.5,
-                          }}>
-                            For: {item.meals.map(id => recipeById[id]?.name).filter(Boolean).join(', ')}
+                            {q}
+                            <span style={{ display: 'block', opacity: 0.7 }}>
+                              — {recipeById[item.qtyFrom?.[i]]?.name || 'this day'}
+                            </span>
                           </p>
-                        </div>
-                      )}
-                    </div>
+                        ))}
+                        <p style={{
+                          margin: '6px 0 0', fontSize: 12, color: 'var(--pq-text-3)',
+                          lineHeight: 1.5,
+                        }}>
+                          For: {item.meals.map(id => recipeById[id]?.name).filter(Boolean).join(', ')}
+                        </p>
+                      </GroceryRowPanel>
+                    </GroceryRow>
                   )
                 })}
               </section>
@@ -467,35 +512,16 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                 ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,
                 color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-section)',
               }}>SHOPPING FOR</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {weekPlan.map((d, i) => {
-                  const on = i === groceryDay
-                  const hasMeals = (d.ids || []).some(Boolean)
-                  return (
-                    <button
-                      key={d.day}
-                      onClick={() => setGroceryDay(i)}
-                      aria-pressed={on}
-                      aria-label={`${d.day}${hasMeals ? '' : ', no meals'}`}
-                      style={{
-                        minHeight: 'var(--pq-tap-min)', padding: '0 12px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        gap: 8, borderRadius: 'var(--pq-r-chip)', cursor: 'pointer',
-                        background: on ? 'var(--pq-accent-grad)' : 'transparent',
-                        boxShadow: on ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
-                        border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
-                        color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
-                        ...MONO, fontSize: 11, fontWeight: 600,
-                        letterSpacing: 'var(--pq-track-chip)',
-                      }}>
-                      <span>{d.day.toUpperCase()}</span>
-                      <span aria-hidden="true" style={{ fontSize: 9, opacity: 0.75 }}>
-                        {hasMeals ? '•' : ''}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+              {/* The day LIST that used to live here is gone: block F
+                  moved the selector into the sticky header on every
+                  surface, and two controls for one choice is how they
+                  drift apart. The pane keeps what the header has no room
+                  for — the day name in full and the progress readout.
+                  DEVIATIONS §18. */}
+              <div style={{
+                fontSize: "var(--pq-size-meal)", fontWeight: 700,
+                color: "var(--pq-text)",
+              }}>{day?.day || ""}</div>
 
               <div style={{
                 ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,

@@ -159,8 +159,18 @@ beforeEach(async () => {
       <AppStoreProvider><PinDay index={PIN_DAY}><Grocery /></PinDay></AppStoreProvider>)
   })
   await act(async () => { await authCb(null) })
+  /* Block F made the DAY view the default. Everything below was written
+     against the consolidated store-walk list, which now sits behind the
+     WEEK pill — so select it the way a user would, rather than reaching
+     past the UI with a prop. The day view has its own block at the foot
+     of this file, and the click keeps the pill itself covered. */
+  await act(async () => { weekPill().click() })
 })
 afterEach(() => { act(() => root.unmount()); host.remove() })
+
+const weekPill = () => host.querySelector('[data-week-pill]')
+const dayPills = () => [...host.querySelectorAll('[data-day-pill]')]
+  .filter(b => !(b.getAttribute('aria-label') || '').startsWith('Week'))
 
 const listEl = () => host.querySelector('[data-grocery-list]')
 const headerEl = () => host.querySelector('[data-grocery-header]')
@@ -480,6 +490,11 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
         </AppStoreProvider>)
     })
     await act(async () => { await authCb(null) })
+    /* This block mounts its own root, so it needs its own WEEK
+       selection — the outer beforeEach clicked a pill in a different
+       tree. Same reason as up top: these assertions describe the
+       consolidated list. */
+    await act(async () => { wHost.querySelector('[data-week-pill]').click() })
   })
   afterEach(() => { act(() => wRoot.unmount()); wHost.remove() })
 
@@ -567,5 +582,165 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
       expect(h, `"${b.textContent.slice(0, 24)}" at ${h || 'no height'}`)
         .toMatch(/var\(--pq-tap-min\)|var\(--pq-row-grocery\)|^4[4-9]px|^[5-9]\d+px/)
     }
+  })
+})
+
+/* ── THE DAY VIEW HOLDS THE SAME LINE ─────────────────────────────────
+ *
+ * Block F put a second reading of the same day on this screen: recipe
+ * groups instead of a store-walk. Its rows ARE the consolidated list's
+ * rows — one `GroceryRow`, used twice — so this block is not a second
+ * implementation being kept in step by hand. It is here because "the
+ * component is shared" is a claim about the source, and the property
+ * that matters is about the DOM: after a tap, nothing moved.
+ *
+ * It also covers what the day view adds and the list does not: three
+ * columns of rows on desktop, a group header carrying a photo, and the
+ * pill row itself, which now changes what the body renders.
+ *
+ * Its own root, because the outer beforeEach selects WEEK. The day view
+ * is the default, so this mounts and asserts without touching a pill.
+ */
+describe('NOTHING MOVES ON TAP — the day view', () => {
+  let dHost, dRoot
+
+  async function mountDay(surface) {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    dHost = document.createElement('div')
+    document.body.appendChild(dHost)
+    dRoot = createRoot(dHost)
+    await act(async () => {
+      dRoot.render(
+        <AppStoreProvider>
+          <PinDay index={PIN_DAY}><Grocery surface={surface} /></PinDay>
+        </AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+  }
+  afterEach(() => { if (dRoot) act(() => dRoot.unmount()); dHost?.remove(); dRoot = null })
+
+  const dList = () => dHost.querySelector('[data-grocery-list]')
+  const dRows = () => [...dList().querySelectorAll('button[aria-pressed]')]
+
+  it('renders the day as groups, not as sections', async () => {
+    await mountDay('phone')
+    /* Two recipes planned on the pinned day -> two group headings. */
+    expect([...dList().querySelectorAll('h3')]).toHaveLength(2)
+    expect(dList().textContent).toContain('MEAL 1')
+    expect(dList().textContent).toContain('MEAL 2')
+  })
+
+  /* The consolidated list shows 25 distinct items for this day; the day
+     view shows more, because two recipes that share an ingredient each
+     keep their own row. Both numbers are correct and they are not the
+     same number — which is why the parity test in groceryByDay.test.js
+     compares SETS rather than counts. */
+  it('keeps a shared ingredient in both groups rather than merging', async () => {
+    await mountDay('phone')
+    expect(dRows().length).toBeGreaterThan(DERIVED_ROWS)
+  })
+
+  it('checking a row changes only paint', async () => {
+    await mountDay('phone')
+    const before = snapshot(dList())
+    await act(async () => { dRows()[0].click() })
+    expect(dRows()[0].getAttribute('aria-pressed')).toBe('true')
+    expect(layoutDiff(before, snapshot(dList()))).toEqual([])
+  })
+
+  it('unchecking it puts every property back', async () => {
+    await mountDay('phone')
+    const before = snapshot(dList())
+    await act(async () => { dRows()[0].click() })
+    await act(async () => { dRows()[0].click() })
+    expect(dRows()[0].getAttribute('aria-pressed')).toBe('false')
+    expect(snapshot(dList())).toEqual(before)
+  })
+
+  /* One ingredient can sit in two groups on one day. Checking it under
+     the first must not check it under the second — the third key space
+     exists for exactly this, and this is what proves the screen uses it. */
+  it('checks one copy of a shared ingredient and not the other', async () => {
+    await mountDay('phone')
+    const nameOf = r => r.querySelector('span:last-child').textContent
+    const names = dRows().map(nameOf)
+    const dupe = names.find((n, i) => names.indexOf(n) !== i)
+    expect(dupe).toBeTruthy()
+
+    const pair = dRows().filter(r => nameOf(r) === dupe)
+    expect(pair).toHaveLength(2)
+
+    await act(async () => { pair[0].click() })
+    const after = dRows().filter(r => nameOf(r) === dupe)
+    expect(after[0].getAttribute('aria-pressed')).toBe('true')
+    expect(after[1].getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('opening an expander leaves the row it belongs to untouched', async () => {
+    await mountDay('phone')
+    const before = snapshot(dRows()[0])
+    const exp = [...dList().querySelectorAll('button[aria-expanded]')][0]
+    await act(async () => { exp.click() })
+    expect(layoutDiff(before, snapshot(dRows()[0]))).toEqual([])
+  })
+
+  it('lays rows in three columns at desktop width', async () => {
+    await mountDay('desktop')
+    const grids = [...dList().querySelectorAll('div')]
+      .filter(d => String(d.style.gridTemplateColumns).startsWith('repeat(3'))
+    expect(grids.length).toBeGreaterThan(0)
+  })
+
+  /* A grid with a fixed column count places each row in a cell of fixed
+     height, so a tap in one column is structurally incapable of moving
+     another. CSS `columns` would not be — see DEVIATIONS §10. */
+  it('a tap in one column cannot move another, at desktop width', async () => {
+    await mountDay('desktop')
+    const before = snapshot(dList())
+    await act(async () => { dRows()[0].click() })
+    expect(layoutDiff(before, snapshot(dList()))).toEqual([])
+  })
+
+  it('shows a photo or its fallback tile for every group', async () => {
+    await mountDay('phone')
+    const media = [...dList().querySelectorAll('img, div')]
+      .filter(n => n.style.width === '88px' || n.tagName === 'IMG')
+    expect(media.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+/* ── THE PILLS ────────────────────────────────────────────────────────
+ * Eight controls that swap the body between two readings, inside the
+ * sticky header — which must not resize as the count beside it changes. */
+describe('the day pills', () => {
+  it('shows seven days plus WEEK', () => {
+    expect([...host.querySelectorAll('[data-day-pill]')]).toHaveLength(8)
+    expect(weekPill()).toBeTruthy()
+  })
+
+  it('marks the selected day whatever the mode is showing', () => {
+    /* The outer beforeEach is in WEEK, and the day still has to be
+       visible: the consolidated list under WEEK is day-scoped. */
+    expect(weekPill().getAttribute('aria-pressed')).toBe('true')
+    const days = dayPills()
+    expect(days.filter(p => p.getAttribute('aria-pressed') === 'true')).toHaveLength(1)
+    expect(days[PIN_DAY].getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('toggles back to the day view on a second tap', async () => {
+    expect(host.textContent).not.toContain('MEAL 1')
+    await act(async () => { weekPill().click() })
+    expect(host.textContent).toContain('MEAL 1')
+  })
+
+  it('switching mode does not resize the sticky header', async () => {
+    const before = snapshot(headerEl())
+    await act(async () => { weekPill().click() })
+    const diff = layoutDiff(before, snapshot(headerEl()))
+      /* The progress fill's width and the count text DO change — that is
+         the readout doing its job, in a track that clips. */
+      .filter(d => !d.includes('width') && !d.includes('text'))
+    expect(diff).toEqual([])
   })
 })

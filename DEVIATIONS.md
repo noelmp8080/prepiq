@@ -708,6 +708,167 @@ project. Pointing it at production would let an unmerged branch run block B's
 
 ---
 
+## 16. Block F: no meal slots, so the eyebrow is positional
+
+**Spec:** the group eyebrow reads `DINNER · 9 ITEMS`, and groups run in
+"meal order (breakfast → lunch → dinner → snacks, matching the app's own
+order)".
+
+**Built:** `MEAL 1 · 9 ITEMS`, 1-based, in `day.ids` order. A recipe
+planned twice reads `MEAL 1 · ×2 · 9 ITEMS`.
+
+**Why — the data has nothing else to say.** `weekPlan` is seven
+`{ day, ids: [recipeId|null, …] }`. `ids` is flat and positional; `slot`
+in `Plan.jsx`, `Today.jsx` and `Track.jsx` is its array index and
+nothing more. No recipe carries a `meal` field, and the tags are
+macro/ingredient categories (`high-protein`, `chicken`, `pasta`) with no
+meal among them. "The app's own order" IS position — there is no other
+order to match.
+
+Naming the positions `Breakfast`/`Lunch`/`Dinner` would invent data: it
+would claim `ids[0]` is breakfast, which nothing in the plan, the UI or
+the user's behaviour establishes. Adding a real slot field was
+considered and rejected by the user — it is a change to the plan model
+and to three other screens, not a grocery change.
+
+**Approved:** yes — decision 1.
+
+---
+
+## 17. Block F: WEEK is a toggle beside the day pills, not an eighth one
+
+**Spec:** "An eighth pill *WEEK* after SUN … shows the existing
+consolidated store-walk list unchanged."
+
+**Built:** the pill sits after SUN as drawn, and it is in the same row —
+but it toggles a mode rather than joining a mutually exclusive set. The
+day pills keep showing the selected day whatever the mode is, so two
+pills are lit at once: `TUE`, and `WEEK`.
+
+**Why.** Mutually exclusive pills would mean nothing is lit on MON…SUN
+while WEEK is active — and **the "week" list underneath is day-scoped**
+(§4). It derives from one day, its Clear is day-keyed, and its counts
+are that day's. Hiding which day it is for would remove the one fact the
+screen most needs to carry.
+
+**The label is inherited and it is wrong.** The spec was written against
+an assumption that the old grocery screen showed a week-wide list. It
+never has: block B made the derivation day-scoped, and `buildGroceryItems`
+takes a `dayIndex`. `WEEK` therefore names a list that is not week-wide.
+Two honest ways out, neither taken here because the user asked for the
+pill as specified:
+
+- rename it — `LIST`, or `ALL`, for "everything for this day in shop
+  order", which is what it is; or
+- make it genuinely week-wide, which is new derivation across seven days
+  and is explicitly not "the existing component unchanged".
+
+**Recorded rather than fixed.** Flagged to the user on delivery.
+
+---
+
+## 18. Block F: the wide side pane no longer picks the day
+
+**Built before:** on tablet and desktop the day list lived in the side
+pane beside the list, where there was room for full day names; the
+header carried day chips on phone only.
+
+**Built now:** the pills are in the sticky header on every surface, per
+the spec's four frames, and the side pane's day list is gone. The pane
+keeps the day name and the progress readout.
+
+**Why.** The day view puts the selector in the header on all four
+frames. Keeping the pane's list as well would leave two controls for one
+choice on the wide surfaces — and the failure mode of two controls is
+that one of them stops being updated. The list component itself is
+untouched, which is what "unchanged" was protecting; this is chrome.
+
+---
+
+## 19. Block F: the row keeps 18px and 56px
+
+**Spec:** item name sans 600 **16px**; row height ~**46px** (item 6
+explicitly anticipates "row height may change from 56px to the mockup's
+~46px").
+
+**Built:** unchanged — `--pq-size-grocery: 18px`, `--pq-row-grocery:
+56px`, and the same two-button row, because the day view uses the
+**same component** as the consolidated list (`GroceryRow`, lifted out of
+`Grocery.jsx` verbatim).
+
+**Why.** Both values are load-bearing and already argued:
+
+- 18px is marked *"GROCERY ITEM NAME — do not reduce"* in `tokens.css`
+  and restated in the phase plan ("Name 18px minimum, weight 500. Do not
+  reduce"). It was measured against all 577 catalog items at 375px.
+- 56px is the standing verification line ("grocery rows 56px"), and the
+  whole-row tap target is ~6× the 44px floor by area. 46px would still
+  clear the floor, so this is not a safety call — it is that the row is
+  used one-handed, walking, in a shop.
+
+Taking the mockup's values would also have meant a second row
+implementation, since the consolidated list keeps the old ones — and two
+rows that must stay in step by hand is how the no-reflow contract gets
+broken quietly.
+
+**Quantity is not on the row either**, for the reason already recorded
+in §8 — and re-measured across the whole catalog for this block, where
+it is worse than §8 states: **76% of the 4,025 card-item pairs carry no
+quantity line at all** (`quantitySections` limits them to three
+sections), and the 1,009 that exist run 6 to **127** characters, median
+35, with ten under twelve. A right-aligned column beside a 16px name in
+a 283px grid cell cannot hold those. `groupsForDay` still returns
+`quantity` in the item shape; the expander renders it.
+
+**Approved:** yes — decision 3.
+
+---
+
+## 20. Block F: one palette, and the screen reads warmer than the mockup
+
+**Spec tokens:** accent `#c6f000`, titles `#ffffff`, item names
+`#e8ecef`, muted `#8d99a3`, sans `'Source Sans 3'`, mono
+`'IBM Plex Mono'`.
+
+**Built:** mapped onto the existing theme, with **no new token added** —
+`tokens.css` is untouched by this block and `designTokens.test.js`
+passes unchanged.
+
+| Spec | Value | Token used |
+|---|---|---|
+| Accent | `#c6f000` | `--pq-accent` `#D0F224` |
+| Item name | `#e8ecef` | `--pq-text` `#F2F5EE` |
+| Muted | `#8d99a3` | `--pq-text-muted` `#9BA398` |
+| Row divider | `rgba(255,255,255,.06)` | `--pq-rule-row` — exact |
+| Eyebrow size | 10px | `--pq-size-label` — exact |
+| Eyebrow tracking | `.14em` | `--pq-track-section` — exact |
+| Sans | Source Sans 3 | `--pq-sans` = IBM Plex Sans |
+| Mono | IBM Plex Mono | `--pq-mono` — exact |
+
+**Two consequences, both accepted.**
+
+The greys differ in hue, not just in value: the mockup's are cool
+blue-greys, the app's are the warm green-greys of the graphite and
+chartreuse redesign. So **the screen reads warmer than the frames do**,
+everywhere, by design — that is what "do not introduce a second palette"
+costs, and it is the right cost.
+
+Source Sans 3 is not loaded. Adding it would undo block E's font work —
+14 woff2 down to 7, 144K — to gain a second sans that differs from IBM
+Plex Sans by less than the screen's own grey shift.
+
+**One addition that is not a token:** `Thumb`'s `SIZES` map gained
+`88: { radius: 10, font: 20 }` for the phone group photo. The map is one
+definition on purpose (36/7, 48/9, 56/10 is a standing verification
+item); adding the fourth entry there rather than inlining a box at the
+call site is what stops `88/10` quietly becoming `88/14` on one screen.
+The wide surfaces' photo is a 340×210 / 280×180 panel rather than a
+square and passes its box in `style`.
+
+**Approved:** yes — decision 8.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

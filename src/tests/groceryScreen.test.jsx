@@ -52,13 +52,21 @@ async function mount(plan = PLAN, seed) {
       <AppStoreProvider><Probe /><Grocery onChange={box.onChange = vi.fn()} /></AppStoreProvider>)
   })
   await act(async () => { await authCb(null) })
+  /* Block F made the DAY view the default; this suite describes the
+     consolidated list, which is now the WEEK pill. Selected through the
+     UI so the pill stays covered by every test that follows. */
+  await act(async () => { weekPill().click() })
 }
 afterEach(() => { if (root) act(() => root.unmount()); host?.remove(); root = null })
 
 const text = () => host.textContent
 const header = () => host.querySelector('[data-grocery-header]')
 const rows = () => [...host.querySelectorAll('[data-grocery-list] button[aria-pressed]')]
-const chips = () => [...header().querySelectorAll('button[aria-pressed]')]
+const weekPill = () => host.querySelector('[data-week-pill]')
+/* The day pills only — the WEEK pill shares aria-pressed but is a mode,
+   not a day, and counting it here would make "shows seven" read as eight. */
+const chips = () => [...header().querySelectorAll('[data-day-pill]')]
+  .filter(b => !(b.getAttribute('aria-label') || '').startsWith('Week'))
 const sectionHeaders = () => [...host.querySelectorAll('[data-grocery-list] button[aria-expanded]')]
   .filter(b => !(b.getAttribute('aria-label') || '').includes('need'))
 const expanders = () => [...host.querySelectorAll('[data-grocery-list] button[aria-expanded]')]
@@ -389,6 +397,9 @@ describe('offline', () => {
     /* the auth callback is never fired: the radio is off */
     expect(box.store.user).toBeUndefined()
     expect(box.store.bootScope).toBe('u1')
+    /* Mounts its own root, so it selects WEEK itself — this assertion
+       is about the consolidated list arriving from disk. */
+    await act(async () => { weekPill().click() })
     await act(async () => { chips()[0].click() })
     expect(text()).toContain('25 left')
     expect(rows().length).toBeGreaterThan(10)

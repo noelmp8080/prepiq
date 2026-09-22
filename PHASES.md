@@ -396,7 +396,7 @@ the font payload against the baseline in `DEVIATIONS.md`.
 
 ---
 
-## Block F — Grocery by day *(in progress)*
+## Block F — Grocery by day *(phases 1-2 done)*
 
 Spec: `docs/design/grocery-by-day/GROCERY_BY_DAY_SPEC.md`, the readable
 extraction of four Claude Design frames. The `.html` beside it needs that
@@ -430,6 +430,54 @@ in `day.ids` position order with items walked in catalog section order.
 
 39 assertions, mutation-checked: ignoring exclusions fails 3, splitting a
 repeated recipe into two groups fails 2.
+
+---
+
+### Phase 2 — the screen *(done)*
+
+Day pills MON…SUN plus WEEK in the sticky header on every surface. The
+day view is the **default**; WEEK hands back the consolidated store-walk
+list. Both read the same day.
+
+- **`GroceryRow` is one component, used twice.** The row was inline JSX
+  in `Grocery.jsx`; it is now a component, lifted out verbatim, and the
+  day view uses it. So the reflow harness covers the new rows because
+  they ARE the old rows — not because a second implementation is being
+  kept in step by hand. The harness passed over the extraction before a
+  single new row existed, which is what proved it was behaviour-neutral.
+- **Rows in a grid, not CSS `columns`.** Three columns on desktop, two
+  on tablet, one on phone. A grid with a fixed column count places each
+  row in a cell of fixed height and cannot move a sibling; multi-column
+  flow redistributes between columns, which is why block E refused it
+  (DEVIATIONS §10). A harness case taps a row at desktop width and
+  asserts the whole list is unmoved.
+- **The third key space is live.** Day-view checks are
+  `dayIndex:instanceId:itemId` in local UI state. A harness case finds an
+  ingredient that appears in two groups on the pinned day, checks one,
+  and asserts the other stays unchecked — the thing the key space exists
+  for, asserted through the DOM rather than trusted.
+- **WEEK is a toggle, not an eighth mutually exclusive pill**, and the
+  day pills stay lit under it, because the list it shows is day-scoped
+  (DEVIATIONS §17 — including why the label itself is wrong).
+- **The wide side pane no longer picks the day** (DEVIATIONS §18). Two
+  controls for one choice is how one of them stops being updated.
+- Spec values rejected and recorded: positional eyebrow (§16), 18px name
+  and 56px row kept (§19), one palette so the screen reads warmer than
+  the frames (§20).
+
+**Not in this phase, by instruction:** Firestore persistence for the new
+key space, its version constant, and CLEAR's real semantics in the day
+view. CLEAR renders and currently only unchecks — there is nowhere yet
+to record an exclusion against the new keys.
+
+Suite 385 → **437**. The reflow harness went 27 → 40 cases. `tokens.css`
+and `designTokens.test.js` are untouched: no token was added.
+
+**The 27 existing grocery tests were not rewritten, they were
+re-pointed.** They describe the consolidated list, which is now behind
+WEEK, so each suite selects it through the UI — a click on the pill, not
+a prop — which leaves the pill itself covered by every test that
+follows.
 
 ---
 
