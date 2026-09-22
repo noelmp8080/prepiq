@@ -164,13 +164,13 @@ beforeEach(async () => {
      WEEK pill — so select it the way a user would, rather than reaching
      past the UI with a prop. The day view has its own block at the foot
      of this file, and the click keeps the pill itself covered. */
-  await act(async () => { weekPill().click() })
+  await act(async () => { aislesPill().click() })
 })
 afterEach(() => { act(() => root.unmount()); host.remove() })
 
-const weekPill = () => host.querySelector('[data-week-pill]')
+const aislesPill = () => host.querySelector('[data-aisles-pill]')
 const dayPills = () => [...host.querySelectorAll('[data-day-pill]')]
-  .filter(b => !(b.getAttribute('aria-label') || '').startsWith('Week'))
+  .filter(b => !b.hasAttribute('data-aisles-pill'))
 
 const listEl = () => host.querySelector('[data-grocery-list]')
 const headerEl = () => host.querySelector('[data-grocery-header]')
@@ -490,11 +490,11 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
         </AppStoreProvider>)
     })
     await act(async () => { await authCb(null) })
-    /* This block mounts its own root, so it needs its own WEEK
+    /* This block mounts its own root, so it needs its own AISLES
        selection — the outer beforeEach clicked a pill in a different
        tree. Same reason as up top: these assertions describe the
        consolidated list. */
-    await act(async () => { wHost.querySelector('[data-week-pill]').click() })
+    await act(async () => { wHost.querySelector('[data-aisles-pill]').click() })
   })
   afterEach(() => { act(() => wRoot.unmount()); wHost.remove() })
 
@@ -598,7 +598,7 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
  * columns of rows on desktop, a group header carrying a photo, and the
  * pill row itself, which now changes what the body renders.
  *
- * Its own root, because the outer beforeEach selects WEEK. The day view
+ * Its own root, because the outer beforeEach selects AISLES. The day view
  * is the default, so this mounts and asserts without touching a pill.
  */
 describe('NOTHING MOVES ON TAP — the day view', () => {
@@ -658,10 +658,14 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
     expect(snapshot(dList())).toEqual(before)
   })
 
-  /* One ingredient can sit in two groups on one day. Checking it under
-     the first must not check it under the second — the third key space
-     exists for exactly this, and this is what proves the screen uses it. */
-  it('checks one copy of a shared ingredient and not the other', async () => {
+  /* One ingredient can sit in two groups on one day, and there is ONE
+     check behind both of them: the day's `dayIndex:itemId`. Ticking it
+     under one recipe ticks it under the other, because it is one shop
+     and buying a thing once buys it (DEVIATIONS §21).
+
+     This is the assertion that proves the screen SHARES the store's key
+     rather than carrying a second set of its own that happens to agree. */
+  it('checks BOTH copies of a shared ingredient at once', async () => {
     await mountDay('phone')
     const nameOf = r => r.querySelector('span:last-child').textContent
     const names = dRows().map(nameOf)
@@ -670,11 +674,16 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
 
     const pair = dRows().filter(r => nameOf(r) === dupe)
     expect(pair).toHaveLength(2)
+    expect(pair.every(r => r.getAttribute('aria-pressed') === 'false')).toBe(true)
 
     await act(async () => { pair[0].click() })
     const after = dRows().filter(r => nameOf(r) === dupe)
-    expect(after[0].getAttribute('aria-pressed')).toBe('true')
-    expect(after[1].getAttribute('aria-pressed')).toBe('false')
+    expect(after.every(r => r.getAttribute('aria-pressed') === 'true')).toBe(true)
+
+    /* And off again, together. */
+    await act(async () => { after[1].click() })
+    expect(dRows().filter(r => nameOf(r) === dupe)
+      .every(r => r.getAttribute('aria-pressed') === 'false')).toBe(true)
   })
 
   it('opening an expander leaves the row it belongs to untouched', async () => {
@@ -714,15 +723,15 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
  * Eight controls that swap the body between two readings, inside the
  * sticky header — which must not resize as the count beside it changes. */
 describe('the day pills', () => {
-  it('shows seven days plus WEEK', () => {
+  it('shows seven days plus AISLES', () => {
     expect([...host.querySelectorAll('[data-day-pill]')]).toHaveLength(8)
-    expect(weekPill()).toBeTruthy()
+    expect(aislesPill()).toBeTruthy()
   })
 
   it('marks the selected day whatever the mode is showing', () => {
-    /* The outer beforeEach is in WEEK, and the day still has to be
+    /* The outer beforeEach is in AISLES, and the day still has to be
        visible: the consolidated list under WEEK is day-scoped. */
-    expect(weekPill().getAttribute('aria-pressed')).toBe('true')
+    expect(aislesPill().getAttribute('aria-pressed')).toBe('true')
     const days = dayPills()
     expect(days.filter(p => p.getAttribute('aria-pressed') === 'true')).toHaveLength(1)
     expect(days[PIN_DAY].getAttribute('aria-pressed')).toBe('true')
@@ -730,17 +739,185 @@ describe('the day pills', () => {
 
   it('toggles back to the day view on a second tap', async () => {
     expect(host.textContent).not.toContain('MEAL 1')
-    await act(async () => { weekPill().click() })
+    await act(async () => { aislesPill().click() })
     expect(host.textContent).toContain('MEAL 1')
   })
 
   it('switching mode does not resize the sticky header', async () => {
     const before = snapshot(headerEl())
-    await act(async () => { weekPill().click() })
+    await act(async () => { aislesPill().click() })
     const diff = layoutDiff(before, snapshot(headerEl()))
       /* The progress fill's width and the count text DO change — that is
          the readout doing its job, in a track that clips. */
       .filter(d => !d.includes('width') && !d.includes('text'))
     expect(diff).toEqual([])
+  })
+})
+
+/* ── ONE DAY, ONE SET OF CHECKS ───────────────────────────────────────
+ *
+ * Block F phase 3. The two readings share the store: the same
+ * `dayIndex:itemId` Set, the same exclusions, the same CHECKS_VERSION.
+ * Nothing new is persisted, so nothing was version-bumped.
+ *
+ * These are the assertions that hold that claim up. Each one crosses the
+ * pill — checks on one side, reads on the other — because a screen that
+ * kept its own copy would pass every single-view test in this file.
+ */
+describe('the two readings share one set of checks', () => {
+  let cHost, cRoot, cBox
+
+  async function mountBoth() {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    cHost = document.createElement('div')
+    document.body.appendChild(cHost)
+    cRoot = createRoot(cHost)
+    cBox = {}
+    function Probe() { cBox.store = useAppStore(); return null }
+    await act(async () => {
+      cRoot.render(
+        <AppStoreProvider>
+          <Probe />
+          <Grocery />
+        </AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    /* NOT PinDay here: this block switches days on purpose, and PinDay
+       renders null the moment the day leaves its pin, which would take
+       the whole screen with it. The day is set through the store and
+       then asserted, so it is pinned just as firmly. */
+    await act(async () => { cBox.store.setGroceryDay(PIN_DAY) })
+    expect(cBox.store.groceryDay).toBe(PIN_DAY)
+  }
+  afterEach(() => { if (cRoot) act(() => cRoot.unmount()); cHost?.remove(); cRoot = null })
+
+  const pill = () => cHost.querySelector('[data-aisles-pill]')
+  const days = () => [...cHost.querySelectorAll('[data-day-pill]')]
+    .filter(b => !b.hasAttribute('data-aisles-pill'))
+  const rowsIn = () => [...cHost.querySelector('[data-grocery-list]')
+    .querySelectorAll('button[aria-pressed]')]
+  const nameOf = r => r.querySelector('span:last-child').textContent
+  const toAisles = async () => { await act(async () => { pill().click() }) }
+  const rowNamed = n => rowsIn().find(r => nameOf(r) === n)
+
+  it('carries a check from the day view into the aisle view', async () => {
+    await mountBoth()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+
+    await toAisles()
+    const twin = rowNamed(name)
+    expect(twin, `"${name}" should be on both readings`).toBeTruthy()
+    expect(twin.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('carries a check from the aisle view into the day view', async () => {
+    await mountBoth()
+    await toAisles()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+
+    await toAisles()                                   // back to the day view
+    const twin = rowNamed(name)
+    expect(twin).toBeTruthy()
+    expect(twin.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('unchecks across the pill too, not only checks', async () => {
+    await mountBoth()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+    await toAisles()
+    await act(async () => { rowNamed(name).click() })   // off, in the aisle view
+    await toAisles()
+    expect(rowNamed(name).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  /* N LEFT is the day's item set either way, so the two readings cannot
+     disagree about how much is left to buy — even though the day view
+     renders MORE rows than the aisle view has items. */
+  it('counts the same N LEFT on both readings', async () => {
+    await mountBoth()
+    const dayText = cHost.querySelector('[data-grocery-header]').textContent
+    await toAisles()
+    expect(cHost.querySelector('[data-grocery-header]').textContent).toBe(dayText)
+    expect(dayText).toContain(`${DERIVED_ROWS} left`)
+  })
+
+  it('moves N LEFT by one per item, not per row', async () => {
+    await mountBoth()
+    /* Tick a shared ingredient — two rows light up, one item leaves the
+       count. A per-row count would drop by two and read 23. */
+    const names = rowsIn().map(nameOf)
+    const dupe = names.find((n, i) => names.indexOf(n) !== i)
+    await act(async () => { rowNamed(dupe).click() })
+    expect(cHost.querySelector('[data-grocery-header]').textContent)
+      .toContain(`${DERIVED_ROWS - 1} left`)
+  })
+
+  it('clears from the day view and the aisle view is cleared too', async () => {
+    await mountBoth()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+
+    const clear = [...cHost.querySelector('[data-grocery-header]').querySelectorAll('button')]
+      .find(b => b.textContent.startsWith('CLEAR'))
+    expect(clear.disabled).toBe(false)
+    await act(async () => { clear.click() })
+
+    /* CLEAR is the existing day-keyed exclusion: the item leaves BOTH
+       readings, it is not merely unchecked. */
+    expect(rowsIn().map(nameOf)).not.toContain(name)
+    await toAisles()
+    expect(rowsIn().map(nameOf)).not.toContain(name)
+  })
+
+  it('clears from the aisle view and the day view is cleared too', async () => {
+    await mountBoth()
+    await toAisles()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+    const clear = [...cHost.querySelector('[data-grocery-header]').querySelectorAll('button')]
+      .find(b => b.textContent.startsWith('CLEAR'))
+    await act(async () => { clear.click() })
+
+    await toAisles()                                   // back to the day view
+    expect(rowsIn().map(nameOf)).not.toContain(name)
+  })
+
+  it('leaves another day untouched', async () => {
+    await mountBoth()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+    expect(rowNamed(name).getAttribute('aria-pressed')).toBe('true')
+
+    /* PIN_DAY is Tuesday; Monday is a different recipe set and a
+       different key prefix. */
+    await act(async () => { days()[0].click() })
+    const onMonday = rowNamed(name)
+    if (onMonday) expect(onMonday.getAttribute('aria-pressed')).toBe('false')
+
+    await act(async () => { days()[PIN_DAY].click() })
+    expect(rowNamed(name).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  /* Reordering a day's meals moves `position`, and `instanceId` with
+     it. Nothing may follow it. Asserted on the KEY rather than by
+     rebuilding the plan: the key is the reason reordering is safe, and
+     a remount would also have to preserve storage to prove anything. */
+  it('keys a check on the item, with no instance in it', async () => {
+    await mountBoth()
+    const name = nameOf(rowsIn()[0])
+    await act(async () => { rowsIn()[0].click() })
+
+    const keys = [...cBox.store.groceryChecks]
+    expect(keys).toHaveLength(1)
+    /* `dayIndex:itemId` — two fields, both numeric. An instance id
+       would put a '#' in it. */
+    expect(keys[0]).toMatch(/^\d+:\d+$/)
+    expect(keys[0]).not.toContain('#')
+    expect(keys[0].startsWith(`${PIN_DAY}:`)).toBe(true)
+    expect(name).toBeTruthy()
   })
 })

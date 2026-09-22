@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { EmptyBlock } from './Card'
 import Thumb from './Thumb'
 import GroceryRow, { GroceryRowPanel } from './GroceryRow'
-import { groupsForDay, groupEyebrow, groupItemKey } from '../lib/groceryByDay'
+import { groupsForDay, groupEyebrow } from '../lib/groceryByDay'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -11,7 +11,7 @@ import catalog from '../data/groceryCatalog.json'
  * The cooking read of a day: one block per planned recipe, each with its
  * photo, a positional eyebrow, the title, and only that recipe's rows.
  * The consolidated store-walk list is the shopping read and is still
- * here, behind the WEEK pill.
+ * here, behind the AISLES pill.
  *
  * THE ROWS ARE THE SAME ROWS. `GroceryRow` is the component lifted out
  * of the consolidated list, unchanged — same 56px, same two buttons,
@@ -42,9 +42,15 @@ const LAYOUT = {
   phone:   { photoCol: 88,  photoH: 88,  gap: 14, cols: 1, colGap: 0,  title: 22, groupGap: 26 },
 }
 
+/* CHECKS ARE THE STORE'S, NOT THIS COMPONENT'S. `isChecked` and
+   `onToggle` take an ITEM ID and run straight into the same
+   `dayIndex:itemId` Set the aisle view uses — so an item ticked here is
+   ticked there, and an ingredient that appears in two groups on one day
+   ticks in both at once. It is one shop; buying a thing once buys it.
+   See DEVIATIONS §21. */
 export default function GroceryDay({
   weekPlan, dayIndex, excluded, surface = 'phone',
-  checked, onToggle, onChange,
+  isChecked, onToggle, onChange,
 }) {
   const L = LAYOUT[surface] || LAYOUT.phone
   const phone = surface === 'phone'
@@ -53,29 +59,40 @@ export default function GroceryDay({
     () => groupsForDay(weekPlan, catalog, excluded, dayIndex),
     [weekPlan, excluded, dayIndex])
 
-  /* An open expander belongs to a row in a group on a day. Keyed the
-     same way the check is, so opening "chicken breast" under one recipe
-     cannot open it under another — the bug the third key space exists
-     to prevent, in its other form. */
+  /* An open expander belongs to ONE ROW, so it is keyed by row, not by
+     item: opening "chicken breast" under one recipe must not open it
+     under the other. This is the one thing that IS per-instance — the
+     check behind those two rows is shared, the disclosure is not. */
   const [openKey, setOpenKey] = useState(null)
 
   const day = weekPlan?.[dayIndex]
+  const mealCount = (day?.ids || []).filter(Boolean).length
+  const itemCount = groups.reduce((n, g) => n + g.items.length, 0)
 
   /* EMPTY STAYS ON THIS DAY. Jumping to a day that has meals would
      answer a question the user did not ask and hide the one fact they
-     need, which is that today has nothing in it. */
-  if (!groups.length) {
+     need, which is that today has nothing in it.
+
+     A day whose items are ALL excluded is empty too. Exclusions are
+     shared with the aisle view, so clearing everything there leaves
+     groups here with no rows — and block D's rule is the dashed block,
+     not a header with empty sections under it. */
+  if (!groups.length || itemCount === 0) {
     return (
       <div data-grocery-list style={{ padding: '28px var(--pq-gutter) 0' }}>
         <EmptyBlock>
           <p style={{
             margin: '0 0 6px', fontSize: 'var(--pq-size-meal)', fontWeight: 600,
             color: 'var(--pq-text-2)',
-          }}>Nothing planned for {day?.day || 'this day'}</p>
+          }}>{mealCount === 0
+            ? `Nothing planned for ${day?.day || 'this day'}`
+            : `Nothing to buy for ${day?.day || 'this day'}`}</p>
           <p style={{
             ...MONO, margin: '0 0 18px', fontSize: 12, color: 'var(--pq-text-muted)',
             lineHeight: 1.6,
-          }}>NO MEALS ASSIGNED TO THIS DAY</p>
+          }}>{mealCount === 0
+            ? 'NO MEALS ASSIGNED TO THIS DAY'
+            : 'EVERYTHING HERE IS CLEARED'}</p>
           <button
             onClick={() => onChange?.('plan')}
             style={{
@@ -135,15 +152,18 @@ export default function GroceryDay({
             alignContent: 'start',
           }}>
             {group.items.map(item => {
-              const key = groupItemKey(dayIndex, group.instanceId, item.itemId)
+              /* Identity of a ROW, not of a check. Two groups can hold
+                 the same ingredient and each needs its own React key
+                 and its own expander; the CHECK they share. */
+              const key = `${group.instanceId}:${item.itemId}`
               const isOpen = openKey === key
               const n = item.quantity.length
               return (
                 <GroceryRow
                   key={key}
                   name={item.name}
-                  checked={checked.has(key)}
-                  onToggle={() => onToggle(key)}
+                  checked={isChecked(item.itemId)}
+                  onToggle={() => onToggle(item.itemId)}
                   open={isOpen}
                   onToggleOpen={() => setOpenKey(isOpen ? null : key)}
                   expanderLabel={`${item.name} for ${recipe?.name || 'this meal'}`}

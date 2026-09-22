@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import catalog from '../data/groceryCatalog.json'
-import { groupsForDay, groupEyebrow, groupItemKey } from '../lib/groceryByDay'
+import { groupsForDay, groupEyebrow } from '../lib/groceryByDay'
 import { buildGroceryItems, dayKey } from '../store/storeLogic'
 
 /* The same fixture the reflow harness pins, copied rather than imported
@@ -257,21 +257,5 @@ describe('groupEyebrow', () => {
   it('copes with an empty group and with nothing at all', () => {
     expect(groupEyebrow({ position: 0, timesPlanned: 1, items: [] })).toBe('MEAL 1 · 0 ITEMS')
     expect(groupEyebrow(null)).toBe('')
-  })
-})
-
-describe('groupItemKey', () => {
-  it('builds the day-view key one way', () => {
-    expect(groupItemKey(1, '1#0', 42)).toBe('1:1#0:42')
-  })
-
-  /* The point of the third key space: one ingredient, one day, two
-     groups, two independent checks. */
-  it('separates the same item in two groups on the same day', () => {
-    expect(groupItemKey(1, '1#0', 42)).not.toBe(groupItemKey(1, '2#1', 42))
-  })
-
-  it('separates the same group on two days', () => {
-    expect(groupItemKey(1, '1#0', 42)).not.toBe(groupItemKey(2, '1#0', 42))
   })
 })

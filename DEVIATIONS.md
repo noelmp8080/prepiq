@@ -735,35 +735,42 @@ and to three other screens, not a grocery change.
 
 ---
 
-## 17. Block F: WEEK is a toggle beside the day pills, not an eighth one
+## 17. Block F: the second pill is AISLES, and it never was a week
 
 **Spec:** "An eighth pill *WEEK* after SUN … shows the existing
 consolidated store-walk list unchanged."
 
-**Built:** the pill sits after SUN as drawn, and it is in the same row —
-but it toggles a mode rather than joining a mutually exclusive set. The
-day pills keep showing the selected day whatever the mode is, so two
-pills are lit at once: `TUE`, and `WEEK`.
+**Built:** the pill sits after SUN as drawn, and it reads **AISLES**. It
+toggles a reading rather than joining a mutually exclusive set: the day
+pills keep showing the selected day whatever the mode, so two pills are
+lit at once — `TUE`, and `AISLES`.
 
-**Why.** Mutually exclusive pills would mean nothing is lit on MON…SUN
-while WEEK is active — and **the "week" list underneath is day-scoped**
-(§4). It derives from one day, its Clear is day-keyed, and its counts
-are that day's. Hiding which day it is for would remove the one fact the
-screen most needs to carry.
+**Why the name changed.** The spec was written against an assumption
+that the old grocery screen showed a week-wide list. **It never has.**
+Block B made the derivation day-scoped: `buildGroceryItems` takes a
+`dayIndex`, Clear is day-keyed, and the counts are one day's (§4). A
+pill labelled WEEK would have named a list that has only ever shown a
+day.
 
-**The label is inherited and it is wrong.** The spec was written against
-an assumption that the old grocery screen showed a week-wide list. It
-never has: block B made the derivation day-scoped, and `buildGroceryItems`
-takes a `dayIndex`. `WEEK` therefore names a list that is not week-wide.
-Two honest ways out, neither taken here because the user asked for the
-pill as specified:
+What the two pills actually select is not a range but an ORDER — the
+same day's items, grouped **by meal** or walked **by aisle**. `AISLES`
+says that; `WEEK` said something untrue.
 
-- rename it — `LIST`, or `ALL`, for "everything for this day in shop
-  order", which is what it is; or
-- make it genuinely week-wide, which is new derivation across seven days
-  and is explicitly not "the existing component unchanged".
+**Why it toggles rather than excluding the day pills.** Mutually
+exclusive pills would leave nothing lit on MON…SUN while the aisle view
+was up, and the day is the one fact that reading most needs to carry —
+it is *Tuesday's* aisles.
 
-**Recorded rather than fixed.** Flagged to the user on delivery.
+**A real seven-day list is a separate, unbuilt feature.** Nothing in
+this block aggregates across days. It would need its own derivation —
+`buildGroceryItems` runs per day and merges within one — plus decisions
+this block never faced: whether a week's exclusions are seven day-keyed
+sets or one week-wide set, what Clear means when an item is due on
+three days, and how quantities from seven days read on one row when they
+are already whole ingredient lines (§8, §19). None of that is implied by
+what is here, and none of it is started.
+
+**Approved:** yes — renamed on review.
 
 ---
 
@@ -866,6 +873,49 @@ The wide surfaces' photo is a 340×210 / 280×180 panel rather than a
 square and passes its box in `style`.
 
 **Approved:** yes — decision 8.
+
+---
+
+## 21. Block F: one set of checks, not a second key space
+
+**Phase 2 built** a third key space, `dayIndex:instanceId:itemId`, so an
+ingredient appearing in two of a day's recipes could be checked under
+one and not the other. It lived in local UI state, and phase 3 was to
+persist it.
+
+**Phase 3 deleted it.** Both readings show the same day's items, so the
+day view reads and writes the existing `dayIndex:itemId` check Set, the
+existing exclusions and the existing `CHECKS_VERSION`. `groupItemKey` is
+gone from `src/lib/groceryByDay.js`.
+
+**Why — it was modelling the screen, not the shop.** Two rows for
+chicken breast under two recipes are one thing in one basket. Ticking it
+under the wrap and finding it still unticked under the curry would mean
+buying it twice, or standing in the aisle working out which of two
+identical rows was the real one. The question the row answers is "is
+this in the basket", and the basket does not know which recipe asked.
+
+It also made the two readings disagree about the same day: with separate
+keys, `N LEFT` would have counted rows in one view and items in the
+other, and the aisle view could read *All done* while the day view still
+showed unchecked rows. Same day, same shop, two answers.
+
+**What the instance id is for now:** a React key and the `MEAL n` label.
+Nothing else. That resolves the open question at the end of phase 2 —
+`instanceId` is `${recipeId}#${position}`, so reordering a day's meals
+moves it, and **nothing follows it**, because no stored key contains it.
+A test asserts the stored key matches `/^\d+:\d+$/` and carries no `#`.
+
+**One thing IS still per-instance:** which expander is open. Opening
+"chicken breast" under one recipe must not open it under the other —
+that is a disclosure about a row, not a fact about the basket.
+
+**No version bump.** `CHECKS_VERSION` and `EXCLUDED_VERSION` stay at 3.
+A bump exists to invalidate stored keys whose meaning changed; nothing
+new is persisted and no existing key changed shape, so bumping would
+reset real user data to mark a change that did not happen.
+
+**Approved:** yes — decision B.
 
 ---
 

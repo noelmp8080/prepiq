@@ -5,7 +5,6 @@ import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import GroceryDay from './GroceryDay'
 import { useAppStore } from '../store/useAppStore'
 import { groupBySection, dayKey } from '../store/storeLogic'
-import { groupsForDay, groupItemKey } from '../lib/groceryByDay'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -147,52 +146,30 @@ export default function Grocery({ onChange, surface = 'phone' }) {
     }
   }
 
-  /* ── DAY VIEW (block F) ─────────────────────────────────────────────
-     A second reading of the same day: recipe groups instead of a
-     store-walk. `mode` is which reading is on screen, NOT which day —
-     WEEK keeps the selected day and shows the consolidated list for it.
+  /* ── TWO READINGS OF ONE DAY (block F) ──────────────────────────────
+     BY MEAL, or BY AISLE. `mode` is which reading is on screen, NOT
+     which day: AISLES keeps the selected day and walks the same items
+     in shop order.
 
-     Checks live in a THIRD key space, `dayIndex:instanceId:itemId`,
-     because one ingredient can sit in two groups on one day and
-     checking it under Monday's wrap must not check it under Monday's
-     curry. Local UI state for now: persistence, the version constant
-     and CLEAR's real semantics are phase 3. The consolidated list's own
-     `dayIndex:itemId` Set is untouched by any of this. */
+     THERE IS NO SECOND STORE BEHIND THIS. Both readings show the same
+     day's items, so both read and write the one `dayIndex:itemId` check
+     Set, the one exclusion set, and the one CHECKS_VERSION. An item
+     ticked under a recipe is ticked in the aisle, and an ingredient two
+     recipes share ticks in both groups at once — it is one shop, and
+     buying a thing once buys it. DEVIATIONS §21.
+
+     So `left`, `done` and `pct` above serve both views unchanged: the
+     day view's item set IS `rows`, which the parity test in
+     groceryByDay.test.js asserts on every day of the fixture. */
   const [mode, setMode] = useState('day')
-  const [dayChecks, setDayChecks] = useState(() => new Set())
-
-  const dayGroups = useMemo(
-    () => groupsForDay(weekPlan, catalog, groceryExcluded, groceryDay),
-    [weekPlan, groceryExcluded, groceryDay])
-
-  const dayItemKeys = useMemo(
-    () => dayGroups.flatMap(g =>
-      g.items.map(i => groupItemKey(groceryDay, g.instanceId, i.itemId))),
-    [dayGroups, groceryDay])
-
-  const dayDone = dayItemKeys.filter(k => dayChecks.has(k)).length
-  const dayLeft = dayItemKeys.length - dayDone
-
-  const toggleDayItem = key => setDayChecks(prev => {
-    const next = new Set(prev)
-    next.has(key) ? next.delete(key) : next.add(key)
-    return next
-  })
-
-  /* PROVISIONAL. In the consolidated list CLEAR means "these are in the
-     basket, take them off the list" — an exclusion plus an Undo. Here it
-     only unchecks, because there is nowhere yet to record an exclusion
-     against the new key space. Phase 3 gives it the real meaning. */
-  const clearDayChecks = () => setDayChecks(new Set())
-
   const dayView = mode === 'day'
 
-  const headerLabel = dayView
-    ? (dayItemKeys.length === 0 ? 'Nothing planned'
-      : dayLeft === 0 ? 'All done'
-      : `${dayLeft} left`)
-    : rows.length === 0 ? 'Nothing to buy'
-      : left === 0 ? 'All done'
+  /* "Nothing planned" only when there is genuinely no meal. A day whose
+     items were all cleared has nothing to BUY, which is a different
+     sentence and the one the aisle view has always shown. */
+  const headerLabel = rows.length === 0
+    ? (dayView && mealCount === 0 ? 'Nothing planned' : 'Nothing to buy')
+    : left === 0 ? 'All done'
       : `${left} left`
 
   const dayName = (day?.day || '').toUpperCase()
@@ -228,24 +205,19 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               letterSpacing: 'var(--pq-track-label)', marginTop: 3,
             }}>{subLine}</div>
           </div>
-          {/* One control, two meanings, and the day view's is the weaker
-              one on purpose: it only unchecks, because there is nowhere
-              yet to record an exclusion against the new key space.
-              Phase 3 gives it the consolidated list's semantics —
-              exclusion plus Undo. */}
           <button
-            onClick={dayView ? clearDayChecks : onClear}
-            disabled={(dayView ? dayDone : done) === 0}
+            onClick={onClear}
+            disabled={done === 0}
             style={{
               flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
               borderRadius: 9, border: 'none',
-              cursor: (dayView ? dayDone : done) ? 'pointer' : 'default',
-              background: (dayView ? dayDone : done) ? 'var(--pq-accent-grad)' : 'transparent',
-              boxShadow: (dayView ? dayDone : done) ? 'var(--pq-accent-raise)' : 'none',
-              color: (dayView ? dayDone : done) ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-faint)',
+              cursor: done ? 'pointer' : 'default',
+              background: done ? 'var(--pq-accent-grad)' : 'transparent',
+              boxShadow: done ? 'var(--pq-accent-raise)' : 'none',
+              color: done ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-faint)',
               ...MONO, fontSize: 'var(--pq-size-body)', fontWeight: 600,
               letterSpacing: '.04em',
-            }}>{(dayView ? dayDone : done) ? `CLEAR ${dayView ? dayDone : done}` : 'CLEAR'}</button>
+            }}>{done ? `CLEAR ${done}` : 'CLEAR'}</button>
         </div>
 
         {/* Its agreed slot — under the header row, above the day chips.
@@ -256,19 +228,19 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             On wide these move to the side pane, where there is room for
             full day labels and the progress bar beside them. */}
         {/* ── Day pills ─────────────────────────────────────────────
-            MON…SUN plus WEEK, on every surface now: the day view puts
+            MON…SUN plus AISLES, on every surface now: the day view puts
             the selector in the header on all four frames, and a second
             copy in the wide side pane would be two controls for one
             choice. The side pane keeps the progress readout and drops
             its day list — see DEVIATIONS §18.
 
-            WEEK IS A MODE, NOT AN EIGHTH DAY, and the spec's "eighth
+            AISLES IS A MODE, NOT AN EIGHTH DAY, and the spec's "eighth
             pill after SUN" is followed in place but not in behaviour.
             Mutually exclusive pills would mean nothing is lit on MON…SUN
-            while WEEK is active — and the consolidated list underneath
+            while AISLES is active — and the consolidated list underneath
             it is DAY-SCOPED (DEVIATIONS §4), so the one thing the user
             most needs to see is which day it is for. So the day pills
-            show the selected day whatever the mode, WEEK toggles the
+            show the selected day whatever the mode, AISLES toggles the
             reading, and two pills are lit at once on purpose: "Monday",
             and "the whole list for it". See DEVIATIONS §17. */}
         <div style={{ display: 'flex', gap: wide ? 8 : 6, flexWrap: wide ? 'wrap' : 'nowrap' }}>
@@ -315,10 +287,10 @@ export default function Grocery({ onChange, surface = 'phone' }) {
 
           <button
             data-day-pill
-            data-week-pill
+            data-aisles-pill
             onClick={() => setMode(m => (m === 'week' ? 'day' : 'week'))}
             aria-pressed={!dayView}
-            aria-label="Week — the whole shopping list for this day"
+            aria-label="Aisles — this day's items in store order"
             style={{
               flex: wide ? '0 0 auto' : 1, minHeight: 'var(--pq-tap-min)',
               display: 'flex', alignItems: 'center',
@@ -336,7 +308,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
               letterSpacing: 'var(--pq-track-chip)',
             }}>
-              {wide ? 'WEEK' : 'W'}
+              {wide ? 'AISLES' : 'A'}
               <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>{' '}</span>
             </span>
           </button>
@@ -352,9 +324,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
         }}>
           <div data-progress-fill style={{
             height: '100%',
-            width: `${dayView
-              ? (dayItemKeys.length ? Math.round((dayDone / dayItemKeys.length) * 100) : 0)
-              : pct}%`,
+            width: `${pct}%`,
             borderRadius: 2,
             background: 'var(--pq-accent-bar)', transition: 'width .4s ease',
           }} />
@@ -364,7 +334,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
       {/* ── Empty day ───────────────────────────────────────────────
           The dashed block, NOT a header with empty sections under it.
           Empty sections would read as a list you had finished. */}
-      {/* Two readings of the same day. The day view is the default; WEEK
+      {/* Two readings of the same day. The day view is the default; AISLES
           hands back the consolidated store-walk list below, unchanged. */}
       {dayView ? (
         <GroceryDay
@@ -372,8 +342,8 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           dayIndex={groceryDay}
           excluded={groceryExcluded}
           surface={surface}
-          checked={dayChecks}
-          onToggle={toggleDayItem}
+          isChecked={id => isChecked(id)}
+          onToggle={toggleGroceryItem}
           onChange={onChange}
         />
       ) : rows.length === 0 ? (

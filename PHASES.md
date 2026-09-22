@@ -396,7 +396,7 @@ the font payload against the baseline in `DEVIATIONS.md`.
 
 ---
 
-## Block F — Grocery by day *(phases 1-2 done)*
+## Block F — Grocery by day *(done)*
 
 Spec: `docs/design/grocery-by-day/GROCERY_BY_DAY_SPEC.md`, the readable
 extraction of four Claude Design frames. The `.html` beside it needs that
@@ -424,9 +424,9 @@ in `day.ids` position order with items walked in catalog section order.
   `buildGroceryItems` makes with `seenCards`.
 - **Exclusions stay day-wide**, keyed `dayIndex:itemId` as they already are, so
   clearing an item removes it from every group it appears in that day.
-- `groupItemKey` defines a third key space, `dayIndex:instanceId:itemId` — one
-  ingredient can be in two groups on one day and the two checks are independent.
-  Nothing persists it yet; that is phase 3.
+- No key space of its own. Phase 3 settled this: both readings show the same
+  day, so both use the existing `dayIndex:itemId` checks. `instanceId` is a
+  React key and the MEAL n label, nothing more.
 
 39 assertions, mutation-checked: ignoring exclusions fails 3, splitting a
 repeated recipe into two groups fails 2.
@@ -451,24 +451,18 @@ list. Both read the same day.
   flow redistributes between columns, which is why block E refused it
   (DEVIATIONS §10). A harness case taps a row at desktop width and
   asserts the whole list is unmoved.
-- **The third key space is live.** Day-view checks are
-  `dayIndex:instanceId:itemId` in local UI state. A harness case finds an
-  ingredient that appears in two groups on the pinned day, checks one,
-  and asserts the other stays unchecked — the thing the key space exists
-  for, asserted through the DOM rather than trusted.
-- **WEEK is a toggle, not an eighth mutually exclusive pill**, and the
-  day pills stay lit under it, because the list it shows is day-scoped
-  (DEVIATIONS §17 — including why the label itself is wrong).
+- **Checks were a key space of their own in this phase** — local UI
+  state on `dayIndex:instanceId:itemId`, so an ingredient in two of a
+  day's recipes could be ticked under one and not the other. **Phase 3
+  removed it**: two rows for one ingredient are one thing in one basket.
+  See phase 3 below and DEVIATIONS §21.
+- **The second pill toggles rather than excluding the day pills**, and it
+  was renamed AISLES in phase 3 (DEVIATIONS §17).
 - **The wide side pane no longer picks the day** (DEVIATIONS §18). Two
   controls for one choice is how one of them stops being updated.
 - Spec values rejected and recorded: positional eyebrow (§16), 18px name
   and 56px row kept (§19), one palette so the screen reads warmer than
   the frames (§20).
-
-**Not in this phase, by instruction:** Firestore persistence for the new
-key space, its version constant, and CLEAR's real semantics in the day
-view. CLEAR renders and currently only unchecks — there is nowhere yet
-to record an exclusion against the new keys.
 
 Suite 385 → **437**. The reflow harness went 27 → 40 cases. `tokens.css`
 and `designTokens.test.js` are untouched: no token was added.
@@ -478,6 +472,48 @@ re-pointed.** They describe the consolidated list, which is now behind
 WEEK, so each suite selects it through the UI — a click on the pill, not
 a prop — which leaves the pill itself covered by every test that
 follows.
+
+---
+
+### Phase 3 — wired to the store *(done)*
+
+The day view reads and writes the **existing** grocery store: the same
+`dayIndex:itemId` check Set, the same exclusions, the same
+`CHECKS_VERSION`, through the same `toggleGroceryItem` and
+`clearGrocery` the aisle view uses. Firestore and the localStorage
+mirror come free — they were never per-view.
+
+- **The third key space is gone**, along with `groupItemKey`. Two rows
+  for one ingredient are one thing in one basket; separate keys were
+  modelling the screen rather than the shop, and would have let the two
+  readings disagree about the same day (DEVIATIONS §21).
+- **No version bump.** Nothing new is persisted and no existing key
+  changed shape. A bump invalidates stored keys whose meaning moved;
+  bumping here would reset real user data to mark a change that did not
+  happen.
+- **`instanceId` is now a React key and the `MEAL n` label, nothing
+  else** — so reordering a day's meals cannot move a check. That was the
+  open question at the end of phase 2 and it is closed rather than
+  managed: a test asserts the stored key matches `/^\d+:\d+$/` and
+  carries no `#`.
+- **`N LEFT`, the progress bar and `CLEAR` are one implementation
+  again.** The day view's item set *is* `rows`, which the phase 1 parity
+  test asserts on every day of the fixture, so the counts cannot drift.
+  A test ticks a shared ingredient and asserts the count falls by one —
+  per item, not per row.
+- **The second pill is `AISLES`.** It never was a week: the derivation
+  has been day-scoped since block B. The two pills select an ORDER — the
+  same day by meal, or by aisle — and a real seven-day list is a
+  separate, unbuilt feature (DEVIATIONS §17).
+
+**Tested across the pill, not within one view.** Nine new cases check on
+one reading and assert on the other — both directions, unchecking as
+well as checking, `CLEAR` from either side removing the item from both,
+another day unaffected, and the key shape itself. A screen keeping its
+own copy would pass every single-view test in the file, which is why
+none of these stay on one side of it.
+
+Suite 437 → **443**. Lint unchanged at the pre-existing 20.
 
 ---
 

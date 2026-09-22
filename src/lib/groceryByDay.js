@@ -28,6 +28,11 @@ import { groupBySection, dayKey } from '../store/storeLogic'
  *  - No dates. `dayIndex` is an integer, as it is everywhere else in
  *    this store — date handling stays out of the derivation, which is
  *    where a UTC bug once lived here for months.
+ *  - NO KEY SPACE OF ITS OWN. Checks stay on `dayIndex:itemId`, shared
+ *    with the consolidated view, because both readings show the same
+ *    day's items and an item bought once is bought. `instanceId` is a
+ *    React key and the MEAL n label, nothing more — so reordering a
+ *    day's meals cannot move a check. See DEVIATIONS §21.
  */
 
 /**
@@ -141,13 +146,3 @@ export function groupEyebrow(group) {
     `${n} ITEM${n === 1 ? '' : 'S'}`,
   ].filter(Boolean).join(' · ')
 }
-
-/** The check key for the day view: `dayIndex:instanceId:itemId`.
- *
- *  A THIRD KEY SPACE, deliberately. The consolidated list checks
- *  `dayIndex:itemId` — one row, one state. Here the same ingredient can
- *  appear in two groups on one day, and checking it under Monday's wrap
- *  must not check it under Monday's curry. Additive: nothing reads or
- *  writes the existing space through this. */
-export const groupItemKey = (dayIndex, instanceId, itemId) =>
-  `${dayIndex}:${instanceId}:${itemId}`
