@@ -471,3 +471,78 @@ export function writeRail(uid, value) {
 /** Resolve the stored choice against the surface it is being shown on. */
 export const railIsExpanded = (stored, surface) =>
   typeof stored === 'boolean' ? stored : surface === 'desktop'
+
+/* ── A PLANNED ID THAT NO LONGER NAMES A RECIPE ───────────────────────
+ *
+ * The catalog is not append-only: `recipes.js` holds 260 entries spread
+ * over ids 1-384, so a rebuild has already removed ids that a stored
+ * plan may still be pointing at. Such an id is TRUTHY and resolves to
+ * nothing, and that combination is what breaks three screens at once:
+ *
+ *   Plan     renders the "Add a meal" control for the slot (`!r`), but
+ *            `assignMeal` looks for the first FALSY slot to fill — a
+ *            dangling id is truthy, so the day reads as full and the
+ *            control silently does nothing.
+ *   Grocery  `groupsForDay` builds a group for it, `byCard` has no
+ *            entry, and the day view renders "MEAL n · 0 ITEMS ·
+ *            Unknown recipe" above the real meals.
+ *   Today,
+ *   Track    pair it through `planVsLog` as a planned meal that can
+ *            never be logged.
+ *
+ * ONE NORMALISATION AT THE BOUNDARY rather than a guard on each reader.
+ * Five screens would need the same check, and the fifth would be added
+ * without it. Null is the shape every reader already handles — the plan
+ * has always allowed an empty slot — so nulling a dangling id turns an
+ * unrepresentable state into an ordinary one.
+ *
+ * NOT A MIGRATION. Nothing is written here. The cleaned plan reaches
+ * Firestore on the next ordinary save, which is what the user was
+ * already doing when they hit this; a one-off write would touch
+ * production data from a dev session, and preview and prod share a
+ * project (PHASES, "Preview needs its own Firebase project").
+ *
+ * TAKES THE LOOKUP, does not import it. storeLogic imports no data, so
+ * a test can pass its own catalog and this stays pure.
+ *
+ * @param plan        [{ day, ids: [...] }, ...]
+ * @param recipeById  the id -> recipe map; string and number keys both
+ *                    resolve because it is a plain object
+ */
+export function normalizeWeekPlan(plan, recipeById = {}) {
+  if (!Array.isArray(plan)) return plan
+  let touched = false
+  const next = plan.map(d => {
+    if (!d || !Array.isArray(d.ids)) return d
+    let dayTouched = false
+    const ids = d.ids.map(id => {
+      /* Already empty. Passed through exactly as found: null and
+         undefined are both falsy and every reader treats them the
+         same, and coercing one to the other here would make the
+         result depend on whether a SIBLING id needed cleaning. */
+      if (!id) return id
+      if (recipeById[id]) return id
+      dayTouched = true
+      return null
+    })
+    if (!dayTouched) return d
+    touched = true
+    return { ...d, ids }
+  })
+  /* Same array back when nothing changed, so this cannot cause a render
+     by identity alone on every load. */
+  return touched ? next : plan
+}
+
+/** Which planned ids no longer name a recipe — for reporting, not for
+ *  rendering. Returns [{ dayIndex, day, position, id }]. */
+export function danglingPlanIds(plan, recipeById = {}) {
+  if (!Array.isArray(plan)) return []
+  const out = []
+  plan.forEach((d, dayIndex) => {
+    ;(d?.ids || []).forEach((id, position) => {
+      if (id && !recipeById[id]) out.push({ dayIndex, day: d.day, position, id })
+    })
+  })
+  return out
+}

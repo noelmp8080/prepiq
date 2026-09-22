@@ -3,7 +3,19 @@ import {
   todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
   lsKey, scopeOf, ANON, adoptAnonKeys, adoptedMarker, ADOPTABLE, NEVER_ADOPTED,
   planVsLog, sumMacros, pct,
+  normalizeWeekPlan, danglingPlanIds, buildGroceryItems,
 } from '../store/storeLogic'
+import { recipeById } from '../data/recipes'
+import { groupsForDay } from '../lib/groceryByDay'
+import catalog from '../data/groceryCatalog.json'
+
+/* The shipped default, duplicated here rather than exported from the
+   store: importing useAppStore would pull firebase into a pure suite. */
+const DEFAULT_PLAN = (() => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const SEED = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, null], [12, null]]
+  return days.map((day, i) => ({ day, ids: SEED[i] }))
+})()
 
 /* THE RULES WHERE A WRONG ANSWER IS SILENT.
  *
@@ -449,5 +461,168 @@ describe('sumMacros and pct', () => {
     expect(pct(1, 0)).toBe(0)
     expect(pct(1, null)).toBe(0)
     expect(pct(0, 1800)).toBe(0)
+  })
+})
+
+/* ── A PLANNED ID THAT NO LONGER NAMES A RECIPE ───────────────────────
+ *
+ * `recipes.js` holds 260 entries over ids 1-384, so a rebuild has
+ * already removed ids a stored plan may still point at. Such an id is
+ * TRUTHY and resolves to nothing, and that pair is what breaks four
+ * screens at once — see normalizeWeekPlan's header for the walk.
+ *
+ * The fixture uses 9999 rather than one of the real gaps: a gap could
+ * be filled by the next catalog rebuild and quietly turn these tests
+ * vacuous.
+ */
+describe('normalizeWeekPlan', () => {
+  const BY_ID = { 1: { id: 1, name: 'One' }, 2: { id: 2, name: 'Two' } }
+  const GHOST = 9999
+
+  it('nulls an id that resolves to nothing', () => {
+    const plan = [{ day: 'Mon', ids: [GHOST, 2] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual([{ day: 'Mon', ids: [null, 2] }])
+  })
+
+  it('leaves a resolvable id alone', () => {
+    const plan = [{ day: 'Mon', ids: [1, 2] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual(plan)
+  })
+
+  /* recipeById is a plain object, so both forms hit the same key. A
+     string id is NOT a dangling id and must not be nulled. */
+  it('resolves a string id, because the lookup is a plain object', () => {
+    const plan = [{ day: 'Mon', ids: ['1', '2'] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual(plan)
+  })
+
+  it('keeps an empty slot empty rather than inventing one', () => {
+    const plan = [{ day: 'Sat', ids: [1, null] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual(plan)
+  })
+
+  /* null and undefined are both an empty slot and every reader treats
+     them alike, so neither is converted — converting would make the
+     result depend on whether a SIBLING id happened to need cleaning. */
+  it('leaves an undefined slot falsy rather than converting it', () => {
+    const [day] = normalizeWeekPlan([{ day: 'Sat', ids: [1, undefined] }], BY_ID)
+    expect(day.ids[1]).toBeFalsy()
+  })
+
+  it('handles several dangling ids across several days', () => {
+    const plan = [
+      { day: 'Mon', ids: [GHOST, 2] },
+      { day: 'Tue', ids: [1, GHOST] },
+      { day: 'Wed', ids: [1, 2] },
+    ]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual([
+      { day: 'Mon', ids: [null, 2] },
+      { day: 'Tue', ids: [1, null] },
+      { day: 'Wed', ids: [1, 2] },
+    ])
+  })
+
+  /* Returned by identity when nothing changed, so normalising on every
+     load cannot cause a render by itself. */
+  it('returns the SAME array when there is nothing to clean', () => {
+    const plan = [{ day: 'Mon', ids: [1, 2] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toBe(plan)
+  })
+
+  it('returns a new array when it did clean something', () => {
+    const plan = [{ day: 'Mon', ids: [GHOST] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).not.toBe(plan)
+  })
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['not an array', { day: 'Mon' }],
+  ])('passes %s straight back rather than throwing', (_l, v) => {
+    expect(() => normalizeWeekPlan(v, BY_ID)).not.toThrow()
+  })
+
+  it('survives a day with no ids array', () => {
+    const plan = [{ day: 'Mon' }, { day: 'Tue', ids: [GHOST] }]
+    expect(normalizeWeekPlan(plan, BY_ID)).toEqual([{ day: 'Mon' }, { day: 'Tue', ids: [null] }])
+  })
+
+  /* An empty lookup would null the whole plan. That is correct for the
+     function and is why it is called with the real map at the boundary
+     rather than anywhere a lookup might not have loaded. */
+  it('nulls everything when the lookup is empty — the caller owns that', () => {
+    expect(normalizeWeekPlan([{ day: 'Mon', ids: [1, 2] }], {}))
+      .toEqual([{ day: 'Mon', ids: [null, null] }])
+  })
+
+  it('cleans nothing in the shipped default plan', () => {
+    expect(normalizeWeekPlan(DEFAULT_PLAN, recipeById)).toBe(DEFAULT_PLAN)
+  })
+})
+
+describe('danglingPlanIds — for reporting, not rendering', () => {
+  const BY_ID = { 1: { id: 1 }, 2: { id: 2 } }
+
+  it('names the day, the position and the id', () => {
+    const plan = [{ day: 'Mon', ids: [9999, 2] }, { day: 'Tue', ids: [1, 8888] }]
+    expect(danglingPlanIds(plan, BY_ID)).toEqual([
+      { dayIndex: 0, day: 'Mon', position: 0, id: 9999 },
+      { dayIndex: 1, day: 'Tue', position: 1, id: 8888 },
+    ])
+  })
+
+  it('is empty for a clean plan, and for nonsense', () => {
+    expect(danglingPlanIds([{ day: 'Mon', ids: [1, null] }], BY_ID)).toEqual([])
+    expect(danglingPlanIds(undefined, BY_ID)).toEqual([])
+  })
+
+  it('finds nothing in the shipped default plan', () => {
+    expect(danglingPlanIds(DEFAULT_PLAN, recipeById)).toEqual([])
+  })
+})
+
+/* ── THE THREE SCREENS THE GHOST BROKE ────────────────────────────────
+ * Asserted against the DERIVATIONS rather than the DOM: these are the
+ * readers, and a normalised plan is what they are promised. */
+describe('a normalised plan is invisible to every reader', () => {
+  const GHOST = 9999
+  const raw = [{ day: 'Mon', ids: [GHOST, 1] }]
+  const clean = normalizeWeekPlan(raw, recipeById)
+
+  it('leaves the real meal and only the real meal', () => {
+    expect(clean[0].ids).toEqual([null, 1])
+  })
+
+  /* assignMeal looks for the first FALSY slot. A truthy ghost makes the
+     day read as full and the Add control silently do nothing; a null is
+     a slot it can fill. This is the Plan half of the bug. */
+  it('gives Plan a free slot again', () => {
+    expect(raw[0].ids.findIndex(x => !x)).toBe(-1)      // before: reads as full
+    expect(clean[0].ids.findIndex(x => !x)).toBe(0)     // after: slot 0 is free
+  })
+
+  it('stops groupsForDay building an Unknown recipe group', () => {
+    expect(groupsForDay(raw, catalog, new Set(), 0)).toHaveLength(2)
+    const after = groupsForDay(clean, catalog, new Set(), 0)
+    expect(after).toHaveLength(1)
+    expect(after[0].recipeId).toBe(1)
+  })
+
+  it('leaves buildGroceryItems unchanged either way — parity holds', () => {
+    const before = buildGroceryItems(raw, catalog, new Set(), 0).map(r => r.id).sort((a, b) => a - b)
+    const after = buildGroceryItems(clean, catalog, new Set(), 0).map(r => r.id).sort((a, b) => a - b)
+    expect(after).toEqual(before)
+
+    /* And the phase 1 parity still holds on the cleaned plan. */
+    const grouped = [...new Set(groupsForDay(clean, catalog, new Set(), 0)
+      .flatMap(g => g.items.map(i => i.itemId)))].sort((a, b) => a - b)
+    expect(grouped).toEqual(after)
+  })
+
+  it('stops Today and Track pairing a meal that cannot be logged', () => {
+    expect(planVsLog(raw[0].ids, []).planned.map(r => r.recipeId)).toContain(GHOST)
+    expect(planVsLog(clean[0].ids, []).planned.map(r => r.recipeId)).not.toContain(GHOST)
+    /* And the real meal survives the clean. */
+    expect(planVsLog(clean[0].ids, []).planned.map(r => r.recipeId)).toEqual([1])
   })
 })

@@ -6,7 +6,7 @@ import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
          CHECKS_VERSION, EXCLUDED_VERSION, hydrateLocal, lastScope,
-         rememberScope, buildGroceryItems, readRail, writeRail } from './storeLogic'
+         rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
@@ -33,7 +33,12 @@ export function AppStoreProvider({ children }) {
   const [user,          setUser]          = useState(undefined)   // undefined = auth not resolved
   const [goals,         setGoalsState]    = useState(boot.goals)
   const [mealLog,       setMealLog]       = useState(boot.mealLog)
-  const [weekPlan,      setWeekPlan]      = useState(boot.weekPlan)
+  /* NORMALISED AT EVERY DOOR. A plan can reach state from three
+     places — this boot read, the local re-hydrate on a scope change,
+     and the cloud resolve — and a dangling id entering by any of them
+     breaks Plan, Grocery, Today and Track at once. See
+     normalizeWeekPlan in storeLogic. */
+  const [weekPlan,      setWeekPlan]      = useState(() => normalizeWeekPlan(boot.weekPlan, recipeById))
   const [favorites,     setFavorites]     = useState(boot.favorites)
   const [groceryChecks, setGroceryChecks] = useState(boot.groceryChecks)
   /* { [what]: detail } — one slot per writer, so a successful write
@@ -90,7 +95,7 @@ export function AppStoreProvider({ children }) {
                                { goals: DEFAULT_GOALS, weekPlan: DEFAULT_WEEK_PLAN })
     setGoalsState(local.goals)
     setMealLog(local.mealLog)
-    setWeekPlan(local.weekPlan)
+    setWeekPlan(normalizeWeekPlan(local.weekPlan, recipeById))
     setFavorites(local.favorites)
     setGroceryChecks(local.groceryChecks)
     setGroceryExcluded(local.groceryExcluded)
@@ -123,7 +128,7 @@ export function AppStoreProvider({ children }) {
 
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
-      setWeekPlan(resolvedPlan)
+      setWeekPlan(normalizeWeekPlan(resolvedPlan, recipeById))
       setFavorites(arrayToSet(resolvedFavs))
       setGroceryChecks(readChecks(resolvedGroc, CHECKS_VERSION))
       setGroceryExcluded(readChecks(resolvedExcl, EXCLUDED_VERSION))

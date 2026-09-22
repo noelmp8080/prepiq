@@ -459,11 +459,11 @@ describe('the store boots from the device, not from the network', () => {
   it('never boots one account into the other account data', () => {
     saveLSRaw(LAST_UID, 'userA')
     saveLSRaw(lsKey('userA', 'weekplan'), PLAN)
-    saveLSRaw(lsKey('userB', 'weekplan'), [{ day: 'Mon', ids: [99, null] }])
+    saveLSRaw(lsKey('userB', 'weekplan'), [{ day: 'Mon', ids: [12, null] }])
 
     const { box, unmount } = mountStore()
     expect(box.store.weekPlan).toEqual(PLAN)
-    expect(box.store.weekPlan).not.toContainEqual({ day: 'Mon', ids: [99, null] })
+    expect(box.store.weekPlan).not.toContainEqual({ day: 'Mon', ids: [12, null] })
     unmount()
   })
 
@@ -482,16 +482,20 @@ describe('the store boots from the device, not from the network', () => {
   /* Booted optimistically into a scope, then auth says nobody — the
      store must re-read rather than keep showing the signed-out user
      somebody else's plan. */
+  /* The anon fixture uses a REAL recipe id. 99 is one of the 124 ids
+     missing from recipes.js, and normalizeWeekPlan nulls a planned id
+     that no longer names a recipe — so the old fixture asserted the
+     normaliser had not run. */
   it('re-reads when auth contradicts the boot', async () => {
     saveLSRaw(LAST_UID, UID)
     saveLSRaw(lsKey(UID, 'weekplan'), PLAN)
-    saveLSRaw(lsKey(null, 'weekplan'), [{ day: 'Mon', ids: [99, null] }])
+    saveLSRaw(lsKey(null, 'weekplan'), [{ day: 'Mon', ids: [12, null] }])
 
     const { box, unmount } = mountStore()
     expect(box.store.weekPlan).toEqual(PLAN)
 
     await act(async () => { await authCallback(null) })
-    expect(box.store.weekPlan).toEqual([{ day: 'Mon', ids: [99, null] }])
+    expect(box.store.weekPlan).toEqual([{ day: 'Mon', ids: [12, null] }])
     unmount()
   })
 })
