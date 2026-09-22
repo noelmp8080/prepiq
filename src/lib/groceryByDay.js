@@ -56,7 +56,7 @@ import { groupBySection, dayKey } from '../store/storeLogic'
  * three sections) and 38 carry more than one. Listed, never summed —
  * see DEVIATIONS §5. The expander renders them; the row does not.
  */
-export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex) {
+export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex, hidden = new Set()) {
   const byCard = catalog.byCard || {}
   const meta = catalog.items || {}
   const day = Array.isArray(weekPlan) ? weekPlan[dayIndex] : undefined
@@ -92,6 +92,11 @@ export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), 
          already have this", which is a fact about the shop and not
          about one recipe. */
       if (excluded.has(dayKey(dayIndex, entry.id))) continue
+
+      /* HIDDEN IS GLOBAL AND DURABLE — "I never need this" — where an
+         exclusion is "I already have this, for this shop". Different
+         reasons, same consequence. See DEVIATIONS §22. */
+      if (hidden.has(String(entry.id))) continue
 
       const info_ = meta[String(entry.id)]
       if (!info_) continue                             // retired id, no longer stocked

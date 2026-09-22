@@ -4,8 +4,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db, cloudEnabled } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
-         readChecks, writeChecks, todayIndex, dayKey, lsKey, adoptAnonKeys,
-         CHECKS_VERSION, EXCLUDED_VERSION, hydrateLocal, lastScope,
+         readChecks, writeChecks, readHidden, writeHidden, todayIndex, dayKey, lsKey, adoptAnonKeys,
+         CHECKS_VERSION, EXCLUDED_VERSION, HIDDEN_VERSION, hydrateLocal, lastScope,
          rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
@@ -55,6 +55,10 @@ export function AppStoreProvider({ children }) {
      an exclusion. Keyed on catalog ids — never on a name, because the
      normaliser has changed on nearly every pass of this work. */
   const [groceryExcluded, setGroceryExcluded] = useState(boot.groceryExcluded)
+  /* DURABLE, GLOBAL, AND NOT THE SAME THING AS EXCLUDED — see
+     HIDDEN_VERSION in storeLogic. "I never need this", one bare item id
+     per entry, surviving START A NEW LIST. */
+  const [groceryHidden, setGroceryHidden] = useState(boot.groceryHidden)
   /* WHICH DAY THE GROCERY LIST IS SHOWING. null means "today", and this
      is the ONLY place that means resolves to an index — buildGroceryItems
      takes a real integer so date handling stays out of the derivation. */
@@ -78,8 +82,8 @@ export function AppStoreProvider({ children }) {
      anywhere — so changing a day's meal changes this on the next render
      with nothing to sync. */
   const groceryRows = useMemo(
-    () => buildGroceryItems(weekPlan, groceryCatalog, groceryExcluded, groceryDay),
-    [weekPlan, groceryExcluded, groceryDay])
+    () => buildGroceryItems(weekPlan, groceryCatalog, groceryExcluded, groceryDay, groceryHidden),
+    [weekPlan, groceryExcluded, groceryDay, groceryHidden])
 
   const groceryUnchecked = useMemo(
     () => groceryRows.reduce(
@@ -99,12 +103,13 @@ export function AppStoreProvider({ children }) {
     setFavorites(local.favorites)
     setGroceryChecks(local.groceryChecks)
     setGroceryExcluded(local.groceryExcluded)
+    setGroceryHidden(local.groceryHidden)
   }
 
   // Load from Firestore
   async function loadFromFirestore(uid, date) {
     try {
-      const [goalsSnap, logSnap, planSnap, favSnap, grocSnap, exclSnap] = await Promise.all([
+      const [goalsSnap, logSnap, planSnap, favSnap, grocSnap, exclSnap, hidSnap] = await Promise.all([
         getDoc(doc(db, 'users', uid, 'profile', 'goals')),
         getDoc(doc(db, 'users', uid, 'logs', date)),
         getDoc(doc(db, 'users', uid, 'weekPlan', 'current')),
@@ -118,6 +123,7 @@ export function AppStoreProvider({ children }) {
       const f = favSnap.exists()   ? favSnap.data().ids    : null
       const c = grocSnap.exists()  ? grocSnap.data()       : null
       const x = exclSnap.exists()  ? exclSnap.data()       : null
+      const h = hidSnap.exists()   ? hidSnap.data()        : null
 
       const resolvedGoals = resolveField(g, () => loadLS(lsKey(uid, 'goals'), DEFAULT_GOALS))
       const resolvedLog   = resolveField(l, () => loadLS(lsKey(uid, `log_${date}`), []))
@@ -125,6 +131,7 @@ export function AppStoreProvider({ children }) {
       const resolvedFavs  = resolveField(f, () => loadLS(lsKey(uid, 'favorites'), []))
       const resolvedGroc  = resolveField(c, () => loadLS(lsKey(uid, 'grocery'), null))
       const resolvedExcl  = resolveField(x, () => loadLS(lsKey(uid, 'grocery_excluded'), null))
+      const resolvedHid   = resolveField(h, () => loadLS(lsKey(uid, 'grocery_hidden'), null))
 
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
@@ -132,6 +139,7 @@ export function AppStoreProvider({ children }) {
       setFavorites(arrayToSet(resolvedFavs))
       setGroceryChecks(readChecks(resolvedGroc, CHECKS_VERSION))
       setGroceryExcluded(readChecks(resolvedExcl, EXCLUDED_VERSION))
+      setGroceryHidden(readHidden(resolvedHid, HIDDEN_VERSION))
     } catch (e) {
       console.error('[loadFromFirestore]', e)
       loadFromLS(uid, date)
@@ -290,6 +298,15 @@ export function AppStoreProvider({ children }) {
     cloudWrite(uid, ['grocery', 'excluded'], doc_, 'cleared items')
   }, [cloudWrite])
 
+  /* Its own document, beside the other two rather than inside either —
+     the whole point of the second set is that nothing which clears a
+     shop can reach it. */
+  const writeHiddenDoc = useCallback((uid, value) => {
+    const doc_ = writeHidden(value, HIDDEN_VERSION)
+    saveLS(lsKey(uid, 'grocery_hidden'), doc_)
+    cloudWrite(uid, ['grocery', 'hidden'], doc_, 'hidden items')
+  }, [cloudWrite])
+
   const dismissSyncErrors = useCallback(() => setSyncErrors({}), [])
 
   /* NO WRITES INSIDE STATE UPDATERS.
@@ -419,9 +436,37 @@ export function AppStoreProvider({ children }) {
     writeGroc(user?.uid, new Set(restored))
   }, [groceryExcluded, user, writeGroc, writeExcluded])
 
+  /* ── HIDING AN ITEM ─────────────────────────────────────────────────
+     "I never need this." Global — one bare item id — so it leaves every
+     day at once, and durable, so it outlives the shop it was said in. */
+  const hideGroceryItem = useCallback((itemId) => {
+    const next = new Set(groceryHidden)
+    next.add(String(itemId))
+    setGroceryHidden(next)
+    writeHiddenDoc(user?.uid, next)
+  }, [groceryHidden, user, writeHiddenDoc])
+
+  const unhideGroceryItem = useCallback((itemId) => {
+    const next = new Set(groceryHidden)
+    next.delete(String(itemId))
+    setGroceryHidden(next)
+    writeHiddenDoc(user?.uid, next)
+  }, [groceryHidden, user, writeHiddenDoc])
+
+  const unhideAllGroceryItems = useCallback(() => {
+    const empty = new Set()
+    setGroceryHidden(empty)
+    writeHiddenDoc(user?.uid, empty)
+  }, [user, writeHiddenDoc])
+
   /* START A NEW LIST. weekPlan carries no week identity — no date, no
      number, no revision — so nothing can reset exclusions automatically.
-     This control is required by the model rather than optional. */
+     This control is required by the model rather than optional.
+
+     IT DOES NOT TOUCH `groceryHidden`, and that is the entire reason
+     hidden is a second store rather than a widening of `excluded`. This
+     button clears a SHOP; "I never need anchovies" is not part of one.
+     A test asserts it by name. */
   const startNewGroceryList = useCallback(() => {
     const empty = new Set()
     setGroceryExcluded(empty); writeExcluded(user?.uid, empty)
@@ -452,6 +497,10 @@ export function AppStoreProvider({ children }) {
     favorites,
     groceryChecks,
     groceryExcluded,
+    groceryHidden,
+    hideGroceryItem,
+    unhideGroceryItem,
+    unhideAllGroceryItems,
     planToday,
     railStored,
     setRailExpanded,

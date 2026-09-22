@@ -137,7 +137,7 @@ export function todayIndex(weekPlan = [], date = new Date()) {
   return i >= 0 ? i : 0
 }
 
-export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex) {
+export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Set(), dayIndex, hidden = new Set()) {
   const byCard = catalog.byCard || {}
   const meta = catalog.items || {}
   const day = Array.isArray(weekPlan) ? weekPlan[dayIndex] : undefined
@@ -151,6 +151,13 @@ export function buildGroceryItems(weekPlan = [], catalog = {}, excluded = new Se
     seenCards.add(rid)
     for (const entry of byCard[String(rid)] || []) {
       if (excluded.has(dayKey(dayIndex, entry.id))) continue
+
+      /* EITHER SET REMOVES THE ITEM. Excluded is "I already have this,
+         for this shop" and is day-scoped; hidden is "I never need this"
+         and is global. Different reasons, same consequence: it is not
+         on the list. See HIDDEN_VERSION and DEVIATIONS §22. */
+      if (hidden.has(String(entry.id))) continue
+
       const info = meta[String(entry.id)]
       if (!info) continue                             // retired id, no longer stocked
       let row = rows.get(entry.id)
@@ -227,6 +234,24 @@ export function groupBySection(rows = [], catalog = {}) {
 export const CHECKS_VERSION = 3
 export const EXCLUDED_VERSION = 3
 
+/* ── HIDDEN IS NOT EXCLUDED ───────────────────────────────────────────
+ *
+ * Two stores, two meanings, and merging them would lose one:
+ *
+ *   EXCLUDED  "I already have this, for this shop."  Day-scoped,
+ *             transient, written by Clear, wiped by START A NEW LIST.
+ *   HIDDEN    "I never need this."  Global per item, durable, written
+ *             one row at a time, and START A NEW LIST does not touch it.
+ *
+ * That last line is the whole reason this is a second set rather than a
+ * widening of the first: a durable statement stored in the transient
+ * set would be erased by a button whose job is to clear the shop.
+ *
+ * VERSION 1, and no bump anywhere else. Nothing existing changes shape,
+ * so no stored exclusion or check is invalidated by this arriving.
+ */
+export const HIDDEN_VERSION = 1
+
 /** `dayIndex:itemId` — the one key both stores use, so clearing
  *  Thursday leaves Friday's list intact.
  *
@@ -261,9 +286,34 @@ export function isDayKey(k) {
   return parts.length === 2 && parts.every(isCanonicalInt)
 }
 
-export function readChecks(doc, version) {
+/** A HIDDEN key: one bare item id, no day.
+ *
+ *  Same canonical-integer rule as above, and one part rather than two —
+ *  which is also what keeps the two stores from ever reading each
+ *  other's keys. A `dayIndex:itemId` fails this; a bare id fails
+ *  `isDayKey`. They cannot be confused by accident. */
+export function isItemKey(k) {
+  return typeof k === 'string' && isCanonicalInt(k)
+}
+
+/* ONE BODY, TWO KEY LANGUAGES. Checks and exclusions speak
+   `dayIndex:itemId`; the hidden set speaks a bare item id. The shape is
+   the only difference, so the validator is the parameter and everything
+   else — the version gate first, the filter on both sides — is shared.
+   Two copies of this is how a reader and a writer drift apart, which is
+   the bug `isDayKey` was written to close. */
+function readKeyed(doc, version, valid) {
   if (!doc || doc.version !== version) return new Set()
-  return new Set((doc.keys || []).filter(isDayKey))
+  return new Set((doc.keys || []).filter(valid))
+}
+
+export function readChecks(doc, version) {
+  return readKeyed(doc, version, isDayKey)
+}
+
+/** The HIDDEN set — bare item ids, no day. See HIDDEN_VERSION. */
+export function readHidden(doc, version) {
+  return readKeyed(doc, version, isItemKey)
 }
 
 /* NO SORT. It used to end `.sort((a, b) => a - b)`, which on strings
@@ -272,6 +322,10 @@ export function readChecks(doc, version) {
    so dropping it is the honest version. */
 export function writeChecks(keys, version) {
   return { version, keys: [...keys].filter(isDayKey) }
+}
+
+export function writeHidden(keys, version) {
+  return { version, keys: [...keys].filter(isItemKey) }
 }
 
 /* ── WHOSE DATA IS THIS? ──────────────────────────────────────────────
@@ -311,7 +365,10 @@ export const lsKey = (uid, name) => `prepiq_${scopeOf(uid)}_${name}`
  * one shop on one day, keyed by a day index that means nothing across a
  * sign-in boundary. The same reason both are reset rather than migrated.
  */
-export const ADOPTABLE = ['goals', 'weekplan', 'favorites']
+/* grocery_hidden IS adopted, unlike the other two grocery keys:
+   "I never need anchovies" is a preference about the person, not state
+   about one shop on one day, so it should survive signing in. */
+export const ADOPTABLE = ['goals', 'weekplan', 'favorites', 'grocery_hidden']
 export const NEVER_ADOPTED = ['grocery', 'grocery_excluded']
 export const adoptedMarker = uid => `prepiq_anon_adopted_${uid}`
 
@@ -375,6 +432,7 @@ export function hydrateLocal(uid, date, defaults = {}) {
     favorites:       arrayToSet(loadLS(lsKey(uid, 'favorites'), [])),
     groceryChecks:   readChecks(loadLS(lsKey(uid, 'grocery'), null), CHECKS_VERSION),
     groceryExcluded: readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION),
+    groceryHidden:   readHidden(loadLS(lsKey(uid, 'grocery_hidden'), null), HIDDEN_VERSION),
   }
 }
 

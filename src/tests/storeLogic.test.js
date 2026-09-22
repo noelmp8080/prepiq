@@ -4,6 +4,8 @@ import {
   lsKey, scopeOf, ANON, adoptAnonKeys, adoptedMarker, ADOPTABLE, NEVER_ADOPTED,
   planVsLog, sumMacros, pct,
   normalizeWeekPlan, danglingPlanIds, buildGroceryItems,
+  isItemKey, isDayKey, readHidden, writeHidden, writeChecks,
+  HIDDEN_VERSION, EXCLUDED_VERSION, dayKey,
 } from '../store/storeLogic'
 import { recipeById } from '../data/recipes'
 import { groupsForDay } from '../lib/groceryByDay'
@@ -624,5 +626,153 @@ describe('a normalised plan is invisible to every reader', () => {
     expect(planVsLog(clean[0].ids, []).planned.map(r => r.recipeId)).not.toContain(GHOST)
     /* And the real meal survives the clean. */
     expect(planVsLog(clean[0].ids, []).planned.map(r => r.recipeId)).toEqual([1])
+  })
+})
+
+/* ── HIDDEN IS NOT EXCLUDED ───────────────────────────────────────────
+ *
+ * Two stores that both take an item off the list, for different reasons
+ * and with different lifetimes:
+ *
+ *   excluded  "I already have this, for this shop."  day-scoped,
+ *             transient, wiped by START A NEW LIST.
+ *   hidden    "I never need this."  global, durable, untouched by it.
+ *
+ * These assert the difference, because the cost of merging them is
+ * silent: a durable statement stored in the transient set is erased by
+ * a button whose job is to clear a shop.
+ */
+describe('isItemKey — the hidden key language', () => {
+  it('accepts a bare canonical integer', () => {
+    expect(isItemKey('13')).toBe(true)
+    expect(isItemKey('0')).toBe(true)
+  })
+
+  /* The two languages cannot be confused for each other, in either
+     direction. That is what stops one store reading the other's keys. */
+  it('rejects a day key, and isDayKey rejects an item key', () => {
+    expect(isItemKey('1:13')).toBe(false)
+    expect(isDayKey('13')).toBe(false)
+  })
+
+  it.each([[' 13'], ['13.0'], ['013'], ['1e3'], [''], ['abc'], [null], [13]])(
+    'rejects %p, which this app never wrote', (k) => {
+      expect(isItemKey(k)).toBe(false)
+    })
+})
+
+describe('readHidden / writeHidden', () => {
+  it('round-trips a set of bare ids', () => {
+    const doc = writeHidden(new Set(['13', '7']), HIDDEN_VERSION)
+    expect(doc.version).toBe(HIDDEN_VERSION)
+    expect(readHidden(doc, HIDDEN_VERSION)).toEqual(new Set(['13', '7']))
+  })
+
+  it('drops anything that is not an item key, on both sides', () => {
+    expect(writeHidden(new Set(['13', '1:13', '', 'x']), HIDDEN_VERSION).keys)
+      .toEqual(['13'])
+    expect(readHidden({ version: HIDDEN_VERSION, keys: ['13', '1:13', 'x'] }, HIDDEN_VERSION))
+      .toEqual(new Set(['13']))
+  })
+
+  it('returns empty for a document of another version', () => {
+    const doc = writeHidden(new Set(['13']), HIDDEN_VERSION)
+    expect(readHidden(doc, HIDDEN_VERSION + 1)).toEqual(new Set())
+  })
+
+  it('returns empty for no document at all', () => {
+    expect(readHidden(null, HIDDEN_VERSION)).toEqual(new Set())
+    expect(readHidden(undefined, HIDDEN_VERSION)).toEqual(new Set())
+  })
+
+  /* A check or exclusion document read as hidden yields nothing, rather
+     than half-reading day keys as item ids. */
+  it('cannot read the excluded store by accident', () => {
+    const excl = writeChecks(new Set(['1:13', '2:13']), EXCLUDED_VERSION)
+    expect(readHidden({ ...excl, version: HIDDEN_VERSION }, HIDDEN_VERSION))
+      .toEqual(new Set())
+  })
+})
+
+describe('hidden removes an item from both derivations', () => {
+  const PLAN = [{ day: 'Mon', ids: [1, 2] }, { day: 'Tue', ids: [1, null] }]
+  const NONE = new Set()
+  const idOf = name => Number(Object.entries(catalog.items)
+    .find(([, v]) => v.name === name)[0])
+
+  /* An item that recipe 1 actually asks for, so the assertions are not
+     about an id that was never there. */
+  const victim = buildGroceryItems(PLAN, catalog, NONE, 0)[0].id
+
+  it('has something to hide — the rest is vacuous otherwise', () => {
+    expect(victim).toBeTruthy()
+    expect(idOf).toBeTruthy()
+  })
+
+  it('leaves buildGroceryItems', () => {
+    const before = buildGroceryItems(PLAN, catalog, NONE, 0).map(r => r.id)
+    const after = buildGroceryItems(PLAN, catalog, NONE, 0, new Set([String(victim)]))
+      .map(r => r.id)
+    expect(before).toContain(victim)
+    expect(after).not.toContain(victim)
+    expect(after.length).toBe(before.length - 1)
+  })
+
+  it('leaves groupsForDay', () => {
+    const after = groupsForDay(PLAN, catalog, NONE, 0, new Set([String(victim)]))
+    expect(after.flatMap(g => g.items.map(i => i.itemId))).not.toContain(victim)
+  })
+
+  /* GLOBAL, NOT DAY-SCOPED. Hiding it on Monday hides it on Tuesday,
+     which is the difference from an exclusion. */
+  it('is gone from EVERY day, not just the one it was hidden from', () => {
+    const hidden = new Set([String(victim)])
+    for (let d = 0; d < PLAN.length; d++) {
+      expect(buildGroceryItems(PLAN, catalog, NONE, d, hidden).map(r => r.id))
+        .not.toContain(victim)
+      expect(groupsForDay(PLAN, catalog, NONE, d, hidden)
+        .flatMap(g => g.items.map(i => i.itemId))).not.toContain(victim)
+    }
+  })
+
+  /* An exclusion, by contrast, only touches its own day. */
+  it('unlike an exclusion, which stays on its day', () => {
+    const excl = new Set([dayKey(0, victim)])
+    expect(buildGroceryItems(PLAN, catalog, excl, 0).map(r => r.id)).not.toContain(victim)
+    expect(buildGroceryItems(PLAN, catalog, excl, 1).map(r => r.id)).toContain(victim)
+  })
+
+  /* AN ITEM IN BOTH SETS LEAVES ONCE. The row is already gone; hiding
+     it as well must not change any count. */
+  it('does not double-count an item that is already excluded', () => {
+    const excl = new Set([dayKey(0, victim)])
+    const both = buildGroceryItems(PLAN, catalog, excl, 0, new Set([String(victim)]))
+    const exclOnly = buildGroceryItems(PLAN, catalog, excl, 0)
+    expect(both.map(r => r.id)).toEqual(exclOnly.map(r => r.id))
+  })
+
+  it('defaults to hiding nothing when the set is not passed', () => {
+    expect(buildGroceryItems(PLAN, catalog, NONE, 0).length)
+      .toBe(buildGroceryItems(PLAN, catalog, NONE, 0, new Set()).length)
+  })
+
+  /* The phase 1 parity still holds with BOTH sets applied. */
+  it('keeps the two views agreeing, with exclusions and hidden together', () => {
+    const excl = new Set([dayKey(0, buildGroceryItems(PLAN, catalog, NONE, 0)[1].id)])
+    const hid = new Set([String(victim)])
+    const flat = new Set(buildGroceryItems(PLAN, catalog, excl, 0, hid).map(r => r.id))
+    const grouped = new Set(groupsForDay(PLAN, catalog, excl, 0, hid)
+      .flatMap(g => g.items.map(i => i.itemId)))
+    expect([...grouped].sort((a, b) => a - b)).toEqual([...flat].sort((a, b) => a - b))
+  })
+})
+
+describe('hidden is adopted at sign-in, unlike the other two grocery keys', () => {
+  /* "I never need anchovies" is a preference about the person, not
+     state about one shop on one day. */
+  it('is in ADOPTABLE and not in NEVER_ADOPTED', () => {
+    expect(ADOPTABLE).toContain('grocery_hidden')
+    expect(NEVER_ADOPTED).not.toContain('grocery_hidden')
+    expect(NEVER_ADOPTED).toEqual(['grocery', 'grocery_excluded'])
   })
 })

@@ -406,6 +406,87 @@ describe('Clear removes items, and they stay removed', () => {
     expect(JSON.parse(localStorage.getItem(lsKey(null, 'grocery'))).keys).toEqual([])
     unmount()
   })
+
+  /* ── THE WHOLE REASON HIDDEN IS A SECOND STORE ──────────────────────
+     START A NEW LIST clears a SHOP. "I never need this" is not part of
+     one, so it must survive — and if hidden had been folded into
+     `excluded` it would not. Asserted by name because the cost of
+     getting it wrong is silent: the row simply comes back, weeks later,
+     with nothing to say why. */
+  it('Start a new list does NOT touch the hidden set', async () => {
+    const { box, unmount } = await anonStore()
+    const [a, b] = derive(new Set())
+
+    await act(async () => { box.store.hideGroceryItem(a.id) })
+    await act(async () => { box.store.toggleGroceryItem(b.id) })
+    await act(async () => { box.store.clearGrocery() })
+
+    expect(box.store.groceryHidden).toEqual(new Set([String(a.id)]))
+    expect(box.store.groceryExcluded.size).toBe(1)
+
+    await act(async () => { box.store.startNewGroceryList() })
+
+    /* The shop is cleared… */
+    expect(box.store.groceryExcluded).toEqual(new Set())
+    expect(box.store.groceryChecks).toEqual(new Set())
+    /* …and the hidden item is still hidden, in state and on disk. */
+    expect(box.store.groceryHidden).toEqual(new Set([String(a.id)]))
+    expect(JSON.parse(localStorage.getItem(lsKey(null, 'grocery_hidden'))).keys)
+      .toEqual([String(a.id)])
+    /* and it is still off the list */
+    expect(box.store.groceryRows.map(r => r.id)).not.toContain(a.id)
+    unmount()
+  })
+
+  it('hides globally: the item is gone from every day', async () => {
+    const { box, unmount } = await anonStore()
+    const [a] = derive(new Set())
+    await act(async () => { box.store.hideGroceryItem(a.id) })
+
+    for (let d = 0; d < 7; d++) {
+      await act(async () => { box.store.setGroceryDay(d) })
+      expect(box.store.groceryRows.map(r => r.id)).not.toContain(a.id)
+    }
+    unmount()
+  })
+
+  it('restores a hidden item, and it comes back on the list', async () => {
+    const { box, unmount } = await anonStore()
+    const [a] = derive(new Set())
+    await act(async () => { box.store.hideGroceryItem(a.id) })
+    expect(box.store.groceryRows.map(r => r.id)).not.toContain(a.id)
+
+    await act(async () => { box.store.unhideGroceryItem(a.id) })
+    expect(box.store.groceryHidden).toEqual(new Set())
+    expect(box.store.groceryRows.map(r => r.id)).toContain(a.id)
+    unmount()
+  })
+
+  it('shows everything again in one go', async () => {
+    const { box, unmount } = await anonStore()
+    const [a, b] = derive(new Set())
+    await act(async () => { box.store.hideGroceryItem(a.id) })
+    await act(async () => { box.store.hideGroceryItem(b.id) })
+    expect(box.store.groceryHidden.size).toBe(2)
+
+    await act(async () => { box.store.unhideAllGroceryItems() })
+    expect(box.store.groceryHidden).toEqual(new Set())
+    expect(JSON.parse(localStorage.getItem(lsKey(null, 'grocery_hidden'))).keys).toEqual([])
+    unmount()
+  })
+
+  /* Hidden survives a reload: it is read back from disk on boot. */
+  it('stays hidden across a remount', async () => {
+    const first = await anonStore()
+    const [a] = derive(new Set())
+    await act(async () => { first.box.store.hideGroceryItem(a.id) })
+    first.unmount()
+
+    const second = await anonStore()
+    expect(second.box.store.groceryHidden).toEqual(new Set([String(a.id)]))
+    expect(second.box.store.groceryRows.map(r => r.id)).not.toContain(a.id)
+    second.unmount()
+  })
 })
 
 /* ── LOCAL FIRST ──────────────────────────────────────────────────────
