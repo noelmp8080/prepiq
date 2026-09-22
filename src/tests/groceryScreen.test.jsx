@@ -405,3 +405,50 @@ describe('offline', () => {
     expect(rows().length).toBeGreaterThan(10)
   })
 })
+
+/* ── THE AISLES PILL IS NOT A DAY ─────────────────────────────────────
+ * On phone the seven day pills are single letters — M T W T F S S — so
+ * a letter in the eighth slot scans as an eighth day. It carries an
+ * icon instead, at the same width. */
+describe('the AISLES pill', () => {
+  it('shows no letter on phone, so it cannot read as a day', async () => {
+    await mount()
+    const pill = aislesPill()
+    expect(pill.textContent.trim()).toBe('')
+    expect(pill.querySelector('svg')).toBeTruthy()
+  })
+
+  it('spells it out where there is room', async () => {
+    await mount()
+    /* Remount wide: the same control, with a label instead. */
+    act(() => root.unmount()); host.remove(); root = null
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    await act(async () => {
+      root.render(<AppStoreProvider><Grocery surface="desktop" /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    expect(aislesPill().textContent).toContain('AISLES')
+    expect(aislesPill().querySelector('svg')).toBeFalsy()
+  })
+
+  it('is the same width as a day pill', async () => {
+    await mount()
+    const day = chips()[0]
+    expect(aislesPill().style.flex).toBe(day.style.flex)
+    expect(aislesPill().querySelector('span').style.minHeight)
+      .toBe(day.querySelector('span').style.minHeight)
+  })
+
+  it('says what it is to a screen reader', async () => {
+    await mount()
+    expect(aislesPill().getAttribute('aria-label')).toMatch(/^Aisles/)
+  })
+
+  it('is eight pills in the row, not seven', async () => {
+    await mount()
+    expect(header().querySelectorAll('[data-day-pill]')).toHaveLength(8)
+    expect(chips()).toHaveLength(7)
+  })
+})

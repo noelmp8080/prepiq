@@ -309,7 +309,26 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
               letterSpacing: 'var(--pq-track-chip)',
             }}>
-              {wide ? 'AISLES' : 'A'}
+              {/* A LETTER WOULD READ AS A DAY. On phone the seven day
+                  pills are single letters — M T W T F S S — so an "A"
+                  in the eighth slot scans as an eighth day rather than
+                  as a different kind of control. An icon cannot be
+                  mistaken for one. The pill keeps flex: 1, so the row
+                  is still eight equal widths.
+
+                  A list, not a cart: what it switches to is the same
+                  day's items in store order, and a cart would suggest
+                  something to do with buying rather than with sorting. */}
+              {wide ? 'AISLES' : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  aria-hidden="true" stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 6h12" /><path d="M8 12h12" /><path d="M8 18h12" />
+                  <path d="M3.5 6h.01" /><path d="M3.5 12h.01" /><path d="M3.5 18h.01" />
+                </svg>
+              )}
+              {/* Holds the same vertical space the day pills' meal dot
+                  does, so all eight pills are one height. */}
               <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>{' '}</span>
             </span>
           </button>
