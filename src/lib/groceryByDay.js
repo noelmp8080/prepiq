@@ -83,6 +83,10 @@ export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), 
   const groups = []
   for (const [key, info] of planned) {
     const rows = new Map()
+    /* COLLECTED, NOT JUST SKIPPED. A hidden ingredient silently missing
+       from a recipe is the failure this feature creates, so each group
+       keeps its own list of them and the screen can say so in place. */
+    const hiddenHere = new Map()
 
     for (const entry of byCard[key] || []) {
       /* Exclusions are keyed `dayIndex:itemId`, day-wide and not
@@ -93,13 +97,19 @@ export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), 
          about one recipe. */
       if (excluded.has(dayKey(dayIndex, entry.id))) continue
 
-      /* HIDDEN IS GLOBAL AND DURABLE — "I never need this" — where an
-         exclusion is "I already have this, for this shop". Different
-         reasons, same consequence. See DEVIATIONS §22. */
-      if (hidden.has(String(entry.id))) continue
-
       const info_ = meta[String(entry.id)]
       if (!info_) continue                             // retired id, no longer stocked
+
+      /* HIDDEN IS GLOBAL AND DURABLE — "I never need this" — where an
+         exclusion is "I already have this, for this shop". Different
+         reasons, same consequence: no row. Recorded against the group
+         it would have appeared in, so the note can be per-recipe and
+         per-day rather than only a number in the header.
+         See DEVIATIONS §22. */
+      if (hidden.has(String(entry.id))) {
+        hiddenHere.set(entry.id, { itemId: entry.id, name: info_.name })
+        continue
+      }
 
       /* Deduped WITHIN the recipe only. The catalog carries no repeated
          item id inside one card today, so this is a guard rather than a
@@ -130,6 +140,10 @@ export function groupsForDay(weekPlan = [], catalog = {}, excluded = new Set(), 
       items: ordered.map(r => ({
         itemId: r.id, name: r.name, quantity: r.qty, section: r.section,
       })),
+      /* This recipe's hidden ingredients, in catalog order for
+         stability. Empty for a group with none, which is what the note
+         checks before rendering. */
+      hiddenItems: [...hiddenHere.values()].sort((a, b) => a.itemId - b.itemId),
     })
   }
 
@@ -150,4 +164,26 @@ export function groupEyebrow(group) {
     group.timesPlanned > 1 ? `×${group.timesPlanned}` : null,
     `${n} ITEM${n === 1 ? '' : 'S'}`,
   ].filter(Boolean).join(' · ')
+}
+
+/** The hidden set, as named rows for the restore sheet.
+ *
+ *  GLOBAL, so it is not scoped to a day or a plan — "I never need this"
+ *  is about the item, and the sheet that undoes it has to list every
+ *  one of them, including ones no planned recipe currently asks for.
+ *
+ *  An id the catalog no longer knows is dropped rather than shown as a
+ *  blank row: it cannot appear on the list either, so there is nothing
+ *  to restore it to. Sorted by name, because this is read rather than
+ *  walked.
+ */
+export function hiddenItemsNamed(hidden = new Set(), catalog = {}) {
+  const meta = catalog.items || {}
+  const out = []
+  for (const key of hidden) {
+    const info = meta[String(key)]
+    if (!info) continue
+    out.push({ itemId: Number(key), name: info.name })
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name))
 }

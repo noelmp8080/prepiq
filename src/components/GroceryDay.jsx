@@ -51,14 +51,24 @@ const LAYOUT = {
    See DEVIATIONS §21. */
 export default function GroceryDay({
   weekPlan, dayIndex, excluded, surface = 'phone',
-  isChecked, onToggle, onChange,
+  isChecked, onToggle, onHide, hidden = new Set(), onChange,
 }) {
   const L = LAYOUT[surface] || LAYOUT.phone
   const phone = surface === 'phone'
 
-  const groups = useMemo(
-    () => groupsForDay(weekPlan, catalog, excluded, dayIndex),
-    [weekPlan, excluded, dayIndex])
+  /* A GROUP WITH NOTHING LEFT DOES NOT RENDER. Every one of its
+     ingredients being hidden or cleared leaves a recipe photo and a
+     title over nothing, which reads as a bug; block D's rule for an
+     empty day is the dashed block, not a header with empty sections,
+     and this is the same rule one level down.
+
+     The group is still BUILT, so its hiddenItems are counted in the
+     header total — hiding every ingredient of a recipe must not make
+     the way back disappear with it. */
+  const allGroups = useMemo(
+    () => groupsForDay(weekPlan, catalog, excluded, dayIndex, hidden),
+    [weekPlan, excluded, dayIndex, hidden])
+  const groups = useMemo(() => allGroups.filter(g => g.items.length > 0), [allGroups])
 
   /* An open expander belongs to ONE ROW, so it is keyed by row, not by
      item: opening "chicken breast" under one recipe must not open it
@@ -173,7 +183,7 @@ export default function GroceryDay({
                   onToggleOpen={() => setOpenKey(isOpen ? null : key)}
                   expanderLabel={`${item.name} for ${recipe?.name || 'this meal'}`}
                 >
-                  <GroceryRowPanel>
+                  <GroceryRowPanel onHide={() => onHide(item.itemId)}>
                     <p style={{
                       margin: '0 0 6px', fontSize: 'var(--pq-size-body)', fontWeight: 600,
                       color: 'var(--pq-text)', wordBreak: 'break-word',

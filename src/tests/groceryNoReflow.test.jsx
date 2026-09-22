@@ -90,6 +90,8 @@ vi.mock('firebase/auth', () => ({
 const { AppStoreProvider, useAppStore } = await import('../store/useAppStore')
 const { default: Grocery } = await import('../components/Grocery')
 const { lsKey } = await import('../store/storeLogic')
+const { groupsForDay } = await import('../lib/groceryByDay')
+const { default: catalog } = await import('../data/groceryCatalog.json')
 
 const TOKENS = readFileSync('src/tokens.css', 'utf8')
 
@@ -999,5 +1001,298 @@ describe('NOTHING MOVES ON TAP — with an amount on the row', () => {
   it('leaves the name at 18px', () => {
     expect(rowWithAmount().querySelector('[data-row-name]').style.fontSize)
       .toBe('var(--pq-size-grocery)')
+  })
+})
+
+/* ── HIDING A ROW, AND GETTING IT BACK ────────────────────────────────
+ *
+ * "I don't need this" removes an item with nothing left on the list to
+ * say so, in either view and on every day. That is what the user asked
+ * for and it is also the failure mode the feature creates, so the way
+ * back is tested as hard as the way in.
+ *
+ * Its own root because it switches views, and PinDay renders null the
+ * moment the day leaves its pin.
+ */
+describe('hiding an item', () => {
+  let hHost, hRoot, hBox
+
+  async function mountBoth() {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    hHost = document.createElement('div')
+    document.body.appendChild(hHost)
+    hRoot = createRoot(hHost)
+    hBox = {}
+    function Probe() { hBox.store = useAppStore(); return null }
+    await act(async () => {
+      hRoot.render(
+        <AppStoreProvider><Probe /><Grocery /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    await act(async () => { hBox.store.setGroceryDay(PIN_DAY) })
+  }
+  afterEach(() => { if (hRoot) act(() => hRoot.unmount()); hHost?.remove(); hRoot = null })
+
+  const listOf = () => hHost.querySelector('[data-grocery-list]')
+  const rowsIn = () => [...listOf().querySelectorAll('button[aria-pressed]')]
+  const nameOf = r => r.querySelector('[data-row-name]').textContent
+  const names = () => rowsIn().map(nameOf)
+  const toAisles = async () => {
+    await act(async () => { hHost.querySelector('[data-aisles-pill]').click() })
+  }
+  /* Open the expander on the row with this name and press its hide. */
+  async function hideRowNamed(name) {
+    const i = rowsIn().findIndex(r => nameOf(r) === name)
+    expect(i, `no row named ${name}`).toBeGreaterThanOrEqual(0)
+    const exp = [...listOf().querySelectorAll('button[aria-expanded]')]
+      .filter(b => (b.getAttribute('aria-label') || '').includes(name))
+    await act(async () => { exp[0].click() })
+    const btn = listOf().querySelector('[data-hide-item]')
+    expect(btn, 'no hide control in the expander').toBeTruthy()
+    await act(async () => { btn.click() })
+  }
+
+  it('offers the control in the expander of the day view', async () => {
+    await mountBoth()
+    expect(listOf().querySelector('[data-hide-item]')).toBeFalsy()   // shut
+    await act(async () => {
+      listOf().querySelectorAll('button[aria-expanded]')[0].click()
+    })
+    const btn = listOf().querySelector('[data-hide-item]')
+    expect(btn).toBeTruthy()
+    expect(btn.textContent).toMatch(/need this/i)
+    /* NEVER the word "excluded": the other set on this screen is a
+       different thing and the two must not read as one. */
+    expect(btn.textContent.toLowerCase()).not.toContain('exclude')
+  })
+
+  it('offers the same control in the aisle view', async () => {
+    await mountBoth()
+    await toAisles()
+    await act(async () => {
+      listOf().querySelectorAll('button[aria-expanded]')[1].click()
+    })
+    expect(listOf().querySelector('[data-hide-item]')).toBeTruthy()
+  })
+
+  it('removes the item from the day view, not dims it', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideRowNamed(victim)
+    expect(names()).not.toContain(victim)
+  })
+
+  it('removes it from the aisle view too', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideRowNamed(victim)
+    await toAisles()
+    expect(names()).not.toContain(victim)
+  })
+
+  it('drops N LEFT by one', async () => {
+    await mountBoth()
+    const before = Number(/(\d+) left/.exec(hHost.textContent)[1])
+    await hideRowNamed(names()[0])
+    const after = Number(/(\d+) left/.exec(hHost.textContent)[1])
+    expect(after).toBe(before - 1)
+  })
+
+  it('is gone from every day, not only the one it was hidden from', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideRowNamed(victim)
+    for (let d = 0; d < FIXED_PLAN.length; d++) {
+      await act(async () => { hBox.store.setGroceryDay(d) })
+      expect(names(), `day ${d}`).not.toContain(victim)
+    }
+  })
+
+  it('survives a reload', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideRowNamed(victim)
+
+    act(() => hRoot.unmount()); hHost.remove(); hRoot = null
+    hHost = document.createElement('div')
+    document.body.appendChild(hHost)
+    hRoot = createRoot(hHost)
+    hBox = {}
+    function Probe() { hBox.store = useAppStore(); return null }
+    await act(async () => {
+      hRoot.render(<AppStoreProvider><Probe /><Grocery /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    await act(async () => { hBox.store.setGroceryDay(PIN_DAY) })
+    expect(names()).not.toContain(victim)
+  })
+})
+
+describe('getting a hidden item back', () => {
+  let hHost, hRoot, hBox
+
+  async function mountBoth() {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    hHost = document.createElement('div')
+    document.body.appendChild(hHost)
+    hRoot = createRoot(hHost)
+    hBox = {}
+    function Probe() { hBox.store = useAppStore(); return null }
+    await act(async () => {
+      hRoot.render(<AppStoreProvider><Probe /><Grocery /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    await act(async () => { hBox.store.setGroceryDay(PIN_DAY) })
+  }
+  afterEach(() => { if (hRoot) act(() => hRoot.unmount()); hHost?.remove(); hRoot = null })
+
+  const listOf = () => hHost.querySelector('[data-grocery-list]')
+  const rowsIn = () => [...listOf().querySelectorAll('button[aria-pressed]')]
+  const nameOf = r => r.querySelector('[data-row-name]').textContent
+  const names = () => rowsIn().map(nameOf)
+  const headerCount = () => hHost.querySelector('[data-hidden-count]')
+  const sheetRows = () => [...document.querySelectorAll('[data-hidden-row]')]
+
+  async function hideByStore(name) {
+    const row = rowsIn().find(r => nameOf(r) === name)
+    const id = hBox.store.groceryRows.find(r => r.name === name).id
+    expect(row).toBeTruthy()
+    await act(async () => { hBox.store.hideGroceryItem(id) })
+  }
+
+  it('shows no count until something is hidden', async () => {
+    await mountBoth()
+    expect(headerCount()).toBeFalsy()
+  })
+
+  it('shows the count once something is', async () => {
+    await mountBoth()
+    await hideByStore(names()[0])
+    expect(headerCount()).toBeTruthy()
+    expect(headerCount().textContent).toBe('1 hidden')
+  })
+
+  it('counts up, and says hidden rather than excluded', async () => {
+    await mountBoth()
+    const [a, b] = names()
+    await hideByStore(a)
+    await hideByStore(b)
+    expect(headerCount().textContent).toBe('2 hidden')
+    expect(hHost.textContent.toLowerCase()).not.toContain('excluded')
+  })
+
+  it('opens a sheet listing them by name', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideByStore(victim)
+    await act(async () => { headerCount().click() })
+    expect(sheetRows()).toHaveLength(1)
+    expect(sheetRows()[0].textContent).toContain(victim)
+  })
+
+  it('restores one, and it returns to BOTH views', async () => {
+    await mountBoth()
+    const victim = names()[0]
+    await hideByStore(victim)
+    expect(names()).not.toContain(victim)
+
+    await act(async () => { headerCount().click() })
+    const restore = sheetRows()[0].querySelector('button')
+    await act(async () => { restore.click() })
+
+    expect(names()).toContain(victim)
+    await act(async () => { hHost.querySelector('[data-aisles-pill]').click() })
+    expect(names()).toContain(victim)
+    expect(headerCount()).toBeFalsy()
+  })
+
+  it('shows all again in one press', async () => {
+    await mountBoth()
+    const [a, b] = names()
+    await hideByStore(a)
+    await hideByStore(b)
+    await act(async () => { headerCount().click() })
+
+    const all = [...document.querySelectorAll('button')]
+      .find(x => x.textContent === 'SHOW ALL AGAIN')
+    expect(all).toBeTruthy()
+    await act(async () => { all.click() })
+
+    expect(hBox.store.groceryHidden).toEqual(new Set())
+    expect(names()).toContain(a)
+    expect(names()).toContain(b)
+  })
+
+  /* One item is not a list to bulk-restore; the per-row action is right
+     there. */
+  it('offers no show-all for a single hidden item', async () => {
+    await mountBoth()
+    await hideByStore(names()[0])
+    await act(async () => { headerCount().click() })
+    expect([...document.querySelectorAll('button')]
+      .find(x => x.textContent === 'SHOW ALL AGAIN')).toBeFalsy()
+  })
+})
+
+/* ── A GROUP WITH NOTHING LEFT ────────────────────────────────────────
+ * A recipe photo and a title over no rows reads as a bug. */
+describe('a group whose every item is hidden', () => {
+  let gHost, gRoot, gBox
+
+  async function mountDayOnly() {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    gHost = document.createElement('div')
+    document.body.appendChild(gHost)
+    gRoot = createRoot(gHost)
+    gBox = {}
+    function Probe() { gBox.store = useAppStore(); return null }
+    await act(async () => {
+      gRoot.render(<AppStoreProvider><Probe /><Grocery /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    await act(async () => { gBox.store.setGroceryDay(PIN_DAY) })
+  }
+  afterEach(() => { if (gRoot) act(() => gRoot.unmount()); gHost?.remove(); gRoot = null })
+
+  it('does not render, and the other group still does', async () => {
+    await mountDayOnly()
+    const headings = () => [...gHost.querySelectorAll('[data-grocery-list] h3')]
+      .map(h => h.textContent)
+    expect(headings()).toHaveLength(2)
+    const doomed = headings()[0]
+
+    /* Hide every ingredient of the FIRST recipe. */
+    const first = groupsForDay(FIXED_PLAN, catalog, new Set(), PIN_DAY)[0]
+    /* ONE ACT PER HIDE. The mutators derive the next value from
+       state captured at render, so two calls in one tick both start
+       from the same snapshot — documented in DEVIATIONS as a latent
+       that the UI cannot reach, because two taps are two renders. This
+       loop is the UI, so it renders between them. */
+    for (const i of first.items) {
+      await act(async () => { gBox.store.hideGroceryItem(i.itemId) })
+    }
+
+    expect(headings()).not.toContain(doomed)
+    expect(headings()).toHaveLength(1)
+  })
+
+  /* The way back must not vanish with it. */
+  it('still counts its items in the header', async () => {
+    await mountDayOnly()
+    const first = groupsForDay(FIXED_PLAN, catalog, new Set(), PIN_DAY)[0]
+    /* ONE ACT PER HIDE. The mutators derive the next value from
+       state captured at render, so two calls in one tick both start
+       from the same snapshot — documented in DEVIATIONS as a latent
+       that the UI cannot reach, because two taps are two renders. This
+       loop is the UI, so it renders between them. */
+    for (const i of first.items) {
+      await act(async () => { gBox.store.hideGroceryItem(i.itemId) })
+    }
+    const count = gHost.querySelector('[data-hidden-count]')
+    expect(count).toBeTruthy()
+    expect(Number(/(\d+)/.exec(count.textContent)[1])).toBeGreaterThanOrEqual(1)
   })
 })

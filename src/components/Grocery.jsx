@@ -3,9 +3,11 @@ import { EmptyBlock } from './Card'
 import SyncErrorBanner from './SyncErrorBanner'
 import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import GroceryDay from './GroceryDay'
+import HiddenSheet from './HiddenSheet'
 import { useAppStore } from '../store/useAppStore'
 import { groupBySection, dayKey } from '../store/storeLogic'
 import { amountFor } from '../lib/groceryAmount'
+import { hiddenItemsNamed } from '../lib/groceryByDay'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -92,6 +94,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
     weekPlan, planToday, groceryRows: rows, groceryChecks, groceryExcluded, groceryDay,
     groceryDayIsToday, setGroceryDay, toggleGroceryItem,
     clearGrocery, undoClear, startNewGroceryList,
+    groceryHidden, hideGroceryItem, unhideGroceryItem, unhideAllGroceryItems,
   } = useAppStore()
 
   const [openRow, setOpenRow] = useState(null)
@@ -100,9 +103,13 @@ export default function Grocery({ onChange, surface = 'phone' }) {
      want shut is about how you shop, not about which day it is. */
   const [collapsed, setCollapsed] = useState(() => new Set(catalog.collapsedByDefault))
   const [undo, setUndo] = useState(null)
+  /* null when shut. Otherwise the list the sheet is showing — the whole
+     hidden set from the header, or one group's from its note. */
+  const [hiddenSheet, setHiddenSheet] = useState(null)
   const scrollPin = useRef(null)
 
   const sections = useMemo(() => groupBySection(rows, catalog), [rows])
+  const hiddenNamed = useMemo(() => hiddenItemsNamed(groceryHidden, catalog), [groceryHidden])
 
   const isChecked = id => groceryChecks.has(dayKey(groceryDay, id))
   const done = rows.filter(r => isChecked(r.id)).length
@@ -205,6 +212,25 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               ...MONO, fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-2)',
               letterSpacing: 'var(--pq-track-label)', marginTop: 3,
             }}>{subLine}</div>
+
+            {/* A ONE-WAY DOOR WOULD BE A TRAP. Hiding a row removes it
+                with nothing left on the list to say so, so the count is
+                the way back — and it is in the header rather than
+                buried, because it is the only place that knows about
+                items no planned recipe currently asks for. */}
+            {hiddenNamed.length > 0 && (
+              <button
+                data-hidden-count
+                onClick={() => setHiddenSheet(hiddenNamed)}
+                style={{
+                  marginTop: 5, minHeight: 'var(--pq-tap-min)', padding: 0,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  textAlign: 'left', color: 'var(--pq-text-muted)',
+                  ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+                  letterSpacing: 'var(--pq-track-label)',
+                  textDecoration: 'underline', textUnderlineOffset: 3,
+                }}>{hiddenNamed.length} hidden</button>
+            )}
           </div>
           <button
             onClick={onClear}
@@ -364,6 +390,8 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           surface={surface}
           isChecked={id => isChecked(id)}
           onToggle={toggleGroceryItem}
+          onHide={hideGroceryItem}
+          hidden={groceryHidden}
           onChange={onChange}
         />
       ) : rows.length === 0 ? (
@@ -459,7 +487,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                       badge={item.meals.length}
                       expanderLabel={`${item.meals.length} meal${item.meals.length === 1 ? '' : 's'} need ${item.name}`}
                     >
-                      <GroceryRowPanel>
+                      <GroceryRowPanel onHide={() => hideGroceryItem(item.id)}>
                         <p style={{
                           margin: '0 0 6px', fontSize: 'var(--pq-size-body)', fontWeight: 600,
                           color: 'var(--pq-text)', wordBreak: 'break-word',
@@ -560,6 +588,26 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             }}>START A NEW LIST</button>}
         </div>
       )}
+
+      <HiddenSheet
+        open={hiddenSheet !== null}
+        items={hiddenSheet || []}
+        onClose={() => setHiddenSheet(null)}
+        onRestore={(id) => {
+          unhideGroceryItem(id)
+          /* Drop it from the open list too, so the sheet reflects the
+             restore without being reopened. */
+          setHiddenSheet(list => {
+            const next = (list || []).filter(i => i.itemId !== id)
+            return next.length ? next : null
+          })
+        }}
+        /* Only from the header list: "show all" inside one recipe's
+           view would restore items that recipe never mentioned. */
+        onRestoreAll={hiddenSheet && hiddenSheet.length === hiddenNamed.length
+          ? () => { unhideAllGroceryItems(); setHiddenSheet(null) }
+          : undefined}
+      />
 
       {/* Undo rather than a confirm dialog: a dialog in a supermarket is
           two taps and a moment of doubt. */}

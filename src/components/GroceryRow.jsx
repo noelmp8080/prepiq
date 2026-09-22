@@ -135,12 +135,36 @@ export default function GroceryRow({
 }
 
 /** The expanded panel's shell, so both screens indent and rule it the
- *  same way. What goes inside differs; the box does not. */
-export function GroceryRowPanel({ children }) {
+ *  same way. What goes inside differs; the box does not.
+ *
+ *  `onHide` puts "Don't need this" under the ingredient line, in both
+ *  views, from one definition. IN THE EXPANDER AND NOT A SWIPE: the row
+ *  is 56px with a checkbox on it, and a swipe there is fired by accident
+ *  while walking. Behind a deliberate tap, it cannot be.
+ *
+ *  HIDDEN, never "excluded" — the other set on this screen is
+ *  day-scoped and transient, and the two must not read as one thing.
+ *  See DEVIATIONS §22. */
+export function GroceryRowPanel({ children, onHide, hideLabel = 'Don’t need this' }) {
   return (
     <div style={{
       padding: '6px 0 14px 36px',
       borderBottom: '1px solid var(--pq-rule-row)',
-    }}>{children}</div>
+    }}>
+      {children}
+      {onHide && (
+        <button
+          data-hide-item
+          onClick={onHide}
+          style={{
+            marginTop: 10, minHeight: 'var(--pq-tap-min)', padding: '0 12px',
+            borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
+            background: 'transparent', border: '1px solid var(--pq-rule-soft)',
+            color: 'var(--pq-text-2)',
+            fontFamily: 'var(--pq-mono)', fontSize: 11, fontWeight: 600,
+            letterSpacing: 'var(--pq-track-chip)',
+          }}>{hideLabel}</button>
+      )}
+    </div>
   )
 }
