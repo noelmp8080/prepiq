@@ -5,6 +5,7 @@ import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import GroceryDay from './GroceryDay'
 import { useAppStore } from '../store/useAppStore'
 import { groupBySection, dayKey } from '../store/storeLogic'
+import { amountFor } from '../lib/groceryAmount'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -427,6 +428,11 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                     <GroceryRow
                       key={item.id}
                       name={item.name}
+                      /* THE DAY'S TOTAL for this item: item.qty holds
+                         every line that asked for it, across the day's
+                         recipes. The day view shows the per-recipe
+                         amount instead. */
+                      amount={amountFor(item.qty)}
                       checked={checked}
                       onToggle={() => toggleGroceryItem(item.id)}
                       open={open}

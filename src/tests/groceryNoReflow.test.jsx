@@ -255,7 +255,7 @@ describe('the screen renders real food, for exactly one day', () => {
      that stopped using the token, and a token quietly retuned to 16px,
      both fail here. */
   it('sets the name at 18px, the size the row was measured for', () => {
-    const name = rowButtons()[0].querySelector('span:last-child')
+    const name = rowButtons()[0].querySelector('[data-row-name]')
     expect(name.style.fontSize).toBe('var(--pq-size-grocery)')
     expect(name.style.fontWeight).toBe('500')
     expect(name.style.whiteSpace).toBe('nowrap')
@@ -390,7 +390,7 @@ describe('NOTHING MOVES ON TAP', () => {
     expect(before).toBe('1')
     expect(row.style.opacity).toBe('0.45')
     expect(row.getAttribute('aria-pressed')).toBe('true')
-    expect(row.querySelector('span:last-child').style.textDecoration).toBe('line-through')
+    expect(row.querySelector('[data-row-name]').style.textDecoration).toBe('line-through')
 
     /* the accent fill and the 14px check, per the contract */
     const box = row.querySelector('span')
@@ -562,7 +562,7 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
     act(() => { row.click() })
     expect(row.style.opacity).toBe('0.45')
     expect(row.getAttribute('aria-pressed')).toBe('true')
-    expect(row.querySelector('span:last-child').style.textDecoration).toBe('line-through')
+    expect(row.querySelector('[data-row-name]').style.textDecoration).toBe('line-through')
   })
 
   it('keeps the 56px row and the 44px expander at wide widths', () => {
@@ -573,7 +573,7 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
     expect(exp.style.height).toBe('var(--pq-row-grocery)')
     /* and the name is still 18px — the one value the brief says never
        to reduce, on any surface */
-    expect(row.querySelector('span:last-child').style.fontSize).toBe('var(--pq-size-grocery)')
+    expect(row.querySelector('[data-row-name]').style.fontSize).toBe('var(--pq-size-grocery)')
   })
 
   it('gives every control on the wide screen at least 44px', () => {
@@ -667,7 +667,7 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
      rather than carrying a second set of its own that happens to agree. */
   it('checks BOTH copies of a shared ingredient at once', async () => {
     await mountDay('phone')
-    const nameOf = r => r.querySelector('span:last-child').textContent
+    const nameOf = r => r.querySelector('[data-row-name]').textContent
     const names = dRows().map(nameOf)
     const dupe = names.find((n, i) => names.indexOf(n) !== i)
     expect(dupe).toBeTruthy()
@@ -797,7 +797,7 @@ describe('the two readings share one set of checks', () => {
     .filter(b => !b.hasAttribute('data-aisles-pill'))
   const rowsIn = () => [...cHost.querySelector('[data-grocery-list]')
     .querySelectorAll('button[aria-pressed]')]
-  const nameOf = r => r.querySelector('span:last-child').textContent
+  const nameOf = r => r.querySelector('[data-row-name]').textContent
   const toAisles = async () => { await act(async () => { pill().click() }) }
   const rowNamed = n => rowsIn().find(r => nameOf(r) === n)
 
@@ -919,5 +919,85 @@ describe('the two readings share one set of checks', () => {
     expect(keys[0]).not.toContain('#')
     expect(keys[0].startsWith(`${PIN_DAY}:`)).toBe(true)
     expect(name).toBeTruthy()
+  })
+})
+
+/* ── THE AMOUNT ON THE ROW HOLDS THE SAME LINE ────────────────────────
+ *
+ * The row carries a parsed quantity now — "1.1 lb" beside the name —
+ * which is a node the no-reflow rule has never had to survive. It is
+ * present in both states and changes only its text-decoration on a tap,
+ * so a check still adds nothing and moves nothing; these say so rather
+ * than assuming it.
+ */
+describe('NOTHING MOVES ON TAP — with an amount on the row', () => {
+  const amounts = () => [...listEl().querySelectorAll('[data-row-amount]')]
+  const rowWithAmount = () => rowButtons().find(r => r.querySelector('[data-row-amount]'))
+
+  it('puts an amount on some rows and not others', () => {
+    /* Both cases have to exist or the assertions below are vacuous:
+       92.5% of quantity lines parse, and only three of the catalog's
+       ten sections carry quantities at all. */
+    expect(amounts().length).toBeGreaterThan(0)
+    expect(amounts().length).toBeLessThan(rowButtons().length)
+  })
+
+  it('shows no placeholder where there is no amount', () => {
+    const bare = rowButtons().filter(r => !r.querySelector('[data-row-amount]'))
+    expect(bare.length).toBeGreaterThan(0)
+    for (const r of bare) {
+      /* No dash, no zero, no empty mono span holding the space open. */
+      expect(r.textContent.trim()).not.toMatch(/[—-]$/)
+    }
+  })
+
+  it('checking a row that HAS an amount changes only paint', () => {
+    const row = rowWithAmount()
+    expect(row, 'no row carried an amount').toBeTruthy()
+    const before = snapshot(listEl())
+    act(() => { row.click() })
+    expect(rowWithAmount().getAttribute('aria-pressed')).toBe('true')
+    expect(layoutDiff(before, snapshot(listEl()))).toEqual([])
+  })
+
+  it('strikes the amount through with the name, and puts both back', () => {
+    const row = rowWithAmount()
+    const amountOf = r => r.querySelector('[data-row-amount]')
+    const before = snapshot(row)
+
+    act(() => { row.click() })
+    const after = rowWithAmount()
+    expect(amountOf(after).style.textDecoration).toBe('line-through')
+    expect(after.querySelector('[data-row-name]').style.textDecoration).toBe('line-through')
+
+    act(() => { rowWithAmount().click() })
+    expect(snapshot(rowWithAmount())).toEqual(before)
+  })
+
+  /* The amount must not push the row taller or wider. It is
+     flexShrink: 0 and the NAME gives way — a truncated ingredient is
+     still recognisable, a truncated number is a wrong number. */
+  it('keeps the row at its token height and the name shrinking', () => {
+    const row = rowWithAmount()
+    expect(row.style.height).toBe('var(--pq-row-grocery)')
+    /* jsdom expands the shorthand: flex:1 -> '1 1 0%'. */
+    expect(row.querySelector('[data-row-name]').style.flex).toBe('1 1 0%')
+    expect(row.querySelector('[data-row-name]').style.minWidth).toBe('0px')
+    expect(row.querySelector('[data-row-name]').style.textOverflow).toBe('ellipsis')
+    expect(row.querySelector('[data-row-amount]').style.flexShrink).toBe('0')
+  })
+
+  it('is mono and muted, not another name', () => {
+    const a = amounts()[0]
+    expect(a.style.fontFamily).toBe('var(--pq-mono)')
+    expect(a.style.color).toBe('var(--pq-text-3)')
+    expect(a.style.fontSize).toBe('13px')
+  })
+
+  /* The name is still the token size — adding a second thing to the row
+     must not have bought the space by shrinking it (DEVIATIONS §19). */
+  it('leaves the name at 18px', () => {
+    expect(rowWithAmount().querySelector('[data-row-name]').style.fontSize)
+      .toBe('var(--pq-size-grocery)')
   })
 })

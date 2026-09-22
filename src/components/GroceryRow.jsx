@@ -25,6 +25,7 @@ const MONO = { fontFamily: 'var(--pq-mono)' }
 
 export default function GroceryRow({
   name,
+  amount = null,          // short parsed quantity, or null to show none
   checked,
   onToggle,
   open,
@@ -71,13 +72,34 @@ export default function GroceryRow({
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <span style={{
+          {/* Named, not positional. The amount now sits after this
+              span, so `span:last-child` finds the wrong one — and a
+              selector that silently matches the wrong node is a suite
+              that passes while the screen is broken. */}
+          <span data-row-name style={{
             flex: 1, minWidth: 0,
             fontSize: 'var(--pq-size-grocery)', fontWeight: 500,
             color: 'var(--pq-text)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             textDecoration: checked ? 'line-through' : 'none',
           }}>{name}</span>
+
+          {/* HOW MUCH, on the row. Parsed short — "1.1 lb", not the
+              whole ingredient line, which runs to 127 characters in
+              this catalog (DEVIATIONS §19). flexShrink: 0 so the NAME
+              gives way first: a truncated ingredient is still
+              recognisable, a truncated amount is a wrong number.
+
+              Nothing at all when the line did not parse — no dash, no
+              zero. The expander still carries the full line. */}
+          {amount && (
+            <span data-row-amount style={{
+              flexShrink: 0, ...MONO,
+              fontSize: 13, fontWeight: 500,
+              color: 'var(--pq-text-3)', whiteSpace: 'nowrap',
+              textDecoration: checked ? 'line-through' : 'none',
+            }}>{amount}</span>
+          )}
         </button>
 
         {/* The expander answers "why am I buying this" without costing a

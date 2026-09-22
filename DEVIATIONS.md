@@ -396,6 +396,57 @@ chip"). Put to the user before building; confirmed.
 
 **Approved:** yes.
 
+### AMENDED in block F — the row carries a parsed amount
+
+**Partly reversed, on the user's instruction after testing on a phone:
+"I need `chicken breast 1.1 lb` without tapping."**
+
+What is on the row is NOT the ingredient line this entry measured. It is
+a short amount PARSED out of the front of it — `src/lib/groceryAmount.js`
+— and the finding above is exactly why it has to be parsed rather than
+printed. The full line stays in the expander, unchanged.
+
+**The parse prefers the bracketed imperial, because that is what the
+bracket is for.** 711 of the 1,009 quantity lines carry one, and it is
+the reading a shopper wants: `500g (17.6oz) Chicken Breast, cubed`
+becomes `1.1 lb`, not `500 g`. Ounces climb into pounds at 16, to one
+decimal.
+
+**The bracket is only trusted where it ADJOINS the leading amount.**
+`5g (1 Tsp) Cornflour mixed with 40ml (1.4oz) Water` reads `5 g`: the
+`1.4oz` is the water's, and taking it would have put the wrong number
+on the row with nothing to show it was wrong. This was caught by
+running the parser over the whole catalog, not by reading it.
+
+**It declines rather than guesses.** 92.5% of lines parse. The 76 that
+do not are two shapes, both correct to refuse:
+
+| shape | count | example |
+|---|---|---|
+| no leading number | 60 | `Low Fat Cheese`, `Add the Chicken` |
+| a range the line does not resolve | 16 | `2-3 Whole Eggs` |
+
+A range WITH a bracket does parse, because the bracket is one number:
+`80-100g (3.5oz) Chicken Pieces` → `3.5 oz`. A range without one has no
+single answer, and printing `2` for `2-3` would understate the shop.
+
+Nothing is shown when nothing parsed — no dash, no zero, no empty span
+holding the space open.
+
+**Several lines, one item:** summed when every line parsed to the same
+unit, otherwise the first two joined with ` + `. Parsing and formatting
+are separate functions precisely so the sum works — converting to
+pounds at parse time would leave two lines of one ingredient in
+different units and the sum would refuse them.
+
+**The day view shows the per-recipe amount; AISLES shows the day's
+total** for the same item, by the same rule.
+
+**What did NOT change:** the name is still 18px and still truncates
+first (`flexShrink: 0` on the amount), the row is still 56px, and the
+reflow harness covers a row that carries an amount — it is present in
+both states and changes only `text-decoration` on a tap.
+
 ---
 
 ## Block D pre-check: is the paren heuristic that bit block C here too?
@@ -825,7 +876,12 @@ quantity line at all** (`quantitySections` limits them to three
 sections), and the 1,009 that exist run 6 to **127** characters, median
 35, with ten under twelve. A right-aligned column beside a 16px name in
 a 283px grid cell cannot hold those. `groupsForDay` still returns
-`quantity` in the item shape; the expander renders it.
+`quantity` in the item shape.
+
+**AMENDED in the same block:** the row now carries a short amount
+PARSED out of that line — `1.1 lb`, not the line — which is what this
+measurement said was needed. The full line is still the expander's. See
+the amendment under §8.
 
 **Approved:** yes — decision 3.
 

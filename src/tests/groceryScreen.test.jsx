@@ -73,7 +73,7 @@ const expanders = () => [...host.querySelectorAll('[data-grocery-list] button[ar
   .filter(b => (b.getAttribute('aria-label') || '').includes('need'))
 const clearBtn = () => [...header().querySelectorAll('button')]
   .find(b => b.textContent.startsWith('CLEAR'))
-const nameOf = row => row.querySelector('span:last-child').textContent
+const nameOf = row => row.querySelector('[data-row-name]').textContent
 
 /* Whichever day the suite runs on, select Monday so the content is
    fixed. Monday is recipes 1 and 2 in the fixture. */

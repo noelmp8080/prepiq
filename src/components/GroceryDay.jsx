@@ -3,6 +3,7 @@ import { EmptyBlock } from './Card'
 import Thumb from './Thumb'
 import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import { groupsForDay, groupEyebrow } from '../lib/groceryByDay'
+import { amountFor } from '../lib/groceryAmount'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -162,6 +163,10 @@ export default function GroceryDay({
                 <GroceryRow
                   key={key}
                   name={item.name}
+                  /* THIS RECIPE'S amount. The aisle view shows the
+                     day's total for the same item; here the question
+                     is how much this dish needs. */
+                  amount={amountFor(item.quantity)}
                   checked={isChecked(item.itemId)}
                   onToggle={() => onToggle(item.itemId)}
                   open={isOpen}
