@@ -34,7 +34,34 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 200,
+        /* ── 100dvh, NOT inset:0 — AND THE DIFFERENCE IS THE WHOLE BUG ──
+         *
+         * iOS Safari lays `position: fixed` out against the LAYOUT
+         * viewport, which is the large viewport: the height the screen
+         * has when the toolbar is retracted, whatever the toolbar is
+         * doing right now. So `inset: 0` on an iPhone 14 Pro is 852px
+         * tall while the user is looking at 752px, and the bottom 100px
+         * of this overlay is behind Safari's toolbar.
+         *
+         * A sheet aligned to the BOTTOM of that overlay therefore lands
+         * where it cannot be seen. Measured, before the fix: a 149px
+         * sheet sat at 703-852 with the fold at 752, so 49px of it was
+         * on screen — its header, and nothing else. The restore buttons
+         * were at 786-830, entirely behind the toolbar. That is the
+         * reported bug exactly, and the reason it was "only the header
+         * shows" rather than "the sheet is cut off".
+         *
+         * `100dvh` is the DYNAMIC viewport: it tracks the toolbar. The
+         * shell has sized in dvh since block A for this same reason
+         * (Shell.jsx) — the pattern was already here, and this overlay
+         * predates the grocery work and never got it.
+         *
+         * `top` + `height` rather than `inset: 0`, because with top,
+         * bottom and height all set, `bottom` is the one that gets
+         * dropped — and it is the one that would be wrong. */
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: '100dvh',
+        zIndex: 200,
         background: 'var(--pq-scrim)',
         display: 'flex', alignItems: 'flex-end',
       }}
@@ -46,8 +73,21 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
         aria-labelledby={labelledBy}
         onClick={e => e.stopPropagation()}
         style={{
+          /* 88% of a container that is now the VISIBLE viewport rather
+             than the large one. The percentage is unchanged; what it
+             resolves against is what was wrong. */
           width: '100%', maxHeight: '88%',
           display: 'flex', flexDirection: 'column',
+          /* THE HOME INDICATOR TAKES THE BOTTOM 34px on these phones,
+             and the system takes taps there for its own swipe. A sheet
+             flush to the bottom puts its last action — SHOW ALL AGAIN,
+             or RecipeSheet's buttons — inside that strip. Padded here
+             on the PANEL rather than in each sheet's content, so every
+             sheet in the app gets it from one place: this was a pattern
+             bug, not one screen's bug.
+
+             Zero on every desktop browser, so nothing moves there. */
+          paddingBottom: 'var(--pq-safe-b)',
           background: 'var(--pq-sheet-bg)',
           boxShadow: 'var(--pq-sheet-shadow)',
           /* 18, not the README's 20. Both sheets in the prototype

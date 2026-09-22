@@ -115,6 +115,16 @@
   --pq-nav-h:             64px;
   --pq-nav-clearance:     92px;      /* scroll container padding-bottom */
 
+  /* THE HOME INDICATOR'S STRIP, as a token rather than a bare env().
+     Two reasons it is named. It is 0 on every desktop browser and ~34px
+     on the iPhones this app is actually used on, so the value that
+     matters is the one no development machine ever produces — and a
+     token is something a layout test can set to 34px and measure
+     against. A bare env() in the component is untestable by
+     construction. Anything anchored to the bottom of the screen pads
+     by this. */
+  --pq-safe-b:            env(safe-area-inset-bottom, 0px);
+
   --pq-sheet-bg: linear-gradient(180deg,#4A545B 0%,#333C42 42%,#282F34 100%);
   --pq-sheet-shadow:      0 -12px 40px rgba(0,0,0,0.55);
   --pq-scrim:             rgba(0,0,0,0.6);

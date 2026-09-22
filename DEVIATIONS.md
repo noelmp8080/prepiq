@@ -1047,6 +1047,97 @@ take the way back with it.
 
 ---
 
+## 23. Block F: a sheet is sized to the viewport you can see
+
+**The bug.** The Hidden items sheet opened on an iPhone showing only its
+header. Every row, every SHOW AGAIN and SHOW ALL AGAIN sat behind
+Safari's toolbar. The one screen whose whole purpose is undoing
+something could not undo anything, and the only way back from a hidden
+item was through it.
+
+**The cause, measured rather than guessed.** `position: fixed; inset: 0`
+is laid out against iOS Safari's *layout* viewport — the large one, the
+height the screen has with the toolbar retracted, whatever the toolbar
+is doing at the time. On an iPhone 14 Pro that is 852px while the user
+is looking at 752px, so the bottom 100px of the overlay is behind the
+toolbar and a sheet aligned to its bottom lands there.
+
+Modelled in Playwright at exactly those numbers, before the fix:
+
+| | before | after |
+| --- | --- | --- |
+| 149px sheet sits at | 703–852 | 603–752 |
+| visible portion | 49px — the header | all of it |
+| restore button at | 786–830, behind the toolbar | on screen, hit-tested |
+
+**The fix is three lines and one of them is the whole thing.** The
+overlay is `top: 0; height: 100dvh` rather than `inset: 0` — `dvh`
+tracks the toolbar, and anchoring by top and height means `bottom`, the
+edge that was wrong, is the one the browser drops. The panel pads by
+`--pq-safe-b` for the home indicator. **Shell.jsx has sized in dvh since
+block A for this exact reason**; the sheet predates the grocery work and
+never got it, so this is a pattern that existed and was not copied.
+
+**It was every sheet, not one.** RecipeSheet, Settings, Plan and
+HiddenSheet all render `Sheet.jsx`, so all four were wrong and all four
+are fixed by the same three lines. A source test asserts each still goes
+through the shared component, because a fifth sheet with its own fixed
+overlay would sit outside every guard.
+
+**`--pq-safe-b`, a token rather than a bare `env()`.** The value that
+matters is 0 in every browser a test can run in and ~34px on the phones
+this app is used on. A token is something a layout test can set to 34px
+and measure against; a bare `env()` in a component is untestable by
+construction.
+
+### The new test runner, and why the vitest suite could not have caught this
+
+**Playwright is in this repo now, for one narrow job.** 586 vitest tests
+passed through this bug and had to: jsdom does no layout — `
+getBoundingClientRect` returns zeros, which `groceryNoReflow.test.jsx`
+states in its own header — so "is this button on screen" is not a
+question it can answer. `e2e/sheetViewport.spec.js` asserts fit,
+scrolling, safe-area clearance and hit-testing in real pixels. It is not
+a second functional suite and should not become one.
+
+**What it still cannot prove, stated so the gap is not assumed shut:**
+that `100dvh` beats `100vh`. No headless browser has a dynamic toolbar,
+so vh, dvh and innerHeight are one number in all of them. That rule is
+guarded at the source level in `sheetPrimitives.test.jsx`, the same way
+Shell's identical rule has been since block A.
+
+**Asserted by hit test, not by arithmetic.** `elementFromPoint` at a
+button's centre answers the question actually being asked — if you tap
+here, does this button get it — and catches both a button below the fold
+and a button with something painted over it.
+
+### Two things this investigation got wrong first
+
+Recorded because both were confidently believed and both were false.
+
+**The tab bar is not involved.** The brief asked for bottom padding
+clearing the tab bar as well as the inset. Measured: the sheet overlay
+is z-200, BottomNav is z-100, and a hit test at the sheet's bottom strip
+returns the sheet. The bar never intercepts a tap meant for a sheet, so
+padding by `--pq-nav-h` would have added 64px of dead space to the
+bottom of every sheet in the app. There is a test asserting the hit
+test rather than the padding, so a change to that z-ordering fails here
+instead of in a shop.
+
+**`minHeight: 0` was not half the bug.** HiddenSheet lacked the
+`flex: 1, minHeight: 0` pair its three siblings carry, and the obvious
+reading — a flex item cannot shrink below its content, so the list
+overflows instead of scrolling — is wrong here. `min-height: auto`
+resolves to the content size only when the item's `overflow` is
+`visible`, and these scrollers set `overflow-y: auto`, so the automatic
+minimum was already 0. Caught by reverting the change and watching the
+20-item test pass anyway. The pair is kept for consistency across the
+four sheets and is documented as consistency, not as a fix.
+
+**Approved:** bug fix, no decision to approve.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

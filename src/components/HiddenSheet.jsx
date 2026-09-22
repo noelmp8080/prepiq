@@ -35,7 +35,27 @@ export default function HiddenSheet({
         }}>{items.length} ITEM{items.length === 1 ? '' : 'S'}</div>
       </SheetHeader>
 
-      <div style={{ overflowY: 'auto', padding: '4px var(--pq-gutter) 20px' }}>
+      {/* `flex: 1, minHeight: 0` — matching RecipeSheet, Settings and
+          Plan, which all carry this pair. This sheet was written
+          without it.
+
+          HONEST ABOUT WHAT IT FIXES: not the reported bug. I assumed it
+          was — a flex item's automatic minimum size is its content, so
+          a column child that cannot shrink overflows the panel instead
+          of scrolling — and then reverted it to watch the 20-item test
+          fail. It did not. `min-height: auto` only resolves to the
+          content size when the item's `overflow` is `visible`, and this
+          div sets `overflow-y: auto`, so its automatic minimum was
+          already 0 and it already scrolled.
+
+          Kept anyway, for one reason: four sheets that differ in a
+          detail like this invite the next reader to work out which one
+          is right. It is now the same pair in all four. */}
+      <div data-sheet-scroll style={{
+        flex: 1, minHeight: 0,
+        overflowY: 'auto', overscrollBehavior: 'contain',
+        padding: '4px var(--pq-gutter) 20px',
+      }}>
         {items.length === 0 ? (
           <p style={{
             ...MONO, fontSize: 12, color: 'var(--pq-text-muted)',

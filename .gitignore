@@ -42,3 +42,7 @@ tools/extracted/*
 # Python bytecode from the catalog pipeline in tools/
 __pycache__/
 *.pyc
+
+# Playwright
+test-results/
+playwright-report/
