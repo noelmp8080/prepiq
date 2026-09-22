@@ -975,6 +975,78 @@ reset real user data to mark a change that did not happen.
 
 ---
 
+## 22. Block F: two sets that both remove a row, and why they stay two
+
+**The one-sentence difference, first, because everything else here is
+detail:** an **exclusion** says *I already have this, for this shop*;
+**hidden** says *I never need this, on any list*.
+
+| | `grocery_excluded` | `grocery_hidden` |
+| --- | --- | --- |
+| Key | `dayIndex:itemId` — `"1:13"` | `itemId` — `"13"` |
+| Scope | one day | every day, every plan |
+| Lifetime | until START A NEW LIST clears it | until the user restores it |
+| Version | `EXCLUDED_VERSION = 3` | `HIDDEN_VERSION = 1` |
+| At sign-in | `NEVER_ADOPTED` | `ADOPTABLE` |
+| Undone by | the undo toast, or a new list | the header count, or a group's note |
+| User-facing word | *cleared* | *hidden* |
+
+**They were not merged, and merging them later would be a regression.**
+It is tempting: both take a row off the screen, both are a Set of item
+ids, both are read by the same two derivations. But they answer
+different questions and the user only ever means one of them.
+
+Folding hidden into exclusions would make "I never need this" survive
+exactly until the next shop — the user would re-hide the same items
+every week, which is the complaint that produced the feature. Folding
+exclusions into hidden would make ticking *got it already* permanent,
+and the item would silently never appear again.
+
+**So the words are kept apart too.** Nothing the user can see calls a
+hidden item *excluded* or a cleared item *hidden*; a test asserts the
+hide control does not say "exclude" and the screen does not say
+"excluded" while something is hidden. One word for two things is how a
+future reader — or a future me — concludes they are the same mechanism
+and deletes one.
+
+**Both derivations skip an item in EITHER set.** `buildGroceryItems`
+and `groupsForDay` each take both, and an item in one is gone from the
+aisle view and the day view alike. There is no state where a row is
+hidden on one screen and present on the other.
+
+**START A NEW LIST does not touch `grocery_hidden`** — that is the whole
+reason it is a second set rather than a flag on the first, so
+`storeWrites.test.jsx` asserts it specifically rather than leaving it to
+be inferred from the two version constants.
+
+**`ADOPTABLE`, not `NEVER_ADOPTED`.** Signing in on a new device should
+carry "I never need coriander" up with the goals and the plan.
+Exclusions are not adopted because a half-finished shop from another
+device is noise; a permanent preference is not.
+
+**No version bump, and no reset.** `CHECKS_VERSION` and
+`EXCLUDED_VERSION` stay at 3. Nothing existing changed shape — a new
+document was added beside them — and bumping would wipe real checks to
+mark a change that did not touch them.
+
+**Two ways back, deliberately.** The header count (`N hidden`) knows
+about every hidden item including ones no planned recipe currently asks
+for, and is the only place those can be restored from. A group's note
+(`2 hidden`, mono, muted, 13px — the amount's treatment) answers the
+narrower question asked while standing over one recipe. Both open the
+same sheet; only the header's offers SHOW ALL AGAIN, because "show all"
+inside one recipe's view would restore items that recipe never
+mentioned.
+
+**A group with every item hidden does not render** — and is still built,
+so its items still count in the header. A recipe photo and a title over
+no rows reads as a bug, but hiding every ingredient of a recipe must not
+take the way back with it.
+
+**Approved:** yes — decision B.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

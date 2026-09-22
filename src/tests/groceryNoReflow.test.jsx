@@ -1296,3 +1296,149 @@ describe('a group whose every item is hidden', () => {
     expect(Number(/(\d+)/.exec(count.textContent)[1])).toBeGreaterThanOrEqual(1)
   })
 })
+
+/* ── THE PER-GROUP NOTE ───────────────────────────────────────────────
+ *
+ * The header count answers "what have I hidden". This answers the
+ * question actually asked in a shop, standing over one recipe: "is this
+ * everything?" So it is per group and per day, and it is absent — not
+ * zero — when there is nothing to say.
+ *
+ * Recipes 1 and 2 share six ingredients (chicken breast, paprika, salt,
+ * black pepper, olive oil, parsley) and each has items the other does
+ * not. That overlap is what makes the "hidden from a different recipe"
+ * case testable at all, so it is asserted here rather than assumed.
+ */
+describe('the per-group hidden note', () => {
+  let nHost, nRoot, nBox
+
+  async function mountDay() {
+    localStorage.clear()
+    localStorage.setItem(lsKey(null, 'weekplan'), JSON.stringify(FIXED_PLAN))
+    nHost = document.createElement('div')
+    document.body.appendChild(nHost)
+    nRoot = createRoot(nHost)
+    nBox = {}
+    function Probe() { nBox.store = useAppStore(); return null }
+    await act(async () => {
+      nRoot.render(<AppStoreProvider><Probe /><Grocery /></AppStoreProvider>)
+    })
+    await act(async () => { await authCb(null) })
+    await act(async () => { nBox.store.setGroceryDay(PIN_DAY) })
+  }
+  afterEach(() => { if (nRoot) act(() => nRoot.unmount()); nHost?.remove(); nRoot = null })
+
+  const sections = () => [...nHost.querySelectorAll('[data-grocery-list] section')]
+  const notes = () => sections().map(s => s.querySelector('[data-group-hidden]'))
+  const noteTexts = () => notes().map(n => n?.textContent ?? null)
+  const idOf = name => {
+    const row = nBox.store.groceryRows.find(r => r.name === name)
+    expect(row, `no row named ${name}`).toBeTruthy()
+    return row.id
+  }
+  const hide = async name => {
+    await act(async () => { nBox.store.hideGroceryItem(idOf(name)) })
+  }
+
+  it('is absent from every group while nothing is hidden', async () => {
+    await mountDay()
+    expect(sections()).toHaveLength(2)
+    expect(noteTexts()).toEqual([null, null])
+  })
+
+  /* `lemon` is on recipe 1 and NOT on recipe 2. */
+  it('counts only that group, and leaves the other group with none', async () => {
+    await mountDay()
+    await hide('lemon')
+    expect(noteTexts()).toEqual(['1 hidden', null])
+
+    await hide('sriracha')                       // recipe 1 only, again
+    expect(noteTexts()).toEqual(['2 hidden', null])
+  })
+
+  /* THE POINT OF HIDING BEING GLOBAL. Hidden from meal 1, gone from
+     meal 2 as well — so meal 2 has to say so too, or it silently shows
+     a short ingredient list. */
+  it('appears on a group whose ingredient was hidden from a different recipe', async () => {
+    await mountDay()
+    await hide('olive oil')                      // on BOTH recipes
+    expect(noteTexts()).toEqual(['1 hidden', '1 hidden'])
+  })
+
+  it('opens the sheet scoped to that group, not the whole set', async () => {
+    await mountDay()
+    await hide('lemon')                          // recipe 1 only
+    await hide('honey')                          // recipe 2 only
+    expect(noteTexts()).toEqual(['1 hidden', '1 hidden'])
+
+    await act(async () => { notes()[1].click() })
+    const rows = [...document.querySelectorAll('[data-hidden-row]')]
+    expect(rows).toHaveLength(1)
+    expect(rows[0].textContent).toContain('honey')
+
+    /* The header's own count still knows about both. */
+    expect(nHost.querySelector('[data-hidden-count]').textContent).toBe('2 hidden')
+  })
+
+  /* One recipe's sheet must not offer to restore the other's. */
+  it('offers no show-all when scoped to one group', async () => {
+    await mountDay()
+    await hide('lemon')
+    await hide('sriracha')
+    await hide('honey')
+    await act(async () => { notes()[0].click() })
+    expect([...document.querySelectorAll('[data-hidden-row]')]).toHaveLength(2)
+    expect([...document.querySelectorAll('button')]
+      .find(x => x.textContent === 'SHOW ALL AGAIN')).toBeFalsy()
+  })
+
+  it('restores from the group sheet, and the note counts down', async () => {
+    await mountDay()
+    await hide('lemon')
+    await hide('sriracha')
+    await act(async () => { notes()[0].click() })
+
+    const first = [...document.querySelectorAll('[data-hidden-row]')][0]
+    const name = first.querySelector('span').textContent
+    await act(async () => { first.querySelector('button').click() })
+
+    expect(noteTexts()).toEqual(['1 hidden', null])
+    const rowNames = [...nHost.querySelectorAll('[data-row-name]')].map(s => s.textContent)
+    expect(rowNames).toContain(name)
+  })
+
+  /* An all-hidden group does not render, so it has no rows for a note
+     to sit under, and no note of its own. The header keeps the way
+     back.
+
+     THE SURVIVING GROUP'S NOTE IS NOT ZERO, and the first version of
+     this test wrongly said it would be: recipes 1 and 2 share six
+     ingredients, so emptying recipe 2 takes those six off recipe 1 as
+     well. That is the feature working — hiding is global — and the
+     number is asserted rather than waved at, because "6" is exactly
+     the overlap and a change to either card would move it. */
+  it('is gone with the group when every one of its items is hidden', async () => {
+    await mountDay()
+    const [, doomed] = groupsForDay(FIXED_PLAN, catalog, new Set(), PIN_DAY)
+    for (const i of doomed.items) {
+      await act(async () => { nBox.store.hideGroceryItem(i.itemId) })
+    }
+    expect(sections()).toHaveLength(1)
+    expect(noteTexts()).toEqual(['6 hidden'])
+    /* And the note that is left belongs to the OTHER recipe. */
+    await act(async () => { notes()[0].click() })
+    expect([...document.querySelectorAll('[data-hidden-row]')]).toHaveLength(6)
+    expect(nHost.querySelector('[data-hidden-count]').textContent).toBe('14 hidden')
+  })
+
+  /* Hiding is global; the note is per DAY, because the group is. */
+  it('follows the item to another day that uses it', async () => {
+    await mountDay()
+    await hide('olive oil')
+    /* Monday is recipes 3 and 4. Recipe 3 uses olive oil and recipe 4
+       does not — so the note follows the ITEM, not the day it was
+       hidden on, and still only marks the group that wanted it. */
+    await act(async () => { nBox.store.setGroceryDay(0) })
+    expect(noteTexts()).toEqual(['1 hidden', null])
+  })
+})

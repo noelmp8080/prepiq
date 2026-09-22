@@ -103,8 +103,11 @@ export default function Grocery({ onChange, surface = 'phone' }) {
      want shut is about how you shop, not about which day it is. */
   const [collapsed, setCollapsed] = useState(() => new Set(catalog.collapsedByDefault))
   const [undo, setUndo] = useState(null)
-  /* null when shut. Otherwise the list the sheet is showing — the whole
-     hidden set from the header, or one group's from its note. */
+  /* null when shut. Otherwise `{ title, items }` — the whole hidden set
+     from the header, or ONE GROUP'S from its note. Both openings are
+     one piece of state rather than a list plus a separate title,
+     because a title left over from the other opening is a sheet that
+     lies about what it is showing. */
   const [hiddenSheet, setHiddenSheet] = useState(null)
   const scrollPin = useRef(null)
 
@@ -221,7 +224,9 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             {hiddenNamed.length > 0 && (
               <button
                 data-hidden-count
-                onClick={() => setHiddenSheet(hiddenNamed)}
+                onClick={() => setHiddenSheet({
+                  title: 'Hidden items', items: hiddenNamed,
+                })}
                 style={{
                   marginTop: 5, minHeight: 'var(--pq-tap-min)', padding: 0,
                   background: 'none', border: 'none', cursor: 'pointer',
@@ -392,6 +397,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           onToggle={toggleGroceryItem}
           onHide={hideGroceryItem}
           hidden={groceryHidden}
+          onShowHidden={(items, title) => setHiddenSheet({ title, items })}
           onChange={onChange}
         />
       ) : rows.length === 0 ? (
@@ -591,20 +597,22 @@ export default function Grocery({ onChange, surface = 'phone' }) {
 
       <HiddenSheet
         open={hiddenSheet !== null}
-        items={hiddenSheet || []}
+        title={hiddenSheet?.title || 'Hidden items'}
+        items={hiddenSheet?.items || []}
         onClose={() => setHiddenSheet(null)}
         onRestore={(id) => {
           unhideGroceryItem(id)
           /* Drop it from the open list too, so the sheet reflects the
              restore without being reopened. */
-          setHiddenSheet(list => {
-            const next = (list || []).filter(i => i.itemId !== id)
-            return next.length ? next : null
+          setHiddenSheet(s => {
+            const next = (s?.items || []).filter(i => i.itemId !== id)
+            return next.length ? { ...s, items: next } : null
           })
         }}
-        /* Only from the header list: "show all" inside one recipe's
-           view would restore items that recipe never mentioned. */
-        onRestoreAll={hiddenSheet && hiddenSheet.length === hiddenNamed.length
+        /* Only when the sheet IS the whole set: "show all" inside one
+           recipe's view would restore items that recipe never
+           mentioned. */
+        onRestoreAll={hiddenSheet && hiddenSheet.items.length === hiddenNamed.length
           ? () => { unhideAllGroceryItems(); setHiddenSheet(null) }
           : undefined}
       />

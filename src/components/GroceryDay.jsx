@@ -51,7 +51,7 @@ const LAYOUT = {
    See DEVIATIONS §21. */
 export default function GroceryDay({
   weekPlan, dayIndex, excluded, surface = 'phone',
-  isChecked, onToggle, onHide, hidden = new Set(), onChange,
+  isChecked, onToggle, onHide, hidden = new Set(), onShowHidden, onChange,
 }) {
   const L = LAYOUT[surface] || LAYOUT.phone
   const phone = surface === 'phone'
@@ -209,10 +209,42 @@ export default function GroceryDay({
           </div>
         )
 
+        /* WHAT THIS RECIPE IS MISSING, SAID WHERE IT IS MISSING.
+           The header count is global and abstract — "3 hidden" across
+           the whole week. This is the one that answers the question
+           actually asked in a shop, standing over a recipe: is this
+           everything, or did I tell it to drop something? Per group and
+           per day, because that is the granularity of the doubt.
+
+           The amount's treatment, deliberately: mono, muted, 13px. It
+           is an aside about the rows above it, and it should read as
+           the same kind of quiet fact as "1.1 lb" does, not as a
+           warning. Absent entirely when the group has nothing hidden —
+           a permanent "0 hidden" would be noise on every group forever.
+
+           Opens the SAME sheet as the header, scoped to this recipe. */
+        const note = group.hiddenItems.length > 0 ? (
+          <button
+            data-group-hidden
+            onClick={() => onShowHidden?.(
+              group.hiddenItems, recipe?.name || 'This meal')}
+            style={{
+              minHeight: 'var(--pq-tap-min)', padding: 0, marginTop: 2,
+              background: 'none', border: 'none', cursor: 'pointer',
+              textAlign: 'left', color: 'var(--pq-text-3)',
+              ...MONO, fontSize: 13, fontWeight: 500,
+            }}>{group.hiddenItems.length} hidden</button>
+        ) : null
+
+        /* One cell, two children. The section is a two-column grid on
+           the wider surfaces, so `rows` and `note` as siblings would put
+           the note under the PHOTO rather than under the rows. */
+        const body = <div>{rows}{note}</div>
+
         return phone ? (
           <section key={group.instanceId}>
             <div style={{ display: 'flex', gap: L.gap, alignItems: 'flex-start' }}>{head}</div>
-            <div style={{ marginTop: 10 }}>{rows}</div>
+            <div style={{ marginTop: 10 }}>{body}</div>
           </section>
         ) : (
           <section key={group.instanceId} style={{
@@ -221,7 +253,7 @@ export default function GroceryDay({
             gap: L.gap, alignItems: 'start',
           }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>{head}</div>
-            {rows}
+            {body}
           </section>
         )
       })}
