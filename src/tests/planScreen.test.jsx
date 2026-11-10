@@ -123,14 +123,44 @@ describe('editing a day', () => {
     act(() => { removeFor(recipeById[1].name).click() })
 
     expect(text()).not.toContain(recipeById[1].name)
-    expect(addSlots()).toHaveLength(before + 1)
+    /* Monday had both slots taken, so it was already showing its one
+       spare "Add a meal" row. The freed slot takes that row's place:
+       every day has exactly one way in, never zero and never two. */
+    expect(addSlots()).toHaveLength(before)
     expect(box.store.weekPlan[0].ids).toEqual([null, 2])
+  })
+
+  /* A DAY IS NEVER FULL. Monday already holds two meals; it used to
+     offer no way to add a third, and this test used to skip past it to
+     Tuesday's empty slot. */
+  it('adds a third meal to a day whose slots are all taken', async () => {
+    await mount()
+    act(() => { addSlots()[0].click() })
+    const dialog = host.querySelector('[role="dialog"]')
+    expect(dialog).toBeTruthy()
+    expect(dialog.textContent).toContain('MON')
+
+    const pick = [...dialog.querySelectorAll('button')]
+      .find(b => b.textContent.includes(recipes[10].name))
+    act(() => { pick.click() })
+
+    expect(host.querySelector('[role="dialog"]')).toBe(null)
+    expect(box.store.weekPlan[0].ids).toEqual([1, 2, recipes[10].id])
+  })
+
+  it('gives the extra slot back when the third meal is removed', async () => {
+    await mount()
+    act(() => { box.store.assignMeal(0, recipes[10].id) })
+    expect(box.store.weekPlan[0].ids).toHaveLength(3)
+    act(() => { removeFor(recipes[10].name).click() })
+    expect(box.store.weekPlan[0].ids).toEqual([1, 2])
   })
 
   it('assigns from the picker into the slot that was tapped', async () => {
     await mount()
-    /* Monday is full, so the first free slot is Tuesday's second. */
-    act(() => { addSlots()[0].click() })
+    /* Tuesday has one free slot; its add row is the second one on the
+       page, after Monday's spare. */
+    act(() => { addSlots()[1].click() })
     const dialog = host.querySelector('[role="dialog"]')
     expect(dialog).toBeTruthy()
     expect(dialog.textContent).toContain('TUE')

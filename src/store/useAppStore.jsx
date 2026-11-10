@@ -6,7 +6,10 @@ import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
          readChecks, writeChecks, readHidden, writeHidden, todayIndex, dayKey, lsKey, adoptAnonKeys,
          CHECKS_VERSION, EXCLUDED_VERSION, HIDDEN_VERSION, hydrateLocal, lastScope,
-         rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan } from './storeLogic'
+         rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan,
+         planDates, fromISO, emptiedWeekPlan, groceryProgressByDay,
+         buildWeekGroceryItems, weekRowKeys, weekRowChecked,
+         addMealToDay, removeMealFromDay } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
@@ -62,10 +65,24 @@ export function AppStoreProvider({ children }) {
   /* WHICH DAY THE GROCERY LIST IS SHOWING. null means "today", and this
      is the ONLY place that means resolves to an index — buildGroceryItems
      takes a real integer so date handling stays out of the derivation. */
-  const [groceryDayRaw, setGroceryDay] = useState(null)
+  const [groceryDayRaw, setGroceryDayRaw] = useState(null)
+  /* THE WHOLE WEEK, OR ONE DAY OF IT. In the store rather than in the
+     screen so Plan can open the list straight into the week. Choosing a
+     day always leaves the week view — the two are one choice, and a day
+     pill that left the week list on screen would be lit for nothing. */
+  const [groceryWeek, setGroceryWeek] = useState(false)
+  const setGroceryDay = useCallback((i) => {
+    setGroceryDayRaw(i)
+    setGroceryWeek(false)
+  }, [])
   /* null = never chosen; the surface decides until it is. See
      railIsExpanded in storeLogic. */
   const [railStored, setRailStored] = useState(() => readRail(lastScope()))
+  /* THE REST OF THIS WEEK'S LOGS, keyed by date. `mealLog` is today and
+     stays the only log anything writes to; these are the other six days,
+     read so Track and Plan can show what was eaten against what was
+     planned. See planDates in storeLogic. */
+  const [weekLogs, setWeekLogs] = useState({})
   /* RESOLVED ONCE, HERE. Everything downstream — the derivation, the
      check key, the exclusion key — takes a real integer, so this is the
      only line in the app where "today" means anything. */
@@ -84,6 +101,30 @@ export function AppStoreProvider({ children }) {
   const groceryRows = useMemo(
     () => buildGroceryItems(weekPlan, groceryCatalog, groceryExcluded, groceryDay, groceryHidden),
     [weekPlan, groceryExcluded, groceryDay, groceryHidden])
+
+  /* PER-DAY PROGRESS, derived beside the list for the same reason the
+     list is derived here: Plan's day cards and the grocery day pills
+     both show it, and they must not disagree with the list itself. */
+  const groceryProgress = useMemo(
+    () => groceryProgressByDay(weekPlan, groceryCatalog, groceryExcluded, groceryHidden, groceryChecks),
+    [weekPlan, groceryExcluded, groceryHidden, groceryChecks])
+
+  /* THE WEEK'S LIST, merged from the day lists — see
+     buildWeekGroceryItems. Derived here for the same reason the day's
+     is: the screen and Plan's summary both read it. */
+  const groceryWeekRows = useMemo(
+    () => buildWeekGroceryItems(weekPlan, groceryCatalog, groceryExcluded, groceryHidden),
+    [weekPlan, groceryExcluded, groceryHidden])
+  const groceryWeekProgress = useMemo(() => ({
+    total: groceryWeekRows.length,
+    got: groceryWeekRows.reduce((n, r) => n + (weekRowChecked(r, groceryChecks) ? 1 : 0), 0),
+  }), [groceryWeekRows, groceryChecks])
+
+  /* Which calendar date each plan day is, this week. */
+  const dates = useMemo(
+    () => planDates(weekPlan.length, planToday, fromISO(logDate)),
+    [weekPlan.length, planToday, logDate])
+  const datesKey = dates.join()
 
   const groceryUnchecked = useMemo(
     () => groceryRows.reduce(
@@ -116,6 +157,13 @@ export function AppStoreProvider({ children }) {
         getDoc(doc(db, 'users', uid, 'profile', 'favorites')),
         getDoc(doc(db, 'users', uid, 'grocery', 'checks')),
         getDoc(doc(db, 'users', uid, 'grocery', 'excluded')),
+        /* THIS LINE WAS MISSING. Seven names were destructured from six
+           reads, so `hidSnap` was undefined, `hidSnap.exists()` threw,
+           and the catch below fell back to localStorage — on EVERY
+           signed-in load. Writes reached the cloud and nothing was ever
+           read back, so a plan made on one device never arrived on
+           another. The fallback made it silent. */
+        getDoc(doc(db, 'users', uid, 'grocery', 'hidden')),
       ])
       const g = goalsSnap.exists() ? goalsSnap.data() : null
       const l = logSnap.exists()   ? logSnap.data().meals  : null
@@ -215,6 +263,30 @@ export function AppStoreProvider({ children }) {
       clearInterval(tick)
     }
   }, [logDate, user])
+
+  /* THE OTHER SIX DAYS OF THIS WEEK. Device first, then the cloud when
+     there is one — the same order as everything else here. Re-read when
+     the day rolls over (yesterday's log is on disk by then) and when the
+     scope changes. A failed cloud read keeps the device's answer. */
+  const scopeUid = user === undefined ? boot.scope : (user?.uid ?? null)
+  useEffect(() => {
+    let stale = false
+    const others = datesKey.split(',').filter(d => d && d !== logDate)
+    const local = Object.fromEntries(
+      others.map(d => [d, loadLS(lsKey(scopeUid, `log_${d}`), [])]))
+    setWeekLogs(local)
+    if (!user || !cloudEnabled) return
+    Promise.all(others.map(d => getDoc(doc(db, 'users', user.uid, 'logs', d))))
+      .then(snaps => {
+        if (stale) return
+        setWeekLogs(Object.fromEntries(others.map((d, i) => {
+          const meals = snaps[i]?.exists?.() ? snaps[i].data().meals : null
+          return [d, Array.isArray(meals) ? meals : local[d]]
+        })))
+      })
+      .catch(e => console.error('[weekLogs]', e))
+    return () => { stale = true }
+  }, [datesKey, logDate, scopeUid, user])
 
   /* WRITES ARE LOCAL-FIRST, CLOUD-SECOND, AND NO LONGER SILENT.
    *
@@ -361,25 +433,37 @@ export function AppStoreProvider({ children }) {
      writes that move Today, the grocery list and Track's planned rows.
      Nothing else needs to be told. */
 
-  /** Put a recipe in the first free slot of `dayIndex`. */
+  /** Put a recipe on `dayIndex`: the first free slot, or a new one.
+   *
+   *  A DAY IS NEVER FULL. It used to be: two slots, and a third meal was
+   *  refused — so with a planned week every day read FULL and "add to
+   *  plan" could add nothing, which is the opposite of what the button
+   *  says. See addMealToDay in storeLogic. */
   const assignMeal = useCallback((dayIndex, recipeId) => {
-    const day = weekPlan[dayIndex]
-    if (!day) return false
-    const slot = (day.ids || []).findIndex(x => !x)
-    if (slot < 0) return false                       // full; the caller says so
-    const next = weekPlan.map((d, i) =>
-      i !== dayIndex ? d : { ...d, ids: d.ids.map((x, j) => (j === slot ? recipeId : x)) })
+    if (!weekPlan[dayIndex]) return false
+    const next = addMealToDay(weekPlan, dayIndex, recipeId)
     setWeekPlan(next)
     writePlan(user?.uid, next)
     return true
   }, [weekPlan, user, writePlan])
 
-  /** Clear one slot. The slot stays — a day has a fixed shape. */
+  /** Take the meal in one slot off the day. */
   const removeMeal = useCallback((dayIndex, slot) => {
-    const next = weekPlan.map((d, i) =>
-      i !== dayIndex ? d : { ...d, ids: d.ids.map((x, j) => (j === slot ? null : x)) })
+    const next = removeMealFromDay(weekPlan, dayIndex, slot)
     setWeekPlan(next)
     writePlan(user?.uid, next)
+  }, [weekPlan, user, writePlan])
+
+  /** Take a RECIPE off a day, wherever it sits — the undo of a one-tap
+   *  add, where the caller knows the recipe and not the slot. The last
+   *  occurrence, so adding twice and removing once leaves the first. */
+  const unassignMeal = useCallback((dayIndex, recipeId) => {
+    const slot = (weekPlan[dayIndex]?.ids || []).lastIndexOf(recipeId)
+    if (slot < 0) return false
+    const next = removeMealFromDay(weekPlan, dayIndex, slot)
+    setWeekPlan(next)
+    writePlan(user?.uid, next)
+    return true
   }, [weekPlan, user, writePlan])
 
   /* Local only — a sidebar width is not account data, and syncing it
@@ -407,6 +491,21 @@ export function AppStoreProvider({ children }) {
     setGroceryChecks(next)
     writeGroc(user?.uid, next)
   }, [groceryChecks, groceryDay, user, writeGroc])
+
+  /* A WEEK ROW'S CHECK IS EVERY DAY'S CHECK FOR THAT ITEM. Ticking it
+     writes the ordinary per-day keys, so the day views agree at once;
+     unticking removes them all. A row that is got on some days and not
+     others reads as not got, and one tap finishes it. */
+  const toggleGroceryItemWeek = useCallback((itemId) => {
+    const row = groceryWeekRows.find(r => r.id === itemId)
+    if (!row) return
+    const keys = weekRowKeys(row)
+    const next = new Set(groceryChecks)
+    if (weekRowChecked(row, groceryChecks)) for (const k of keys) next.delete(k)
+    else for (const k of keys) next.add(k)
+    setGroceryChecks(next)
+    writeGroc(user?.uid, next)
+  }, [groceryWeekRows, groceryChecks, user, writeGroc])
 
   const checkAllGrocery = useCallback((allItemIds) => {
     const next = new Set([...allItemIds].map(id => dayKey(groceryDay, id)))
@@ -473,6 +572,42 @@ export function AppStoreProvider({ children }) {
     setGroceryChecks(empty);   writeGroc(user?.uid, empty)
   }, [user, writeGroc, writeExcluded])
 
+  /* ── RESET ───────────────────────────────────────────────────────
+     One button for "start over". Three independent parts, because they
+     are three different things to lose and the sheet lets each be kept:
+
+       week      every plan slot emptied, and the shop that belonged to
+                 it — checks and "already have" exclusions — with it.
+                 NOT the hidden set: "I never need this" is about the
+                 person, the same reason START A NEW LIST leaves it.
+       tracking  what was logged this week, today included, so the
+                 calorie and macro counters read zero.
+       targets   the four daily goals back to the defaults.
+
+     Every part goes through the ordinary writers, so a reset reaches the
+     cloud — and reports a failure — exactly like any other change. */
+  const resetApp = useCallback(({ week = true, tracking = true, targets = true } = {}) => {
+    const uid = user?.uid
+    if (week) {
+      const next = emptiedWeekPlan(weekPlan)
+      setWeekPlan(next); writePlan(uid, next)
+      const empty = new Set()
+      setGroceryExcluded(empty); writeExcluded(uid, empty)
+      setGroceryChecks(empty);   writeGroc(uid, empty)
+      setGroceryDay(null)
+    }
+    if (tracking) {
+      setMealLog([]); writeLog(uid, [], logDate)
+      for (const [date, entries] of Object.entries(weekLogs)) {
+        if (entries?.length) writeLog(uid, [], date)
+      }
+      setWeekLogs({})
+    }
+    if (targets) {
+      setGoalsState(DEFAULT_GOALS); writeGoals(uid, DEFAULT_GOALS)
+    }
+  }, [user, weekPlan, weekLogs, logDate, writePlan, writeExcluded, writeGroc, writeLog, writeGoals])
+
   const signIn = useCallback((email, password) =>
     signInWithEmailAndPassword(auth, email, password), [])
 
@@ -488,8 +623,22 @@ export function AppStoreProvider({ children }) {
     fat:      mealLog.reduce((sum, m) => sum + (recipeById[m.recipeId]?.fat || 0), 0),
   }
 
+  /* One log per plan day, aligned to weekPlan. Today's is the live
+     `mealLog`, so a meal logged a second ago is already in here. */
+  const logsByDay = dates.map(d => (d === logDate ? mealLog : (weekLogs[d] || [])))
+
   const value = {
     user,
+    logsByDay,
+    planDates: dates,
+    groceryProgress,
+    groceryWeek,
+    setGroceryWeek,
+    groceryWeekRows,
+    groceryWeekProgress,
+    toggleGroceryItemWeek,
+    resetApp,
+    defaultGoals: DEFAULT_GOALS,
     goals,
     mealLog,
     consumed,
@@ -524,6 +673,7 @@ export function AppStoreProvider({ children }) {
     shuffleWeekPlan,
     assignMeal,
     removeMeal,
+    unassignMeal,
     toggleFavorite,
     toggleGroceryItem,
     checkAllGrocery,

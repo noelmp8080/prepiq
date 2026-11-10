@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import Sheet from './Sheet'
 import Thumb from './Thumb'
+import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
 import { getRecipeDetails } from '../data/recipeDetails'
 
@@ -102,10 +102,16 @@ const ICON_TILE = {
 }
 
 export default function RecipeSheet({ recipe, onClose }) {
-  const { favorites, toggleFavorite, logMeal, weekPlan, assignMeal } = useAppStore()
-  const [picking, setPicking] = useState(false)
+  const {
+    favorites, toggleFavorite, logMeal, weekPlan, planToday, assignMeal, unassignMeal,
+  } = useAppStore()
 
   if (!recipe) return null
+
+  /* Which days already hold this recipe — the lit chips. */
+  const onDays = weekPlan
+    .map((d, i) => ((d.ids || []).includes(recipe.id) ? i : -1))
+    .filter(i => i >= 0)
 
   const details = getRecipeDetails(recipe)
   const ingredients = details?.ingredients || []
@@ -120,7 +126,6 @@ export default function RecipeSheet({ recipe, onClose }) {
   ]
 
   return (
-    <>
       <Sheet open onClose={onClose} title={recipe.name}>
         {/* ── Header ─────────────────────────────────────────────── */}
         <div style={{
@@ -271,88 +276,49 @@ export default function RecipeSheet({ recipe, onClose }) {
           </div>
         </div>
 
-        {/* ── Actions ────────────────────────────────────────────── */}
+        {/* ── Actions ────────────────────────────────────────────────
+            THE DAYS ARE THE BUTTON. This used to be ADD TO PLAN, which
+            opened a second sheet with a day list — two more taps and a
+            wait, and every day that already held two meals was greyed
+            out as FULL. Now: tap WED and it is on Wednesday. The chip
+            lights, the sheet stays open so you can see it landed, and
+            tapping the lit chip takes it off again. */}
         <div style={{
-          flexShrink: 0, display: 'flex', gap: 8,
-          padding: '12px var(--pq-gutter) 16px',
+          flexShrink: 0, padding: '12px var(--pq-gutter) 16px',
           borderTop: '1px solid var(--pq-rule-cell)',
+          display: 'flex', flexDirection: 'column', gap: 8,
         }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+          }}>
+            <span style={MONO_LABEL}>ADD TO A DAY</span>
+            <span data-sheet-added aria-live="polite" style={{
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-label)',
+              color: 'var(--pq-accent)', letterSpacing: 'var(--pq-track-label)',
+            }}>
+              {onDays.length ? `ON ${onDays.map(i => weekPlan[i].day.toUpperCase()).join(' · ')}` : ''}
+            </span>
+          </div>
+          <DayChips
+            label={`Add ${recipe.name} to a day`}
+            days={weekPlan}
+            isOn={i => onDays.includes(i)}
+            isToday={i => i === planToday}
+            count={i => (weekPlan[i].ids || []).filter(Boolean).length}
+            onPick={i => (onDays.includes(i)
+              ? unassignMeal(i, recipe.id) : assignMeal(i, recipe.id))}
+          />
           <button
             onClick={() => { logMeal(recipe.id, 'meal'); onClose?.() }}
             style={{
-              flex: 1, minHeight: 'var(--pq-tap-min)', padding: 14,
-              borderRadius: 'var(--pq-r-button)', border: 'none', cursor: 'pointer',
-              background: 'var(--pq-accent-grad)',
-              boxShadow: 'var(--pq-accent-raise)',
-              color: 'var(--pq-on-accent-ink)',
-              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-body)',
-              fontWeight: 600, letterSpacing: '.04em',
-            }}>ATE THIS</button>
-          <button
-            onClick={() => setPicking(true)}
-            style={{
-              flex: 1, minHeight: 'var(--pq-tap-min)', padding: 14,
+              width: '100%', minHeight: 'var(--pq-tap-min)', padding: 14,
               borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
               border: '1px solid var(--pq-rule-strong)', background: 'transparent',
               color: 'var(--pq-text-2)',
               fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-body)',
               fontWeight: 600, letterSpacing: '.04em',
-            }}>ADD TO PLAN</button>
+            }}>I ATE THIS TODAY</button>
         </div>
       </Sheet>
-
-      {/* A second sheet rather than a slot inside this one: the day list
-          is a separate decision, and replacing the sheet's body would
-          lose the recipe you were reading. Stacks over it, as in the
-          prototype. */}
-      {picking && (
-        <Sheet open onClose={() => setPicking(false)} title="Add to plan">
-          <div style={{
-            flexShrink: 0, padding: '16px var(--pq-gutter) 12px',
-            borderBottom: '1px solid var(--pq-rule-cell)',
-          }}>
-            <div style={{
-              fontSize: 16, fontWeight: 700, color: 'var(--pq-text)',
-              letterSpacing: '-.01em',
-            }}>Add to plan</div>
-            <div style={{
-              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
-              color: 'var(--pq-text-3)', marginTop: 3,
-              letterSpacing: 'var(--pq-track-chip)',
-            }}>{recipe.name.toUpperCase()}</div>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px var(--pq-gutter)' }}>
-            {weekPlan.map((day, i) => {
-              const full = (day.ids || []).every(Boolean)
-              return (
-                <button
-                  key={day.day}
-                  onClick={() => { assignMeal(i, recipe.id); setPicking(false); onClose?.() }}
-                  disabled={full}
-                  style={{
-                    width: '100%', minHeight: 'var(--pq-tap-min)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 12, marginBottom: 6, padding: '11px 14px',
-                    borderRadius: 'var(--pq-r-button)',
-                    border: '1px solid var(--pq-rule-soft)',
-                    background: 'var(--pq-panel)',
-                    cursor: full ? 'default' : 'pointer',
-                    opacity: full ? 0.45 : 1,
-                    fontFamily: 'var(--pq-mono)',
-                  }}>
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: 'var(--pq-text)',
-                    letterSpacing: 'var(--pq-track-label)',
-                  }}>{day.day.toUpperCase()}</span>
-                  <span style={{ fontSize: 11, color: 'var(--pq-text-3)' }}>
-                    {full ? 'FULL' : `${(day.ids || []).filter(Boolean).length}/${(day.ids || []).length} PLANNED`}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </Sheet>
-      )}
-    </>
   )
 }

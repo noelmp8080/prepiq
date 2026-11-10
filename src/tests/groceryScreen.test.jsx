@@ -221,8 +221,12 @@ describe('Clear and undo', () => {
     await selectMonday()
     const before = rows().length
     const dropped = [nameOf(rows()[0]), nameOf(rows()[1])]
-    await act(async () => { rows()[0].click() })
-    await act(async () => { rows()[1].click() })
+    /* BY NAME, not by position. A checked row sinks to the bottom of its
+       group now, so after the first tap `rows()[1]` is a different item
+       from the one named above. */
+    const byName = n => rows().find(r => nameOf(r) === n)
+    await act(async () => { byName(dropped[0]).click() })
+    await act(async () => { byName(dropped[1]).click() })
     await act(async () => { clearBtn().click() })
 
     expect(rows()).toHaveLength(before - 2)

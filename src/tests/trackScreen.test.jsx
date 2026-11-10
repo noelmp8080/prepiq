@@ -186,8 +186,11 @@ describe('the macro card is not Today’s', () => {
 
   it('draws a 4px kcal bar and 3px macro bars, all on the inset well', async () => {
     await mount()
+    /* The macro card's bars. The week card under it draws seven more
+       wells of its own and is asserted separately. */
     const bars = [...host.querySelectorAll('div')]
       .filter(d => d.style.background === 'var(--pq-track-bg)')
+      .filter(d => !d.closest('[data-track-week]'))
     expect(bars).toHaveLength(4)
     expect(bars[0].style.height).toBe('4px')
     for (const b of bars.slice(1)) expect(b.style.height).toBe('3px')

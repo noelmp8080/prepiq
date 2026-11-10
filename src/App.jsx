@@ -12,6 +12,7 @@ import Recipes  from './components/Recipes'
 import Grocery  from './components/Grocery'
 import Track    from './components/Track'
 import Settings from './components/Settings'
+import ResetSheet from './components/ResetSheet'
 import Auth     from './components/Auth'
 
 function AppInner() {
@@ -23,6 +24,7 @@ function AppInner() {
   const [tab,      setTab]      = useState('today')
   const [skipAuth, setSkipAuth] = useState(() => !!sessionStorage.getItem('skipAuth'))
   const [phoneSettings, setPhoneSettings] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
 
   /* EVERY HOOK BEFORE EVERY EARLY RETURN.
    *
@@ -97,16 +99,24 @@ function AppInner() {
       )}
     >
       {tab === 'today'   && <Today   onChange={setTab} surface={surface}
-                                     onOpenSettings={() => setPhoneSettings(true)} />}
-      {tab === 'plan'    && <Plan    surface={surface} />}
+                                     onOpenSettings={() => setPhoneSettings(true)}
+                                     onReset={() => setResetOpen(true)} />}
+      {tab === 'plan'    && <Plan    onChange={setTab} surface={surface}
+                                     onReset={() => setResetOpen(true)} />}
       {tab === 'recipes' && <Recipes surface={surface} />}
       {tab === 'grocery' && <Grocery onChange={setTab} surface={surface} />}
-      {tab === 'track'   && <Track   onChange={setTab} surface={surface} />}
+      {tab === 'track'   && <Track   onChange={setTab} surface={surface}
+                                     onReset={() => setResetOpen(true)} />}
       <Settings
         open={settingsOpen}
         inline={wide}
         onClose={() => { setPhoneSettings(false); if (wide) setTab('today') }}
+        /* On phone Settings is itself a sheet, so it steps aside first:
+           two sheets stacked is two scrims and two close buttons. */
+        onReset={() => { setPhoneSettings(false); setResetOpen(true) }}
       />
+      {/* ONE RESET SHEET, opened from Plan, Track and Settings alike. */}
+      <ResetSheet open={resetOpen} onClose={() => setResetOpen(false)} />
     </Shell>
   )
 }

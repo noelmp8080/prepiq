@@ -3,17 +3,19 @@ import Card, { CARD_ROW_RULE } from './Card'
 import Thumb from './Thumb'
 import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
+import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
 import { recipes } from '../data/recipes'
 
 /* ── Recipes — finding one of 260 ─────────────────────────────────────
  *
- * Search, filter, open. Assigning to a day happens in the recipe sheet's
- * ADD TO PLAN, not from a trailing button here: the prototype's trailing
- * control is the favourite heart, and a list row with two different
- * commit actions is a row where you learn which is which by getting it
- * wrong. The README describes an assign button; the markup draws a
- * heart. Ruled toward the markup, like the rest of this block.
+ * Search, filter, ADD. Assigning to a day used to happen only inside the
+ * recipe sheet, on the reasoning that a row with two commit actions is
+ * one where you learn which is which by getting it wrong. The owner
+ * found that too slow — "I see a meal and I want it for a day and I add
+ * it" — so every row now carries a + that puts the meal on the day
+ * chosen in the chip row above, in one tap. The heart stays; the two are
+ * drawn differently enough (filled tile vs outline) not to be confused.
  *
  * PAGINATED. 260 rows is 260 thumbnails, and the whole list is not what
  * anyone is looking at — you search, or you filter, or you take the
@@ -49,7 +51,16 @@ const RESULT_COLS = { tablet: 'repeat(2,minmax(0,1fr))', desktop: 'repeat(3,minm
 const PAGES = { phone: 40, tablet: 48, desktop: 60 }
 
 export default function Recipes({ surface = 'phone' }) {
-  const { favorites, toggleFavorite } = useAppStore()
+  const {
+    favorites, toggleFavorite, weekPlan, planToday, assignMeal, unassignMeal,
+  } = useAppStore()
+  /* WHICH DAY THE + ADDS TO. Chosen once, then every row is one tap:
+     see a meal, tap +, it is on that day. Starts on today, and stays
+     where you put it while you fill a day — which is how a week
+     actually gets planned, a day at a time. */
+  const [targetDay, setTargetDay] = useState(planToday)
+  const target = weekPlan[targetDay] || weekPlan[0]
+  const targetIds = target?.ids || []
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('ALL')
   const PAGE = PAGES[surface] || PAGES.phone
@@ -142,6 +153,25 @@ export default function Recipes({ surface = 'phone' }) {
         })}
       </div>
 
+      {/* ── Adding to ───────────────────────────────────────────────
+          The day the + on each row adds to. The number under each day
+          is how many meals it holds, so the week fills up in view. */}
+      <div data-add-target style={{ padding: '10px var(--pq-gutter) 0' }}>
+        <div style={{
+          ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,
+          color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-section)',
+          marginBottom: 6,
+        }}>TAP + TO ADD A MEAL TO</div>
+        <DayChips
+          label="Day to add meals to"
+          days={weekPlan}
+          isOn={i => i === targetDay}
+          isToday={i => i === planToday}
+          count={i => (weekPlan[i].ids || []).filter(Boolean).length}
+          onPick={setTargetDay}
+        />
+      </div>
+
       {visible.length === 0 ? (
         <p style={{
           margin: 0, padding: '32px 20px', textAlign: 'center',
@@ -156,6 +186,7 @@ export default function Recipes({ surface = 'phone' }) {
         }}>
           {visible.map(r => {
             const faved = favorites.has(r.id)
+            const planned = targetIds.includes(r.id)
             return (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', borderBottom: CARD_ROW_RULE }}>
                 <button
@@ -178,6 +209,41 @@ export default function Recipes({ surface = 'phone' }) {
                       ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
                       color: 'var(--pq-text-muted)', marginTop: 3,
                     }}>{r.cal} KCAL · {r.protein}P · {r.carbs}C · {r.fat}F</span>
+                  </span>
+                </button>
+                {/* ONE TAP: ON THE DAY. A + that becomes a tick, and the
+                    tick takes it off again — so the undo is the same
+                    button, where your thumb already is. The heart beside
+                    it is an outline and this is a filled tile, so the
+                    two cannot be taken for each other. */}
+                <button
+                  data-add-meal
+                  onClick={() => (planned
+                    ? unassignMeal(targetDay, r.id) : assignMeal(targetDay, r.id))}
+                  aria-pressed={planned}
+                  aria-label={planned
+                    ? `Remove ${r.name} from ${target.day}`
+                    : `Add ${r.name} to ${target.day}`}
+                  style={{
+                    flexShrink: 0, width: 'var(--pq-tap-min)', height: 70,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  }}>
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 9,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: planned ? 'var(--pq-accent-grad)' : 'var(--pq-thumb-fallback)',
+                    boxShadow: planned ? 'var(--pq-accent-raise)' : 'var(--pq-thumb-fallback-lip)',
+                    border: `1px solid ${planned ? 'transparent' : 'var(--pq-rule-strong)'}`,
+                    color: planned ? 'var(--pq-on-accent-ink)' : 'var(--pq-text)',
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                      stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      {planned
+                        ? <path d="M20 6 9 17l-5-5" />
+                        : <><path d="M5 12h14" /><path d="M12 5v14" /></>}
+                    </svg>
                   </span>
                 </button>
                 <button

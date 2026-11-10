@@ -180,7 +180,7 @@
   --pq-r-button:          10px;
   --pq-r-thumb:           9px;   /* 7px at 36px, 10px at 56px */
   --pq-r-chip:            8px;
-  --pq-r-check:           6px;
+  --pq-r-check:           50%;   /* a check CIRCLE, as on a notes checklist */
 
   /* ── Targets ───────────────────────────────────────────── */
   --pq-row-grocery:       56px;  /* whole-row tap target */

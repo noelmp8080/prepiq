@@ -54,7 +54,7 @@ describe('the values a later edit would most likely round', () => {
     expect(tok('pq-card-border')).toBe('1px solid rgba(255,255,255,0.14)')
     expect(tok('pq-r-card')).toBe('14px')
     expect(tok('pq-r-button')).toBe('10px')
-    expect(tok('pq-r-check')).toBe('6px')
+    expect(tok('pq-r-check')).toBe('50%')
   })
 })
 

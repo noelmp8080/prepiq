@@ -38,7 +38,7 @@ const MONO_SECTION = {
  *
  * The whole row is the target, not the 44x26 switch, so the label is
  * tappable too. */
-function Toggle({ checked, onChange, label, hint }) {
+export function Toggle({ checked, onChange, label, hint }) {
   return (
     <button
       type="button"
@@ -98,7 +98,7 @@ function Toggle({ checked, onChange, label, hint }) {
  * being narrowed from pane to sheet mid-edit. Rendering it conditionally
  * in App would unmount it on a resize and silently discard whatever was
  * typed, which is the exact failure the block E brief names. */
-export default function Settings({ open, onClose, inline = false }) {
+export default function Settings({ open, onClose, onReset, inline = false }) {
   const { goals, updateGoals } = useAppStore()
   const { theme, toggleTheme } = useTheme()
 
@@ -248,6 +248,25 @@ export default function Settings({ open, onClose, inline = false }) {
             onChange={toggleTheme}
           />
         </div>
+
+        {/* START OVER. Opens the reset sheet rather than resetting from
+            here: it says what will go and lets any of it be kept. */}
+        {onReset && (
+          <>
+            <div style={{ ...MONO_SECTION, marginBottom: 10 }}>START OVER</div>
+            <button
+              data-settings-reset
+              onClick={onReset}
+              style={{
+                width: '100%', minHeight: 'var(--pq-tap-min)', marginBottom: 20,
+                padding: '0 14px', textAlign: 'left', cursor: 'pointer',
+                borderRadius: 'var(--pq-r-button)', background: 'transparent',
+                border: '1px solid var(--pq-rule-soft)', color: 'var(--pq-text-2)',
+                fontFamily: 'var(--pq-mono)', fontSize: 12, fontWeight: 600,
+                letterSpacing: 'var(--pq-track-chip)',
+              }}>RESET WEEK, LOG AND TARGETS…</button>
+          </>
+        )}
       </div>
 
       <div style={{ flexShrink: 0, padding: '12px var(--pq-gutter) 24px' }}>

@@ -261,8 +261,9 @@ describe('a 36-ingredient recipe does not push the actions off the sheet', () =>
     const r = recipes.find(x => x.name === longest.name) || recipeById[1]
     await open(r)
     const labels = [...dialog().querySelectorAll('button')].map(b => b.textContent)
-    expect(labels).toContain('ATE THIS')
-    expect(labels).toContain('ADD TO PLAN')
+    expect(labels).toContain('I ATE THIS TODAY')
+    /* ADD TO PLAN is seven day chips now, on the sheet itself. */
+    expect(dialog().querySelectorAll('[data-day-chip]')).toHaveLength(7)
   })
 })
 

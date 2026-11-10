@@ -592,6 +592,167 @@ export function normalizeWeekPlan(plan, recipeById = {}) {
   return touched ? next : plan
 }
 
+/* ── THE WEEK HAS DATES, EVEN THOUGH THE PLAN DOES NOT ────────────────
+ *
+ * weekPlan is seven labelled days with no calendar identity. The LOG is
+ * the opposite: one document per calendar date. Track and Plan both need
+ * to put the two side by side — "what did I eat on the day I planned
+ * this" — so the mapping lives here, once.
+ *
+ * ANCHORED ON TODAY'S INDEX, not on "Monday is 0". Plan day i is
+ * (i - todayIdx) days from now, which stays right whatever order the
+ * plan's days are in — the same reason todayIndex matches on labels.
+ */
+export function planDates(length, todayIdx, now = new Date()) {
+  return Array.from({ length }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (i - todayIdx))
+    return todayISO(d)
+  })
+}
+
+/** YYYY-MM-DD back to a LOCAL date. `new Date('2026-11-10')` is UTC
+ *  midnight, which is yesterday evening west of Greenwich — the same
+ *  fault todayISO was written to remove. */
+export function fromISO(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+/* ── A DAY HOLDS AS MANY MEALS AS YOU GIVE IT ─────────────────────────
+ *
+ * A day used to be exactly two slots, and a third meal was refused. With
+ * a planned week that made every day FULL, so the one action a meal
+ * planner exists for — "I want this on Thursday" — did nothing.
+ *
+ * BASE_SLOTS is how many empty rows an empty day shows, and the floor a
+ * day shrinks back to. Above it a day grows by one per meal and gives
+ * the slot back when the meal goes, so a day never accumulates blank
+ * rows it has to be cleaned of.
+ */
+export const BASE_SLOTS = 2
+
+/** `recipeId` on `dayIndex`: the first empty slot, or one more slot. */
+export function addMealToDay(plan = [], dayIndex, recipeId) {
+  return plan.map((d, i) => {
+    if (i !== dayIndex) return d
+    const ids = [...(d.ids || [])]
+    const free = ids.findIndex(x => !x)
+    if (free >= 0) ids[free] = recipeId
+    else ids.push(recipeId)
+    return { ...d, ids }
+  })
+}
+
+/** Empty one slot. An EXTRA slot is removed outright; one of the base
+ *  slots is emptied and stays, so the day keeps its "Add a meal" rows. */
+export function removeMealFromDay(plan = [], dayIndex, slot) {
+  return plan.map((d, i) => {
+    if (i !== dayIndex) return d
+    const ids = [...(d.ids || [])]
+    if (slot < 0 || slot >= ids.length) return d
+    if (ids.length > BASE_SLOTS) ids.splice(slot, 1)
+    else ids[slot] = null
+    return { ...d, ids }
+  })
+}
+
+/** The same week, emptied: every day keeps its label and goes back to
+ *  the base number of empty slots. */
+export function emptiedWeekPlan(plan = []) {
+  return plan.map(d => ({ ...d, ids: Array.from({ length: BASE_SLOTS }, () => null) }))
+}
+
+/** How far through each day's shopping you are: [{ total, got }], one
+ *  per plan day.
+ *
+ *  Plan uses it to say, on each day card, what the grocery list is
+ *  doing — and the grocery day pills use it to mark a day as done. It
+ *  calls buildGroceryItems rather than counting on its own, so the
+ *  number on Plan cannot disagree with the list it links to. */
+export function groceryProgressByDay(weekPlan = [], catalog = {}, excluded = new Set(),
+                                     hidden = new Set(), checks = new Set()) {
+  return weekPlan.map((_, i) => {
+    const rows = buildGroceryItems(weekPlan, catalog, excluded, i, hidden)
+    const got = rows.reduce((n, r) => n + (checks.has(dayKey(i, r.id)) ? 1 : 0), 0)
+    return { total: rows.length, got }
+  })
+}
+
+/* ── THE WHOLE WEEK AS ONE LIST ───────────────────────────────────────
+ *
+ * The list was day-scoped by an earlier decision, because quantities
+ * differ per day. That is right for cooking and wrong for the weekly
+ * shop, where it meant walking seven lists. So the week is a THIRD
+ * READING of the same data — not a second store.
+ *
+ * BUILT FROM THE DAY LISTS, never beside them. Each day's rows come from
+ * buildGroceryItems exactly as the day view gets them, and are merged by
+ * item id. So an item cleared or hidden for a day is missing here for
+ * the same reason, and the week cannot list something no day does.
+ *
+ * `days` IS WHAT MAKES THE CHECK HONEST. A week row stands for the item
+ * on every day that needs it, and its check is those days' ordinary
+ * `dayIndex:itemId` keys — all of them. Tick it here and each day shows
+ * it ticked; tick every day and it is ticked here. One key space, as
+ * DEVIATIONS §21 requires, with nothing new stored.
+ *
+ * `qtyDay` runs parallel to `qty` like `qtyFrom` does, so the expander
+ * can say which day each amount is for.
+ */
+export function buildWeekGroceryItems(weekPlan = [], catalog = {}, excluded = new Set(),
+                                      hidden = new Set()) {
+  const rows = new Map()
+  ;(Array.isArray(weekPlan) ? weekPlan : []).forEach((_, dayIndex) => {
+    for (const r of buildGroceryItems(weekPlan, catalog, excluded, dayIndex, hidden)) {
+      let row = rows.get(r.id)
+      if (!row) {
+        row = { id: r.id, name: r.name, section: r.section,
+                meals: [], qty: [], qtyFrom: [], qtyDay: [], days: [] }
+        rows.set(r.id, row)
+      }
+      row.days.push(dayIndex)
+      row.meals.push(...r.meals)
+      r.qty.forEach((q, i) => {
+        row.qty.push(q); row.qtyFrom.push(r.qtyFrom[i]); row.qtyDay.push(dayIndex)
+      })
+    }
+  })
+  return [...rows.values()]
+}
+
+/** Every stored key a week row stands for. */
+export const weekRowKeys = row => (row?.days || []).map(d => dayKey(d, row.id))
+
+/** Got for the week means got on every day that needs it. */
+export const weekRowChecked = (row, checks = new Set()) => {
+  const keys = weekRowKeys(row)
+  return keys.length > 0 && keys.every(k => checks.has(k))
+}
+
+/* ── CHECKED ROWS SINK ────────────────────────────────────────────────
+ *
+ * The list used to hold every row still on tap. It now behaves like a
+ * checklist in a notes app, at the user's request: what you still need
+ * stays at the top in shop order, and what you have got drops to the
+ * bottom of its group and piles up there.
+ *
+ * `rankOf(item)` is -1 for an unchecked row, otherwise the order it was
+ * checked in. Unchecked rows KEEP their incoming order — only the tapped
+ * row moves, so the row under your thumb is replaced by the one that was
+ * below it and nothing else changes place.
+ */
+export function sinkChecked(items = [], rankOf) {
+  const open = [], got = []
+  for (const it of items) (rankOf(it) < 0 ? open : got).push(it)
+  got.sort((a, b) => rankOf(a) - rankOf(b))
+  return [...open, ...got]
+}
+
+/** Macro totals for one day's LOG entries. */
+export function sumLog(entries = [], recipeById = {}) {
+  return sumMacros((entries || []).map(e => e?.recipeId), recipeById)
+}
+
 /** Which planned ids no longer name a recipe — for reporting, not for
  *  rendering. Returns [{ dayIndex, day, position, id }]. */
 export function danglingPlanIds(plan, recipeById = {}) {

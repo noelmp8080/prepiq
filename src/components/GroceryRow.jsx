@@ -32,10 +32,11 @@ export default function GroceryRow({
   onToggleOpen,
   badge = null,          // the number beside the chevron; omitted when null
   expanderLabel,
+  flipKey,               // stable identity for the sink animation — see useFlip
   children,              // the expanded panel
 }) {
   return (
-    <div>
+    <div data-flip={flipKey} data-checked={checked ? '' : undefined}>
       <div style={{
         display: 'flex', alignItems: 'stretch',
         borderBottom: '1px solid var(--pq-rule-row)',

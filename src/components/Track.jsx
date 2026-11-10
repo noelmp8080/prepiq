@@ -4,7 +4,8 @@ import RecipeSheet from './RecipeSheet'
 import ScreenHeader from './ScreenHeader'
 import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
-import { planVsLog, pct } from '../store/storeLogic'
+import { planVsLog, pct, sumMacros, sumLog } from '../store/storeLogic'
+import { ResetButton } from './ResetSheet'
 
 /* ── Track — what I actually ate ──────────────────────────────────────
  *
@@ -52,12 +53,114 @@ function Bar({ value, goal, height, fill }) {
 
 const COLS = { tablet: '300px minmax(0,1fr)', desktop: '360px minmax(0,1fr)' }
 
-export default function Track({ onChange, surface = 'phone' }) {
+const LINK = {
+  flex: 1, minHeight: 'var(--pq-tap-min)', padding: '0 12px',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+  background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+  ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+  letterSpacing: 'var(--pq-track-label)', color: 'var(--pq-text-muted)',
+}
+
+/* ── THE WEEK, PLANNED AGAINST EATEN ──────────────────────────────────
+ *
+ * Track used to know about one day. It read today's plan and today's
+ * log and nothing else, so it could not say how the week was going and
+ * nothing on it led anywhere but the recipe list — which is why it read
+ * as a screen on its own.
+ *
+ * One column per plan day. A day that has happened shows what was
+ * LOGGED, filled in the accent; a day still to come shows what is
+ * PLANNED, as a dim fill, because that is the only number it has. Both
+ * are drawn against the same daily target, so a tall dim bar on Thursday
+ * is the plan telling you Thursday is over target before you eat it.
+ *
+ * The two doors under it go to the screens the numbers come from.
+ */
+function WeekCard({
+  weekPlan, planToday, logsByDay, goals, groceryUnchecked, onChange, onOpenGrocery, style,
+}) {
+  const days = weekPlan.map((d, i) => {
+    /* Rounded: a few recipes carry half-calories, and "6,727.5 PLANNED"
+       is precision the cookbook does not have. */
+    const planned = Math.round(sumMacros((d.ids || []).filter(Boolean), recipeById).calories)
+    const logged = Math.round(sumLog(logsByDay?.[i] || [], recipeById).calories)
+    const future = i > planToday
+    return { label: d.day, planned, logged, future, today: i === planToday,
+             shown: future ? planned : logged }
+  })
+  const weekLogged = days.reduce((n, d) => n + d.logged, 0)
+  const weekPlanned = days.reduce((n, d) => n + d.planned, 0)
+
+  return (
+    <Card data-track-week style={{ padding: '14px 12px 0', ...style }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        padding: '0 4px', marginBottom: 12,
+      }}>
+        <span style={{ ...EYEBROW, marginBottom: 0 }}>THIS WEEK</span>
+        <span style={{ ...MONO, fontSize: 'var(--pq-size-eyebrow)', color: 'var(--pq-text-3)' }}>
+          {weekLogged.toLocaleString()} EATEN · {weekPlanned.toLocaleString()} PLANNED
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        {days.map(d => (
+          <div key={d.label} data-week-day
+            aria-label={`${d.label}: ${d.logged} kcal eaten, ${d.planned} planned`}
+            style={{
+              flex: 1, minWidth: 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+            }}>
+            <div style={{
+              width: '100%', height: 44, borderRadius: 4, overflow: 'hidden',
+              display: 'flex', alignItems: 'flex-end',
+              background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
+              outline: d.today ? '1px solid var(--pq-accent)' : 'none',
+            }}>
+              <div style={{
+                width: '100%', height: `${pct(d.shown, goals.calories)}%`,
+                background: d.future ? 'var(--pq-text-3)' : 'var(--pq-accent-bar)',
+                opacity: d.future ? 0.45 : 1,
+                transition: 'height .3s',
+              }} />
+            </div>
+            <span style={{
+              ...MONO, fontSize: 10, fontWeight: 600,
+              color: d.today ? 'var(--pq-accent)' : 'var(--pq-text-3)',
+              letterSpacing: 'var(--pq-track-label)',
+            }}>{d.label.toUpperCase()}</span>
+            <span style={{
+              ...MONO, fontSize: 10,
+              color: d.future ? 'var(--pq-text-3)' : 'var(--pq-text-2)',
+            }}>{d.shown || '—'}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        display: 'flex', borderTop: CARD_ROW_RULE, margin: '12px -12px 0',
+      }}>
+        <button data-track-to-plan onClick={() => onChange?.('plan')} style={LINK}>
+          <span>WEEK PLAN</span><span aria-hidden="true">›</span>
+        </button>
+        <button data-track-to-grocery onClick={onOpenGrocery}
+          style={{ ...LINK, borderLeft: CARD_ROW_RULE }}>
+          <span>GROCERIES{groceryUnchecked > 0 ? ` · ${groceryUnchecked} LEFT TODAY` : ''}</span>
+          <span aria-hidden="true">›</span>
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+export default function Track({ onChange, onReset, surface = 'phone' }) {
   const cols = COLS[surface]
   const {
     weekPlan, planToday, mealLog, goals, consumed,
-    logMeal, removeLoggedMeal,
+    logMeal, removeLoggedMeal, logsByDay, groceryProgress, setGroceryDay,
   } = useAppStore()
+  const todayProg = groceryProgress?.[planToday] || { total: 0, got: 0 }
+  const todayGroceryLeft = todayProg.total - todayProg.got
 
   const [sheetRecipe, setSheetRecipe] = useState(null)
 
@@ -70,13 +173,22 @@ export default function Track({ onChange, surface = 'phone' }) {
 
   const left = goals.calories - consumed.calories
 
+  /* WHAT TODAY'S PLAN ADDS UP TO, against the same target the bar
+     above it measures. The log says where you are; this says where the
+     plan will leave you, which is the number you can still change. */
+  const plannedToday = sumMacros(
+    planned.filter(p => recipeById[p.recipeId]).map(p => p.recipeId), recipeById)
+  const planGap = goals.calories - plannedToday.calories
+  const nothingPlanned = plannedToday.calories === 0 && planned.length === 0
+
   return (
     <div>
       <ScreenHeader
         surface={surface}
         eyebrow={dateEyebrow()}
         title="Track"
-        actions={
+        actions={<>
+          {onReset && <ResetButton onClick={onReset} />}
           <button
             onClick={() => onChange?.('recipes')}
             style={{
@@ -93,7 +205,7 @@ export default function Track({ onChange, surface = 'phone' }) {
             </svg>
             LOG
           </button>
-        }
+        </>}
       />
 
       <div style={cols ? {
@@ -101,6 +213,7 @@ export default function Track({ onChange, surface = 'phone' }) {
         gap: surface === 'desktop' ? 26 : 20,
         alignItems: 'start', padding: '0 var(--pq-gutter)',
       } : undefined}>
+      <div>
       {/* ── Macro card ──────────────────────────────────────────── */}
       <Card style={{ margin: cols ? '20px 0 0' : '20px var(--pq-gutter) 0', padding: 16 }}>
         <div style={{
@@ -146,9 +259,60 @@ export default function Track({ onChange, surface = 'phone' }) {
             </div>
           ))}
         </div>
+
+        {/* The plan, measured against the same target. */}
+        {!nothingPlanned && (
+          <div data-track-planned style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8,
+            marginTop: 16, paddingTop: 12, borderTop: CARD_ROW_RULE,
+            ...MONO, fontSize: 'var(--pq-size-eyebrow)',
+            letterSpacing: 'var(--pq-track-label)',
+          }}>
+            <span style={{ color: 'var(--pq-text-muted)' }}>
+              TODAY’S PLAN · {plannedToday.calories} KCAL · {plannedToday.protein}G
+            </span>
+            <span style={{ color: 'var(--pq-text-3)', whiteSpace: 'nowrap' }}>
+              {planGap >= 0 ? `${planGap} UNDER` : `${Math.abs(planGap)} OVER`}
+            </span>
+          </div>
+        )}
       </Card>
 
+      <WeekCard
+        weekPlan={weekPlan} planToday={planToday} logsByDay={logsByDay}
+        goals={goals} onChange={onChange}
+        /* TODAY'S, not the selected grocery day's. Track is about today,
+           so its count is today's — and the door opens the list there. */
+        groceryUnchecked={todayGroceryLeft}
+        onOpenGrocery={() => { setGroceryDay(null); onChange?.('grocery') }}
+        style={{ margin: cols ? '16px 0 0' : '16px var(--pq-gutter) 0' }}
+      />
+      </div>
+
       <div>
+      {/* ── Nothing planned ─────────────────────────────────────────
+          Said out loud, with the way to fix it. Track used to show
+          nothing at all here, which looked like a screen that did not
+          know the plan existed. */}
+      {nothingPlanned && (
+        <div style={{ padding: cols ? '20px 0 0' : '24px var(--pq-gutter) 0' }}>
+          <div style={EYEBROW}>PLANNED</div>
+          <EmptyBlock
+            as="button"
+            onClick={() => onChange?.('plan')}
+            style={{ padding: 22, width: '100%', background: 'none', cursor: 'pointer' }}
+          >
+            <p style={{
+              margin: '0 0 4px', fontSize: 'var(--pq-size-row)', fontWeight: 500,
+              color: 'var(--pq-text-muted)',
+            }}>Nothing planned for today</p>
+            <p style={{ ...MONO, margin: 0, fontSize: 12, color: 'var(--pq-text-3)' }}>
+              TAP TO OPEN THE WEEK PLAN
+            </p>
+          </EmptyBlock>
+        </div>
+      )}
+
       {/* ── Planned, not yet logged ─────────────────────────────── */}
       {uneaten.length > 0 && (
         <div style={{ padding: cols ? '20px 0 0' : '24px var(--pq-gutter) 0' }}>

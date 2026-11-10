@@ -288,45 +288,120 @@ describe('the screen renders real food, for exactly one day', () => {
     expect(box.style.boxShadow).toBe('inset 0 2px 4px rgba(0,0,0,0.45)')
     expect(rowButtons()[0].style.gap).toBe('14px')
     expect(TOKENS).toMatch(/--pq-check:\s*22px/)
-    expect(TOKENS).toMatch(/--pq-r-check:\s*6px/)
+    expect(TOKENS).toMatch(/--pq-r-check:\s*50%/)
   })
 })
 
-describe('NOTHING MOVES ON TAP', () => {
-  it('checking a row changes only paint properties, nowhere in the tree', () => {
-    const rows = rowButtons()
-    const before = snapshot(listEl())
-    act(() => { rows[0].click() })
-    const diff = layoutDiff(before, snapshot(listEl()))
-    expect(diff, 'tapping a row moved something:\n' + diff.join('\n')).toEqual([])
+/* ── THE RULE CHANGED, AND THE HARNESS CHANGED WITH IT ────────────────
+ *
+ * "Nothing moves on tap" was this screen's first rule. The owner then
+ * asked for a notes-app checklist — a checked row travels to the bottom
+ * of its group and the checked ones pile up there — so a tap now moves
+ * exactly one thing, on purpose. Asserting the old rule would be
+ * asserting against the product.
+ *
+ * WHAT IS ASSERTED INSTEAD is everything that made the old rule safe,
+ * which the new behaviour was built to keep:
+ *
+ *   1. ONLY THE TAPPED ITEM CHANGES PLACE. Every other row keeps its
+ *      order, so the row that arrives under the thumb is the one that
+ *      was directly below it.
+ *   2. NOTHING IS ADDED OR REMOVED. Same node count before and after.
+ *   3. INSIDE A ROW, ONLY PAINT CHANGES. The paint-only diff above is
+ *      still run — per row, on every row, tapped or not.
+ *   4. IT SINKS. In every group, no unchecked row sits below a checked
+ *      one.
+ *
+ * Rows are followed by `data-flip`, the same identity the animation
+ * uses, rather than by position — position is the thing that changes.
+ */
+const rowRootsIn = el => [...el.querySelectorAll('[data-flip]')]
+const pressedOf = root =>
+  root.querySelector('button[aria-pressed]').getAttribute('aria-pressed')
+
+/** Tap, then assert the four points. Returns the keys that moved. */
+async function tapAndExpectSink(list, tap, label = '') {
+  const count = list().querySelectorAll('*').length
+  const roots = rowRootsIn(list())
+  const order = roots.map(r => r.dataset.flip)
+  const state = new Map(roots.map(r => [r.dataset.flip, pressedOf(r)]))
+  const snaps = new Map(roots.map(r => [r.dataset.flip, snapshot(r)]))
+
+  await act(async () => { tap() })
+
+  const after = rowRootsIn(list())
+  const moved = new Set(after
+    .filter(r => pressedOf(r) !== state.get(r.dataset.flip))
+    .map(r => r.dataset.flip))
+  expect(moved.size, `${label}the tap changed no row`).toBeGreaterThan(0)
+
+  expect(list().querySelectorAll('*').length,
+    `${label}a node was added or removed`).toBe(count)
+
+  const rest = keys => keys.filter(k => !moved.has(k))
+  expect(rest(after.map(r => r.dataset.flip)),
+    `${label}a row that was not tapped changed place`).toEqual(rest(order))
+
+  for (const r of after) {
+    const diff = layoutDiff(snaps.get(r.dataset.flip), snapshot(r))
+    expect(diff, `${label}row ${r.dataset.flip} changed more than paint:\n` + diff.join('\n'))
+      .toEqual([])
+  }
+
+  const groups = new Map()
+  for (const r of after) {
+    if (!groups.has(r.parentElement)) groups.set(r.parentElement, [])
+    groups.get(r.parentElement).push(pressedOf(r))
+  }
+  for (const seq of groups.values()) {
+    expect(seq.join(' '), `${label}an unchecked row sits below a checked one`)
+      .toMatch(/^(false ?)*(true ?)*$/)
+  }
+  return moved
+}
+
+describe('A CHECKED ROW SINKS, AND ONLY THAT ROW MOVES', () => {
+  it('checking a row sends it to the bottom of its section and moves nothing else', async () => {
+    const first = rowRootsIn(listEl())[0]
+    const section = first.parentElement
+    const moved = await tapAndExpectSink(listEl, () => rowButtons()[0].click())
+    expect([...moved]).toEqual([first.dataset.flip])
+    /* It stayed in ITS section, and it is now that section's last row. */
+    const inSection = rowRootsIn(section)
+    expect(inSection[inSection.length - 1]).toBe(first)
   })
 
-  it('unchecking it moves nothing either', () => {
-    const rows = rowButtons()
-    act(() => { rows[0].click() })
+  it('unchecking it puts the whole list back exactly as it was', async () => {
     const before = snapshot(listEl())
-    act(() => { rows[0].click() })
-    const diff = layoutDiff(before, snapshot(listEl()))
-    expect(diff, diff.join('\n')).toEqual([])
+    const key = rowRootsIn(listEl())[0].dataset.flip
+    const button = () => listEl().querySelector(`[data-flip="${key}"] button[aria-pressed]`)
+    await act(async () => { button().click() })
+    await act(async () => { button().click() })
+    expect(snapshot(listEl())).toEqual(before)
   })
 
-  it('holds for a row in the middle and the last row', () => {
-    const rows = rowButtons()
-    for (const idx of [Math.floor(rows.length / 2), rows.length - 1]) {
-      const before = snapshot(listEl())
-      act(() => { rowButtons()[idx].click() })
-      const diff = layoutDiff(before, snapshot(listEl()))
-      expect(diff, `row ${idx}:\n` + diff.join('\n')).toEqual([])
+  it('holds for a row in the middle and the last row', async () => {
+    const n = rowButtons().length
+    for (const idx of [Math.floor(n / 2), n - 1]) {
+      await tapAndExpectSink(listEl, () => rowButtons()[idx].click(), `row ${idx}: `)
     }
   })
 
-  it('holds when several rows are checked in sequence', () => {
-    for (let i = 0; i < 5; i++) {
-      const before = snapshot(listEl())
-      act(() => { rowButtons()[i].click() })
-      const diff = layoutDiff(before, snapshot(listEl()))
-      expect(diff, `tap ${i}:\n` + diff.join('\n')).toEqual([])
+  it('holds when several rows are checked in sequence, and they pile up in that order', async () => {
+    const section = rowRootsIn(listEl())[0].parentElement
+    const size = rowRootsIn(section).length
+    const taps = Math.min(3, size)
+    const checkedInOrder = []
+    for (let i = 0; i < taps; i++) {
+      /* Always the section's first row: the previous one has sunk, so
+         the next unchecked item is now at the top. */
+      const top = rowRootsIn(section)[0]
+      checkedInOrder.push(top.dataset.flip)
+      await tapAndExpectSink(listEl,
+        () => top.querySelector('button[aria-pressed]').click(), `tap ${i}: `)
     }
+    const tail = rowRootsIn(section).slice(-taps).map(r => r.dataset.flip)
+    expect(tail).toEqual(checkedInOrder)
   })
 
   /* THE HEADER SITS ABOVE THE LIST, so anything that changes ITS box
@@ -524,19 +599,22 @@ describe('NOTHING MOVES ON TAP — at desktop width', () => {
     for (const r of wRows()) expect(a.contains(r) !== b.contains(r)).toBe(true)
   })
 
-  it('checking a row moves nothing, in either column or the side pane', () => {
-    const before = snapshot(wList())
-    act(() => { wRows()[0].click() })
-    const all = layoutDiff(before, snapshot(wList()))
-    /* The side pane's progress readout is meant to move — it is this
-       surface's version of the phone header's counter. Named, like the
-       phone one, rather than waved past with a loose pattern. */
+  it('checking a row sinks it and moves nothing else, and the side pane counts it', async () => {
+    const side = () => wHost.querySelector('[data-grocery-side]')
+    const sideBefore = snapshot(side())
+    await tapAndExpectSink(wList, () => wRows()[0].click(), 'desktop: ')
+
+    /* The side pane's progress readout is meant to change — it is this
+       surface's version of the phone header's counter — and NOTHING
+       else in the pane may. Named, like the phone one, rather than
+       waved past with a loose pattern. */
+    const all = layoutDiff(sideBefore, snapshot(side()))
     const allowed = [
       /^#\d+ <DIV> width: "\d+%" -> "\d+%"$/,
       /^#\d+ text "0 OF 25 · 0%" -> "1 OF 25 · 4%"$/,
     ]
     const diff = all.filter(d => !allowed.some(re => re.test(d)))
-    expect(diff, 'tapping a row moved something at desktop width:\n' + diff.join('\n')).toEqual([])
+    expect(diff, 'the side pane moved:\n' + diff.join('\n')).toEqual([])
     for (const re of allowed) {
       expect(all.some(d => re.test(d)), `nothing matched ${re}`).toBe(true)
     }
@@ -643,20 +721,24 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
     expect(dRows().length).toBeGreaterThan(DERIVED_ROWS)
   })
 
-  it('checking a row changes only paint', async () => {
+  it('checking a row sinks it within its recipe and moves nothing else', async () => {
     await mountDay('phone')
-    const before = snapshot(dList())
-    await act(async () => { dRows()[0].click() })
-    expect(dRows()[0].getAttribute('aria-pressed')).toBe('true')
-    expect(layoutDiff(before, snapshot(dList()))).toEqual([])
+    const row = dRows()[0]
+    const group = row.closest('[data-flip]').parentElement
+    await tapAndExpectSink(dList, () => row.click(), 'day view: ')
+    expect(row.getAttribute('aria-pressed')).toBe('true')
+    /* Sunk to the foot of ITS OWN recipe, not of the page. */
+    const inGroup = rowRootsIn(group)
+    expect(inGroup[inGroup.length - 1]).toBe(row.closest('[data-flip]'))
   })
 
   it('unchecking it puts every property back', async () => {
     await mountDay('phone')
     const before = snapshot(dList())
-    await act(async () => { dRows()[0].click() })
-    await act(async () => { dRows()[0].click() })
-    expect(dRows()[0].getAttribute('aria-pressed')).toBe('false')
+    const row = dRows()[0]
+    await act(async () => { row.click() })
+    await act(async () => { row.click() })
+    expect(row.getAttribute('aria-pressed')).toBe('false')
     expect(snapshot(dList())).toEqual(before)
   })
 
@@ -703,14 +785,12 @@ describe('NOTHING MOVES ON TAP — the day view', () => {
     expect(grids.length).toBeGreaterThan(0)
   })
 
-  /* A grid with a fixed column count places each row in a cell of fixed
-     height, so a tap in one column is structurally incapable of moving
-     another. CSS `columns` would not be — see DEVIATIONS §10. */
-  it('a tap in one column cannot move another, at desktop width', async () => {
+  /* Three columns of one grid: the sunk row leaves its cell and the rows
+     after it each step back one. Still only the tapped item changes
+     ORDER, and still nothing but paint changes inside any row. */
+  it('sinks the row at desktop width too, and reorders nothing else', async () => {
     await mountDay('desktop')
-    const before = snapshot(dList())
-    await act(async () => { dRows()[0].click() })
-    expect(layoutDiff(before, snapshot(dList()))).toEqual([])
+    await tapAndExpectSink(dList, () => dRows()[0].click(), 'desktop day view: ')
   })
 
   it('shows a photo or its fallback tile for every group', async () => {

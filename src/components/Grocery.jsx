@@ -5,7 +5,8 @@ import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import GroceryDay from './GroceryDay'
 import HiddenSheet from './HiddenSheet'
 import { useAppStore } from '../store/useAppStore'
-import { groupBySection, dayKey } from '../store/storeLogic'
+import { groupBySection, dayKey, sinkChecked, weekRowChecked, weekRowKeys } from '../store/storeLogic'
+import { useFlip } from '../lib/useFlip'
 import { amountFor } from '../lib/groceryAmount'
 import { hiddenItemsNamed } from '../lib/groceryByDay'
 import { recipeById } from '../data/recipes'
@@ -16,15 +17,24 @@ import catalog from '../data/groceryCatalog.json'
  * BUILT FOR A SUPERMARKET, NOT FOR A DESKTOP THAT HAPPENS TO SHRINK.
  * One hand, a basket in the other, bad lighting, 375px.
  *
- * THE RULE THE WHOLE SCREEN IS BUILT AROUND: NOTHING MOVES ON TAP.
- * Checking a row changes `opacity`, `color`, `text-decoration`,
- * `background`, `box-shadow` and `border-color` — paint properties, all
- * of them. No layout, no reflow, no reorder, no insertion, no
- * sink-to-bottom. A list that rearranges under your thumb is how you
- * check the wrong item next, and in a shop you would not notice.
+ * THE RULE THIS SCREEN WAS FIRST BUILT AROUND WAS "NOTHING MOVES ON
+ * TAP", AND IT HAS BEEN DELIBERATELY REPLACED. The owner asked for the
+ * checklist behaviour of a notes app: a checked item travels to the
+ * bottom and the checked ones pile up there, so what is left at the top
+ * is exactly what is still missing. That is the rule now.
  *
- * Reordering happens only at moments you control: collapsing a section,
- * Clear, changing the day, or re-entering the screen.
+ * WHAT SURVIVES OF THE OLD RULE, because it is what made it safe:
+ *
+ *   ONLY THE TAPPED ROW CHANGES PLACE. Every unchecked row keeps its
+ *   order (`sinkChecked`), so the row that arrives under your thumb is
+ *   the one that was directly below — never a surprise from elsewhere.
+ *   THE ROW ITSELF IS STILL PAINT-ONLY. Same box, same border width,
+ *   same node count checked and unchecked; nothing inside a row resizes.
+ *   THE MOVE IS A TRANSFORM. The new order is committed at once and the
+ *   travel is drawn on top of it (`useFlip`), so a second tap during the
+ *   animation lands on the row it appears to land on.
+ *   IT SINKS WITHIN ITS GROUP — its aisle, or its recipe — so a checked
+ *   item is still found where you would look for it.
  *
  * TWO THINGS THE REDESIGN CHANGED, AND WHY THEY MAKE THE RULE STRONGER:
  *
@@ -91,11 +101,14 @@ export default function Grocery({ onChange, surface = 'phone' }) {
   const wide = surface === 'tablet' || surface === 'desktop'
   const desktop = surface === 'desktop'
   const {
-    weekPlan, planToday, groceryRows: rows, groceryChecks, groceryExcluded, groceryDay,
+    weekPlan, planToday, groceryRows: dayRows, groceryChecks, groceryExcluded, groceryDay,
+    groceryWeek: week, setGroceryWeek, groceryWeekRows, toggleGroceryItemWeek,
     groceryDayIsToday, setGroceryDay, toggleGroceryItem,
     clearGrocery, undoClear, startNewGroceryList,
     groceryHidden, hideGroceryItem, unhideGroceryItem, unhideAllGroceryItems,
+    groceryProgress,
   } = useAppStore()
+  const listRef = useRef(null)
 
   const [openRow, setOpenRow] = useState(null)
   /* COLLAPSE STATE PERSISTS ACROSS DAY CHANGES — it lives here, above
@@ -111,16 +124,47 @@ export default function Grocery({ onChange, surface = 'phone' }) {
   const [hiddenSheet, setHiddenSheet] = useState(null)
   const scrollPin = useRef(null)
 
+  /* ── THE WHOLE WEEK IS A THIRD READING, NOT A SECOND LIST ───────────
+     `week` swaps which rows the aisle list walks and how a row's check
+     is read and written; everything below — sections, counts, Clear,
+     the sink — runs on `rows`, `isChecked` and `toggle` and does not
+     know which it has. See buildWeekGroceryItems. */
+  const rows = week ? groceryWeekRows : dayRows
+  const weekById = useMemo(
+    () => new Map(groceryWeekRows.map(r => [r.id, r])), [groceryWeekRows])
+  const toggle = week ? toggleGroceryItemWeek : toggleGroceryItem
+
   const sections = useMemo(() => groupBySection(rows, catalog), [rows])
   const hiddenNamed = useMemo(() => hiddenItemsNamed(groceryHidden, catalog), [groceryHidden])
 
-  const isChecked = id => groceryChecks.has(dayKey(groceryDay, id))
+  const isChecked = id => (week
+    ? weekRowChecked(weekById.get(id), groceryChecks)
+    : groceryChecks.has(dayKey(groceryDay, id)))
+  /* THE ORDER THINGS WERE CHECKED IN, which is the order they pile up
+     in. A Set iterates in insertion order and the stored array keeps it,
+     so this survives a reload without a second field to keep in step.
+
+     A week row is got when its LAST day's key went in, so that is its
+     place in the pile. */
+  const checkRank = useMemo(() => {
+    const rank = new Map()
+    let n = 0
+    for (const k of groceryChecks) rank.set(k, n++)
+    if (!week) return id => rank.get(dayKey(groceryDay, id)) ?? -1
+    return id => {
+      const row = weekById.get(id)
+      if (!weekRowChecked(row, groceryChecks)) return -1
+      return Math.max(...weekRowKeys(row).map(k => rank.get(k)))
+    }
+  }, [groceryChecks, groceryDay, week, weekById])
   const done = rows.filter(r => isChecked(r.id)).length
   const left = rows.length - done
   const pct = rows.length ? Math.round((done / rows.length) * 100) : 0
 
   const day = weekPlan[groceryDay]
-  const mealCount = (day?.ids || []).filter(Boolean).length
+  const mealCount = week
+    ? weekPlan.reduce((n, d) => n + (d.ids || []).filter(Boolean).length, 0)
+    : (day?.ids || []).filter(Boolean).length
 
   /* PIN THE SCROLL OFFSET when a section above the viewport collapses.
      `overflow-anchor` is not trusted here: it is unimplemented in Safari,
@@ -138,7 +182,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
   /* An open expander belongs to a row on a particular day. Leaving it
      open across a day change would reveal a different item's amounts
      under the same chevron. */
-  useEffect(() => { setOpenRow(null) }, [groceryDay])
+  useEffect(() => { setOpenRow(null) }, [groceryDay, week])
 
   function toggleSection(name) {
     scrollPin.current = { top: window.scrollY, height: document.documentElement.scrollHeight }
@@ -173,7 +217,13 @@ export default function Grocery({ onChange, surface = 'phone' }) {
      day view's item set IS `rows`, which the parity test in
      groceryByDay.test.js asserts on every day of the fixture. */
   const [mode, setMode] = useState('day')
-  const dayView = mode === 'day'
+  /* The week is always read by aisle: by meal it would be fourteen
+     recipe blocks, which is the Plan screen with checkboxes. */
+  const dayView = !week && mode === 'day'
+
+  /* Rows travel when their order changes — but only within one list.
+     Another day, the other reading, or the week is a different list. */
+  useFlip(listRef, `${week ? 'week' : groceryDay}|${mode}`)
 
   /* "Nothing planned" only when there is genuinely no meal. A day whose
      items were all cleared has nothing to BUY, which is a different
@@ -185,13 +235,12 @@ export default function Grocery({ onChange, surface = 'phone' }) {
 
   const dayName = (day?.day || '').toUpperCase()
   const subLine = [
-    groceryDayIsToday ? 'TODAY' : null,
-    dayName,
+    week ? 'WHOLE WEEK' : (groceryDayIsToday ? 'TODAY' : null),
+    week ? null : dayName,
     `${mealCount} MEAL${mealCount === 1 ? '' : 'S'}`,
   ].filter(Boolean).join(' · ')
-
   return (
-    <div style={{ paddingBottom: 92 }}>
+    <div ref={listRef} style={{ paddingBottom: 92 }}>
 
       {/* ── Sticky header ───────────────────────────────────────────
           Never scrolls away: what is left, how far you are, and what
@@ -275,10 +324,45 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             show the selected day whatever the mode, AISLES toggles the
             reading, and two pills are lit at once on purpose: "Monday",
             and "the whole list for it". See DEVIATIONS §17. */}
-        <div style={{ display: 'flex', gap: wide ? 8 : 6, flexWrap: wide ? 'wrap' : 'nowrap' }}>
+        <div style={{ display: 'flex', gap: wide ? 8 : 5, flexWrap: wide ? 'wrap' : 'nowrap' }}>
+          {/* THE WHOLE WEEK, FIRST. It is the list for the weekly shop
+              and the days are slices of it, so it leads the row. Words,
+              not a letter, for the reason the AISLES pill is an icon: a
+              single letter here would read as an eighth day. */}
+          <button
+            data-week-pill
+            onClick={() => setGroceryWeek(true)}
+            aria-pressed={week}
+            aria-label="Whole week — everything for every planned meal"
+            style={{
+              flex: wide ? '0 0 auto' : 1.25, minHeight: 'var(--pq-tap-min)',
+              display: 'flex', alignItems: 'center',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>
+            <span style={{
+              flex: 1, minHeight: 36, borderRadius: 'var(--pq-r-chip)',
+              padding: wide ? '0 18px' : 0,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 2,
+              background: week ? 'var(--pq-accent-grad)' : 'transparent',
+              boxShadow: week ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
+              border: `1px solid ${week ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+              color: week ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+              ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
+              letterSpacing: 'var(--pq-track-chip)',
+            }}>
+              {wide ? 'WHOLE WEEK' : 'ALL'}
+              <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>{' '}</span>
+            </span>
+          </button>
+
           {weekPlan.map((d, i) => {
-            const on = i === groceryDay
+            const on = !week && i === groceryDay
             const hasMeals = (d.ids || []).some(Boolean)
+            /* The pill knows what the list under it is doing: a day
+               whose every item is got shows a tick instead of the dot. */
+            const prog = groceryProgress?.[i]
+            const allGot = !!prog && prog.total > 0 && prog.got === prog.total
             return (
               /* The pill is the design's 36px; the TARGET around it is
                  the handoff's own 44px floor. Growing the pill would
@@ -290,7 +374,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                 data-day-pill
                 onClick={() => setGroceryDay(i)}
                 aria-pressed={on}
-                aria-label={`${d.day}${hasMeals ? '' : ', no meals'}`}
+                aria-label={`${d.day}${hasMeals ? (allGot ? ', all got' : '') : ', no meals'}`}
                 style={{
                   flex: wide ? '0 0 auto' : 1, minHeight: 'var(--pq-tap-min)',
                   display: 'flex', alignItems: 'center',
@@ -310,7 +394,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                 }}>
                   {wide ? d.day.toUpperCase() : DAY_LETTERS[i]}
                   <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.75 }}>
-                    {hasMeals ? '•' : ' '}
+                    {allGot ? '✓' : hasMeals ? '•' : ' '}
                   </span>
                 </span>
               </button>
@@ -320,8 +404,11 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           <button
             data-day-pill
             data-aisles-pill
-            onClick={() => setMode(m => (m === 'week' ? 'day' : 'week'))}
+            /* In the week there is only the aisle reading, so the pill
+               is lit and has nothing to switch to. */
+            onClick={() => { if (!week) setMode(m => (m === 'week' ? 'day' : 'week')) }}
             aria-pressed={!dayView}
+            aria-disabled={week || undefined}
             aria-label="Aisles — this day's items in store order"
             style={{
               flex: wide ? '0 0 auto' : 1, minHeight: 'var(--pq-tap-min)',
@@ -394,6 +481,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           excluded={groceryExcluded}
           surface={surface}
           isChecked={id => isChecked(id)}
+          checkRank={checkRank}
           onToggle={toggleGroceryItem}
           onHide={hideGroceryItem}
           hidden={groceryHidden}
@@ -406,11 +494,13 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             <p style={{
               margin: '0 0 6px', fontSize: 'var(--pq-size-meal)', fontWeight: 600,
               color: 'var(--pq-text-2)',
-            }}>Nothing to buy for {day?.day || 'this day'}</p>
+            }}>Nothing to buy {week ? 'this week' : `for ${day?.day || 'this day'}`}</p>
             <p style={{
               ...MONO, margin: '0 0 18px', fontSize: 12, color: 'var(--pq-text-muted)',
               lineHeight: 1.6,
-            }}>{mealCount === 0 ? 'NO MEALS ASSIGNED TO THIS DAY' : 'EVERYTHING HERE IS CLEARED'}</p>
+            }}>{mealCount === 0
+              ? (week ? 'NO MEALS PLANNED THIS WEEK' : 'NO MEALS ASSIGNED TO THIS DAY')
+              : 'EVERYTHING HERE IS CLEARED'}</p>
             <button
               onClick={() => onChange?.('plan')}
               style={{
@@ -474,12 +564,15 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                   }}>{section.items.length}</span>
                 </button>
 
-                {!shut && section.items.map(item => {
+                {/* Still-needed first in shop order, got ones after in
+                    the order they were got. */}
+                {!shut && sinkChecked(section.items, it => checkRank(it.id)).map(item => {
                   const checked = isChecked(item.id)
                   const open = openRow === item.id
                   return (
                     <GroceryRow
                       key={item.id}
+                      flipKey={`a:${item.id}`}
                       name={item.name}
                       /* THE DAY'S TOTAL for this item: item.qty holds
                          every line that asked for it, across the day's
@@ -487,7 +580,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                          amount instead. */
                       amount={amountFor(item.qty)}
                       checked={checked}
-                      onToggle={() => toggleGroceryItem(item.id)}
+                      onToggle={() => toggle(item.id)}
                       open={open}
                       onToggleOpen={() => setOpenRow(open ? null : item.id)}
                       badge={item.meals.length}
@@ -506,6 +599,9 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                             {q}
                             <span style={{ display: 'block', opacity: 0.7 }}>
                               — {recipeById[item.qtyFrom?.[i]]?.name || 'this day'}
+                              {/* In the week, which day wants it. */}
+                              {week && weekPlan[item.qtyDay?.[i]]
+                                ? ` · ${weekPlan[item.qtyDay[i]].day.toUpperCase()}` : ''}
                             </span>
                           </p>
                         ))}
@@ -550,7 +646,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               <div style={{
                 fontSize: "var(--pq-size-meal)", fontWeight: 700,
                 color: "var(--pq-text)",
-              }}>{day?.day || ""}</div>
+              }}>{week ? 'Whole week' : (day?.day || '')}</div>
 
               <div style={{
                 ...MONO, fontSize: 'var(--pq-size-label)', fontWeight: 600,
@@ -592,6 +688,26 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               color: 'var(--pq-text-muted)',
               ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
             }}>START A NEW LIST</button>}
+        </div>
+      )}
+
+      {/* THE WAY BACK TO THE PLAN, from a list that has something on it.
+          The empty states already offer it; a full list did not, so the
+          one screen that decides what is on this list was a tab away
+          with nothing pointing at it. */}
+      {rows.length > 0 && (
+        <div style={{ padding: '14px var(--pq-gutter) 0' }}>
+          <button
+            data-grocery-to-plan
+            onClick={() => onChange?.('plan')}
+            style={{
+              width: '100%', minHeight: 'var(--pq-tap-min)',
+              borderRadius: 'var(--pq-r-button)', background: 'transparent',
+              border: '1px solid var(--pq-rule-soft)', cursor: 'pointer',
+              color: 'var(--pq-text-muted)',
+              ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
+            }}>{week ? 'CHANGE THE WEEK’S MEALS IN THE PLAN'
+              : `CHANGE ${dayName}’S MEALS IN THE PLAN`}</button>
         </div>
       )}
 

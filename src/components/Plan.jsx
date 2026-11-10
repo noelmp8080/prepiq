@@ -6,7 +6,8 @@ import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipes, recipeById } from '../data/recipes'
-import { sumMacros } from '../store/storeLogic'
+import { sumMacros, planVsLog } from '../store/storeLogic'
+import { ResetButton } from './ResetSheet'
 
 /* ── Plan — the source of truth, and the only screen that writes it ───
  *
@@ -128,8 +129,21 @@ function RecipePicker({ dayLabel, onPick, onClose }) {
    see. Each day card is unchanged — flat panel, same header, same rows. */
 const DAY_COLS = { tablet: 'repeat(2,minmax(0,1fr))', desktop: 'repeat(3,minmax(0,1fr))' }
 
-export default function Plan({ surface = 'phone' }) {
-  const { weekPlan, planToday, assignMeal, removeMeal, shuffleWeekPlan } = useAppStore()
+export default function Plan({ surface = 'phone', onChange, onReset }) {
+  const {
+    weekPlan, planToday, assignMeal, removeMeal, shuffleWeekPlan,
+    goals, logsByDay, groceryProgress, setGroceryDay,
+    groceryWeekProgress: weekProg, setGroceryWeek,
+  } = useAppStore()
+
+  /* THE PLAN SAYS WHAT THE OTHER SCREENS ARE DOING WITH IT. Each day
+     card carries that day's grocery progress and marks the meals already
+     logged, and the grocery line is a door: it opens the list ON that
+     day. Today is passed as null so the list keeps calling it TODAY. */
+  function openGroceryFor(dayIndex) {
+    setGroceryDay(dayIndex === planToday ? null : dayIndex)
+    onChange?.('grocery')
+  }
   const [picking, setPicking] = useState(null)          // { dayIndex, label }
   const [sheetRecipe, setSheetRecipe] = useState(null)
 
@@ -148,7 +162,8 @@ export default function Plan({ surface = 'phone' }) {
         surface={surface}
         eyebrow={weekRange()}
         title="Week"
-        actions={
+        actions={<>
+          {onReset && <ResetButton onClick={onReset} />}
           <button
             onClick={shuffleWeekPlan}
             style={{
@@ -160,7 +175,7 @@ export default function Plan({ surface = 'phone' }) {
               color: 'var(--pq-text-2)',
               ...MONO, fontSize: 12, fontWeight: 500, letterSpacing: 'var(--pq-track-chip)',
             }}>SHUFFLE</button>
-        }
+        </>}
       />
 
       <Card style={{ margin: '20px var(--pq-gutter) 0' }}>
@@ -171,6 +186,35 @@ export default function Plan({ surface = 'phone' }) {
                     style={{ borderRight: CARD_CELL_RULE }} />
           <StatCell value={`${avgProtein}g`} label="AVG PROTEIN" accent />
         </div>
+
+        {/* THE WEEKLY SHOP, from the screen that decides it. One list
+            for every meal on this page, opened straight into the week
+            view. Absent while the week is empty: there is no list. */}
+        {weekProg?.total > 0 && (
+          <button
+            data-plan-week-grocery
+            onClick={() => { setGroceryWeek(true); onChange?.('grocery') }}
+            aria-label={`Groceries for the whole week: ${weekProg.got} of ${weekProg.total} got`}
+            style={{
+              width: '100%', minHeight: 'var(--pq-tap-min)',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px',
+              background: 'none', border: 'none', borderTop: CARD_CELL_RULE,
+              cursor: 'pointer', textAlign: 'left',
+              ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 600,
+              letterSpacing: 'var(--pq-track-label)', color: 'var(--pq-text-2)',
+            }}>
+            <span style={{ flex: 1 }}>GROCERIES FOR THE WHOLE WEEK</span>
+            <span style={{
+              color: weekProg.got === weekProg.total
+                ? 'var(--pq-accent)' : 'var(--pq-text-muted)',
+            }}>
+              {weekProg.got === weekProg.total
+                ? `ALL ${weekProg.total} GOT`
+                : `${weekProg.got} OF ${weekProg.total} GOT`}
+            </span>
+            <span aria-hidden="true">›</span>
+          </button>
+        )}
       </Card>
 
       <div style={DAY_COLS[surface] ? {
@@ -184,6 +228,13 @@ export default function Plan({ surface = 'phone' }) {
         {weekPlan.map((day, dayIndex) => {
           const isToday = dayIndex === planToday
           const totals = dayTotals[dayIndex]
+          /* Same pairing Today and Track use, so a meal cannot read as
+             eaten here and still be offered for logging there. */
+          const eatenBySlot = new Map(
+            planVsLog(day.ids || [], logsByDay?.[dayIndex] || [])
+              .planned.filter(p => p.log).map(p => [p.slot, p.log]))
+          const prog = groceryProgress?.[dayIndex] || { total: 0, got: 0 }
+          const hasMeals = (day.ids || []).some(Boolean)
           return (
             <div key={day.day} style={{
               background: 'var(--pq-panel)',
@@ -212,11 +263,18 @@ export default function Plan({ surface = 'phone' }) {
                 <span style={{
                   ...MONO, fontSize: 12, color: 'var(--pq-text-muted)', whiteSpace: 'nowrap',
                 }}>
-                  {totals.calories ? `${totals.calories} KCAL · ${totals.protein}G` : 'EMPTY'}
+                  {totals.calories
+                    ? `${totals.calories} / ${goals.calories} KCAL · ${totals.protein}G`
+                    : 'EMPTY'}
                 </span>
               </div>
 
-              {(day.ids || []).map((id, slot) => {
+              {/* ALWAYS ONE "Add a meal" ROW. A day with every slot
+                  taken used to have nowhere to add from; now a spare
+                  row is drawn after the last meal, and adding through
+                  it grows the day by one. */}
+              {((day.ids || []).some(x => !x) ? (day.ids || []) : [...(day.ids || []), null])
+                .map((id, slot) => {
                 const r = id ? recipeById[id] : null
                 if (!r) {
                   return (
@@ -247,8 +305,9 @@ export default function Plan({ surface = 'phone' }) {
                     </button>
                   )
                 }
+                const eaten = eatenBySlot.has(slot)
                 return (
-                  <div key={slot} style={{
+                  <div key={slot} data-eaten={eaten ? '' : undefined} style={{
                     display: 'flex', alignItems: 'center',
                     borderBottom: '1px solid var(--pq-rule-meal)',
                   }}>
@@ -271,7 +330,14 @@ export default function Plan({ surface = 'phone' }) {
                         <span style={{
                           ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
                           color: 'var(--pq-text-3)', marginTop: 2,
-                        }}>{r.cal} KCAL · {r.protein}G · {r.carbs}C · {r.fat}F</span>
+                        }}>
+                          {r.cal} KCAL · {r.protein}G · {r.carbs}C · {r.fat}F
+                          {eaten && (
+                            <span style={{ color: 'var(--pq-accent)', fontWeight: 600 }}>
+                              {' '}· ✓ EATEN
+                            </span>
+                          )}
+                        </span>
                       </span>
                     </button>
                     <button
@@ -292,6 +358,44 @@ export default function Plan({ surface = 'phone' }) {
                   </div>
                 )
               })}
+
+              {/* WHAT THE GROCERY LIST IS DOING ABOUT THIS DAY, and the
+                  way to it. Only on a day that has meals: an empty day
+                  has no list to open. */}
+              {hasMeals && (
+                <button
+                  data-plan-grocery
+                  onClick={() => openGroceryFor(dayIndex)}
+                  aria-label={`Groceries for ${day.day}: ${prog.got} of ${prog.total} got`}
+                  style={{
+                    width: '100%', minHeight: 'var(--pq-tap-min)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '0 14px', background: 'none', border: 'none',
+                    cursor: 'pointer', textAlign: 'left',
+                    ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 500,
+                    letterSpacing: 'var(--pq-track-label)',
+                    color: 'var(--pq-text-muted)',
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                  </svg>
+                  <span style={{ flex: 1 }}>GROCERIES</span>
+                  <span style={{
+                    color: prog.total > 0 && prog.got === prog.total
+                      ? 'var(--pq-accent)' : 'var(--pq-text-muted)',
+                  }}>
+                    {prog.total === 0 ? 'NOTHING TO BUY'
+                      : prog.got === prog.total ? `ALL ${prog.total} GOT`
+                        : `${prog.got} OF ${prog.total} GOT`}
+                  </span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+              )}
             </div>
           )
         })}

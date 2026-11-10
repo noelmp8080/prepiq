@@ -1138,6 +1138,91 @@ four sheets and is documented as consistency, not as a fix.
 
 ---
 
+## 24. "Nothing moves on tap" is replaced: a checked row sinks
+
+**Requested by the owner, 2026-11-10.** The grocery screen's first rule
+was that a tap changes paint and nothing else. The owner asked for the
+checklist behaviour of the iPhone Notes app instead: a checked item
+travels to the bottom and the checked ones pile up there, so what is left
+at the top is what is still missing. This reverses the rule on purpose.
+
+What was kept, because it is what made the old rule safe:
+
+- **Only the tapped item changes place.** Unchecked rows keep their order
+  (`sinkChecked` in `storeLogic.js`), so the row that arrives under the
+  thumb is the one that was directly below.
+- **Inside a row, still paint only.** Same box, same border width, same
+  node count checked and unchecked.
+- **The move is a transform.** The new order is committed at once and the
+  travel is drawn over it (`src/lib/useFlip.js`), so a second tap during
+  the animation lands on the row it appears to land on. Reduced-motion
+  users get the reorder with no travel.
+- **It sinks within its group** — its recipe in the day view, its aisle in
+  the aisle view — not to the foot of the page.
+
+The check is a circle now (`--pq-r-check: 50%`), to read as a checklist.
+
+`groceryNoReflow.test.jsx` asserts the new contract rather than the old
+one: per tap, only the tapped item reorders, no node is added or removed,
+no row changes more than paint, and no unchecked row sits below a checked
+one. The header, expander and box-geometry assertions are unchanged.
+
+**Same change, three other things:** a Reset (week / logged / targets, each
+optional — `ResetSheet.jsx`), Plan day cards that carry grocery progress
+and eaten meals and open the list on that day, and a week card on Track.
+The signed-in load was also fixed: it destructured seven snapshots from
+six reads, threw, and fell back to the device copy every time, so nothing
+was ever read from the cloud.
+
+---
+
+## 25. The whole week is a third reading of the list (amends §4)
+
+**Requested by the owner, 2026-11-10.** §4 scoped the list to one day
+because quantities differ per day. That stays true for the day views. For
+the weekly shop it meant walking seven lists, so the header gains a
+WHOLE WEEK pill (`ALL` on phone) ahead of the days, and Plan's stat card
+links straight to it.
+
+- **Merged from the day lists, not built beside them**
+  (`buildWeekGroceryItems`). An item is in the week exactly when some day
+  lists it, so clearing or hiding behaves identically.
+- **No new key space (§21 holds).** A week row's check IS the per-day
+  `dayIndex:itemId` keys for every day that needs the item. Ticking it in
+  the week ticks it on each day; it reads as got only when every one of
+  those days is got.
+- **Amounts add like to like**, through the same `amountFor` the day's
+  aisle list uses; the expander lists each line with its recipe and day.
+- **Always by aisle.** By meal the week would be fourteen recipe blocks.
+  The AISLES pill is lit and inert while the week is showing.
+- The grocery tab still opens on today, and the nav badge still counts
+  the selected day.
+
+---
+
+## 26. Adding a meal is one tap, and a day is never full
+
+**Requested by the owner, 2026-11-10** — "I see a meal and I want it for a
+day and I add it."
+
+- **A + on every recipe row**, adding to the day chosen in a chip row
+  above the list (starts on today). The + becomes a tick; the tick takes
+  the meal off again. This reverses the Recipes ruling that a row should
+  not carry two commit actions — the heart stays, drawn as an outline
+  beside a filled tile.
+- **The recipe sheet's ADD TO PLAN is seven day chips** on the sheet
+  itself, replacing the second stacked sheet. A chip adds, a lit chip
+  removes, and the sheet stays open to show where the meal landed.
+- **No two-meal cap.** `addMealToDay` fills the first empty slot or grows
+  the day by one; `removeMealFromDay` gives an extra slot back and only
+  empties a base one (`BASE_SLOTS = 2`). Plan always shows exactly one
+  "Add a meal" row per day. Previously a planned week made every day
+  FULL and the add control did nothing.
+- `emptiedWeekPlan` puts each day back to two empty slots rather than
+  preserving a grown day's slot count.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

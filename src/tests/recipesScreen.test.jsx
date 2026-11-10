@@ -44,6 +44,11 @@ beforeEach(() => localStorage.clear())
 afterEach(() => { if (root) act(() => root.unmount()); host?.remove(); root = null })
 
 const text = () => host.textContent
+/* Rendering all 260 rows takes ~2.5s alone and more when the whole
+   suite runs in parallel; each row carries three buttons now. The two
+   tests that page to the end get room rather than the 5s default. */
+const FULL_CATALOG_MS = 20000
+
 const rows = () => [...host.querySelectorAll('button')]
   .filter(b => b.querySelector('span') && b.style.padding === '11px 0px 11px 12px')
 const chip = label => [...host.querySelectorAll('button')].find(b => b.textContent === label)
@@ -74,7 +79,7 @@ describe('the list', () => {
     while (loadMore()) act(() => { loadMore().click() })
     expect(rows()).toHaveLength(recipes.length)
     expect(loadMore()).toBeUndefined()
-  })
+  }, FULL_CATALOG_MS)
 
   it('renders rows at 48px with the 9px radius', async () => {
     await mount()
@@ -139,8 +144,14 @@ describe('filter chips', () => {
      nothing is a tag that was renamed in the data and never here. */
   it('has no dead chip', async () => {
     await mount()
-    const labels = [...host.querySelectorAll('[aria-pressed]')].map(b => b.textContent)
+    /* The FILTER chips only. Hearts, the + on each row and the day
+       chips also carry aria-pressed, and all of those are labelled —
+       the filter chips are the ones named by their text alone. */
+    const labels = [...host.querySelectorAll('[aria-pressed]')]
+      .filter(b => !b.getAttribute('aria-label'))
+      .map(b => b.textContent)
     expect(labels).toContain('ALL')
+    expect(labels).toHaveLength(11)
     for (const label of labels) {
       if (label === 'FAVES') continue                 // legitimately empty at first
       act(() => { chip(label).click() })
@@ -177,7 +188,7 @@ describe('filter chips', () => {
 
     act(() => { chip('ALL').click() })
     const heart = [...host.querySelectorAll('button')]
-      .find(b => (b.getAttribute('aria-label') || '').startsWith('Add '))
+      .find(b => /^Add .* to favourites$/.test(b.getAttribute('aria-label') || ''))
     const name = heart.getAttribute('aria-label').replace('Add ', '').replace(' to favourites', '')
     act(() => { heart.click() })
 
@@ -202,14 +213,14 @@ describe('the row actions', () => {
   it('toggles a favourite from the trailing heart, and persists it', async () => {
     await mount()
     const heart = [...host.querySelectorAll('button')]
-      .find(b => (b.getAttribute('aria-label') || '').startsWith('Add '))
+      .find(b => /^Add .* to favourites$/.test(b.getAttribute('aria-label') || ''))
     expect(heart.getAttribute('aria-pressed')).toBe('false')
 
     act(() => { heart.click() })
     expect(box.store.favorites.size).toBe(1)
 
     const again = [...host.querySelectorAll('button')]
-      .find(b => (b.getAttribute('aria-label') || '').startsWith('Remove '))
+      .find(b => /^Remove .* from favourites$/.test(b.getAttribute('aria-label') || ''))
     expect(again.getAttribute('aria-pressed')).toBe('true')
   })
 
@@ -295,5 +306,5 @@ describe('the shell ramp at 260 rows', () => {
 
     act(() => { r.unmount() })
     h.remove()
-  })
+  }, FULL_CATALOG_MS)
 })

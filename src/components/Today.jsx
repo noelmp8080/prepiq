@@ -7,6 +7,7 @@ import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
 import { planVsLog, sumMacros, pct } from '../store/storeLogic'
+import { ResetButton } from './ResetSheet'
 
 /* ── Today — a VIEW of the plan, not a screen with its own state ──────
  *
@@ -84,7 +85,7 @@ const COLS = { tablet: '300px minmax(0,1fr)', desktop: '360px minmax(0,1fr)' }
    iPad, where the right column is narrower. */
 const MEAL_COLS = { desktop: 'repeat(2,minmax(0,1fr))' }
 
-export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
+export default function Today({ onChange, onOpenSettings, onReset, surface = 'phone' }) {
   const cols = COLS[surface]
   const wide = surface === 'tablet' || surface === 'desktop'
   const {
@@ -128,7 +129,12 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
         title="Today"
         /* SETTINGS IS PHONE-ONLY for the same reason: the rail has Goals
            as its own destination on wide. */
-        actions={wide ? null : (
+        actions={<>
+          {/* Reset sits on the home screen, beside the numbers it
+              zeroes — not only inside Settings, where it had to be
+              looked for. On every surface: the rail has no reset. */}
+          {onReset && <ResetButton onClick={onReset} />}
+          {wide ? null : (
           <button
             onClick={() => onOpenSettings?.()}
             aria-label="Settings"
@@ -152,7 +158,8 @@ export default function Today({ onChange, onOpenSettings, surface = 'phone' }) {
               </svg>
             </span>
           </button>
-        )}
+          )}
+        </>}
         /* Layout only, per the Card convention: on phone the lockup
            above already supplies the top space. */
         style={wide ? undefined : { padding: '14px 20px 0' }}

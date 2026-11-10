@@ -4,6 +4,7 @@ import Thumb from './Thumb'
 import GroceryRow, { GroceryRowPanel } from './GroceryRow'
 import { groupsForDay, groupEyebrow } from '../lib/groceryByDay'
 import { amountFor } from '../lib/groceryAmount'
+import { sinkChecked } from '../store/storeLogic'
 import { recipeById } from '../data/recipes'
 import catalog from '../data/groceryCatalog.json'
 
@@ -51,8 +52,11 @@ const LAYOUT = {
    See DEVIATIONS §21. */
 export default function GroceryDay({
   weekPlan, dayIndex, excluded, surface = 'phone',
-  isChecked, onToggle, onHide, hidden = new Set(), onShowHidden, onChange,
+  isChecked, checkRank, onToggle, onHide, hidden = new Set(), onShowHidden, onChange,
 }) {
+  /* -1 while unchecked, else the order it was checked in. Falls back to
+     isChecked so the component still sorts when handed only that. */
+  const rankOf = checkRank || (id => (isChecked(id) ? 0 : -1))
   const L = LAYOUT[surface] || LAYOUT.phone
   const phone = surface === 'phone'
 
@@ -162,7 +166,9 @@ export default function GroceryDay({
             columnGap: L.colGap, rowGap: L.cols > 1 ? 12 : 0,
             alignContent: 'start',
           }}>
-            {group.items.map(item => {
+            {/* Each recipe is its own checklist: still-needed on top,
+                got ones sunk beneath. See sinkChecked. */}
+            {sinkChecked(group.items, it => rankOf(it.itemId)).map(item => {
               /* Identity of a ROW, not of a check. Two groups can hold
                  the same ingredient and each needs its own React key
                  and its own expander; the CHECK they share. */
@@ -172,6 +178,7 @@ export default function GroceryDay({
               return (
                 <GroceryRow
                   key={key}
+                  flipKey={`d:${key}`}
                   name={item.name}
                   /* THIS RECIPE'S amount. The aisle view shows the
                      day's total for the same item; here the question
