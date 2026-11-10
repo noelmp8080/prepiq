@@ -1268,6 +1268,27 @@ gains a TODAY / MONTH switch; Month is `MonthCalendar.jsx`.
 
 ---
 
+## 29. Reset is a clean start (amends §24 and §28)
+
+**Requested by the owner, 2026-11-10** — "just reset everything like a
+clean start."
+
+- **"What I've logged" wipes the whole history**, not this week's: every
+  `log_` key in the scope on the device (`removeLocalLogs`) and every
+  document in `users/{uid}/logs` in the account. This is the one place
+  the store lists a collection — a wipe cannot know which dates exist. A
+  failed cloud wipe is reported through `syncErrors` as `logged history`.
+- **A fourth switch, "Favourites and hidden items"**, on by default. §24
+  kept the hidden set out of reset; a clean start takes it, and
+  favourites, unless that switch is turned off. START A NEW LIST on the
+  grocery screen still leaves the hidden set alone.
+- All four switches start on every time the sheet opens.
+- A calendar on screen re-reads after a wipe (`logsEpoch`), and a cloud
+  read waits for a wipe in progress so deleted days cannot be painted
+  back.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

@@ -77,6 +77,27 @@ export function removeLS(key) {
   try { localStorage.removeItem(key); return true } catch { return false }
 }
 
+/** Remove every stored day-log in one scope; returns how many went.
+ *
+ *  Keys are collected BEFORE any is removed: removing while walking
+ *  `localStorage.key(i)` shifts the indexes and skips every other one.
+ *  Matched on the scope's own `log_` prefix, so another account's logs
+ *  on a shared device are not touched. */
+export function removeLocalLogs(uid) {
+  const prefix = lsKey(uid, 'log_')
+  try {
+    const keys = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith(prefix)) keys.push(k)
+    }
+    for (const k of keys) localStorage.removeItem(k)
+    return keys.length
+  } catch {
+    return 0
+  }
+}
+
 export function saveLS(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))

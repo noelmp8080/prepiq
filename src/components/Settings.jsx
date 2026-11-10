@@ -264,7 +264,7 @@ export default function Settings({ open, onClose, onReset, inline = false }) {
                 border: '1px solid var(--pq-rule-soft)', color: 'var(--pq-text-2)',
                 fontFamily: 'var(--pq-mono)', fontSize: 12, fontWeight: 600,
                 letterSpacing: 'var(--pq-track-chip)',
-              }}>RESET WEEK, LOG AND TARGETS…</button>
+              }}>RESET EVERYTHING…</button>
           </>
         )}
       </div>

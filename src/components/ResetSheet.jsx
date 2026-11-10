@@ -5,7 +5,9 @@ import { useAppStore } from '../store/useAppStore'
 
 /* ── Reset — start the week over ──────────────────────────────────────
  *
- * ONE BUTTON, THREE THINGS IT CAN CLEAR, each with its own switch. They
+ * ONE BUTTON FOR A CLEAN START. Four things it clears, each with its own
+ * switch and all of them on: the owner asked for reset to mean everything.
+ * They
  * are different things to lose: an emptied plan is a few minutes of
  * picking meals, a cleared log is a record that cannot be rebuilt, and
  * targets are four numbers. So the sheet says exactly what will go and
@@ -25,17 +27,19 @@ export default function ResetSheet({ open, onClose }) {
   const [week, setWeek] = useState(true)
   const [tracking, setTracking] = useState(true)
   const [targets, setTargets] = useState(true)
+  const [prefs, setPrefs] = useState(true)
 
-  /* Every opening starts from the same answer. A switch left off from
-     last time would make the same button do something different. */
+  /* Every opening starts from the same answer — everything, a clean
+     start. A switch left off from last time would make the same button
+     do something different. */
   useEffect(() => {
-    if (open) { setWeek(true); setTracking(true); setTargets(true) }
+    if (open) { setWeek(true); setTracking(true); setTargets(true); setPrefs(true) }
   }, [open])
 
-  const nothing = !week && !tracking && !targets
+  const nothing = !week && !tracking && !targets && !prefs
 
   function confirm() {
-    resetApp({ week, tracking, targets })
+    resetApp({ week, tracking, targets, prefs })
     onClose?.()
   }
 
@@ -49,7 +53,7 @@ export default function ResetSheet({ open, onClose }) {
         <p style={{
           ...MONO, margin: 0, fontSize: 'var(--pq-size-eyebrow)',
           color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-chip)',
-        }}>START OVER · THIS CANNOT BE UNDONE</p>
+        }}>A CLEAN START · THIS CANNOT BE UNDONE</p>
       </div>
 
       <div style={{
@@ -64,13 +68,18 @@ export default function ResetSheet({ open, onClose }) {
         />
         <Toggle
           label="What I’ve logged"
-          hint="CALORIES, PROTEIN, CARBS AND FAT BACK TO ZERO"
+          hint="EVERY LOGGED DAY, IN EVERY MONTH"
           checked={tracking} onChange={setTracking}
         />
         <Toggle
           label="Daily targets"
           hint={`BACK TO ${defaultGoals.calories} KCAL · ${defaultGoals.protein}P · ${defaultGoals.carbs}C · ${defaultGoals.fat}F`}
           checked={targets} onChange={setTargets}
+        />
+        <Toggle
+          label="Favourites and hidden items"
+          hint="SAVED RECIPES AND “DON’T NEED THIS” ITEMS"
+          checked={prefs} onChange={setPrefs}
         />
       </div>
 

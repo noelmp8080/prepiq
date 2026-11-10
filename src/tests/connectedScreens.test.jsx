@@ -17,6 +17,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const getDocMock = vi.fn()
 const setDocMock = vi.fn(async () => {})
+const getDocsMock = vi.fn(async () => ({ docs: [] }))
+const deleteDocMock = vi.fn(async () => {})
 let authCb = null
 
 vi.mock('../firebase', () => ({ auth: {}, db: {}, cloudEnabled: true }))
@@ -24,6 +26,9 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db, ...s) => ({ path: s.join('/') }),
   getDoc: (...a) => getDocMock(...a),
   setDoc: (...a) => setDocMock(...a),
+  collection: (_db, ...s) => ({ path: s.join('/') }),
+  getDocs: (...a) => getDocsMock(...a),
+  deleteDoc: (...a) => deleteDocMock(...a),
 }))
 vi.mock('firebase/auth', () => ({
   onAuthStateChanged: (_a, cb) => { authCb = cb; return () => {} },
@@ -73,6 +78,8 @@ beforeEach(() => {
   localStorage.clear()
   getDocMock.mockReset(); getDocMock.mockResolvedValue(missing)
   setDocMock.mockClear()
+  getDocsMock.mockReset(); getDocsMock.mockResolvedValue({ docs: [] })
+  deleteDocMock.mockClear()
 })
 afterEach(() => { if (root) act(() => root.unmount()); host?.remove(); root = null })
 
@@ -275,18 +282,22 @@ describe('a signed-in load reads the cloud', () => {
 
 /* ── Reset ────────────────────────────────────────────────────────── */
 
-describe('reset', () => {
-  async function seeded() {
-    saveLS(null, 'weekplan', PLAN)
-    saveLS(null, 'goals', { calories: 2400, protein: 200, carbs: 250, fat: 80 })
-    saveLS(null, `log_${todayISO()}`, [{ id: 'x', recipeId: 1 }])
-    saveLS(null, 'grocery', { version: CHECKS_VERSION, keys: ['0:1'] })
-    saveLS(null, 'grocery_excluded', { version: EXCLUDED_VERSION, keys: ['0:2'] })
-    saveLS(null, 'grocery_hidden', { version: HIDDEN_VERSION, keys: ['7'] })
-    await mount()
+describe('reset is a clean start', () => {
+  const OLD = '2026-03-14'                      // months back: well outside this week
+
+  async function seeded(opts) {
+    saveLS(opts?.uid ?? null, 'weekplan', PLAN)
+    saveLS(opts?.uid ?? null, 'goals', { calories: 2400, protein: 200, carbs: 250, fat: 80 })
+    saveLS(opts?.uid ?? null, `log_${todayISO()}`, [{ id: 'x', recipeId: 1 }])
+    saveLS(opts?.uid ?? null, `log_${OLD}`, [{ id: 'o', recipeId: 2 }])
+    saveLS(opts?.uid ?? null, 'grocery', { version: CHECKS_VERSION, keys: ['0:1'] })
+    saveLS(opts?.uid ?? null, 'grocery_excluded', { version: EXCLUDED_VERSION, keys: ['0:2'] })
+    saveLS(opts?.uid ?? null, 'grocery_hidden', { version: HIDDEN_VERSION, keys: ['7'] })
+    saveLS(opts?.uid ?? null, 'favorites', [3, 4])
+    await mount(null, opts)
   }
 
-  it('resets all three by default, and it reaches the device', async () => {
+  it('resets everything by default, and it reaches the device', async () => {
     await seeded()
     await act(async () => { box.store.resetApp() })
 
@@ -297,54 +308,93 @@ describe('reset', () => {
     expect(box.store.mealLog).toEqual([])
     expect(box.store.consumed.calories).toBe(0)
     expect(box.store.goals).toEqual(box.store.defaultGoals)
+    expect(box.store.favorites.size).toBe(0)
+    expect(box.store.groceryHidden.size).toBe(0)
 
     expect(readLS(null, 'weekplan').every(d => d.ids.every(x => x === null))).toBe(true)
     expect(readLS(null, 'grocery').keys).toEqual([])
     expect(readLS(null, 'grocery_excluded').keys).toEqual([])
-    expect(readLS(null, `log_${todayISO()}`)).toEqual([])
     expect(readLS(null, 'goals')).toEqual(box.store.defaultGoals)
+    expect(readLS(null, 'favorites')).toEqual([])
+    expect(readLS(null, 'grocery_hidden').keys).toEqual([])
   })
 
-  it('never touches the hidden set — that is about the person, not the week', async () => {
+  /* THE WHOLE HISTORY. It used to clear this week only, which left every
+     earlier month on the calendar — not a clean start. */
+  it('removes every logged day from the device, however old', async () => {
     await seeded()
     await act(async () => { box.store.resetApp() })
-    expect([...box.store.groceryHidden]).toEqual(['7'])
-    expect(readLS(null, 'grocery_hidden').keys).toEqual(['7'])
+    expect(localStorage.getItem(lsKey(null, `log_${OLD}`))).toBeNull()
+    expect(localStorage.getItem(lsKey(null, `log_${todayISO()}`))).toBeNull()
+    expect(Object.keys(localStorage).filter(k => k.includes('_log_'))).toEqual([])
+    expect(box.store.readLogsLocal([OLD])[OLD]).toEqual([])
+  })
+
+  it('leaves another account’s logs on a shared device alone', async () => {
+    saveLS('someone-else', `log_${OLD}`, [{ id: 'z', recipeId: 5 }])
+    await seeded()
+    await act(async () => { box.store.resetApp() })
+    expect(readLS('someone-else', `log_${OLD}`)).toHaveLength(1)
+  })
+
+  it('deletes every log document in the account', async () => {
+    const refs = [{ path: `users/${UID}/logs/${OLD}` }, { path: `users/${UID}/logs/2026-11-09` }]
+    getDocsMock.mockResolvedValue({ docs: refs.map(ref => ({ ref })) })
+    await seeded({ uid: UID })
+    await act(async () => { box.store.resetApp() })
+    await act(async () => {})
+
+    expect(getDocsMock).toHaveBeenCalledWith({ path: `users/${UID}/logs` })
+    expect(deleteDocMock.mock.calls.map(c => c[0])).toEqual(refs)
+  })
+
+  it('says so when the account could not be cleared', async () => {
+    getDocsMock.mockRejectedValue(Object.assign(new Error('nope'), { code: 'permission-denied' }))
+    await seeded({ uid: UID })
+    await act(async () => { box.store.resetApp() })
+    await act(async () => {})
+    expect(box.store.syncErrors['logged history']).toContain('permission-denied')
   })
 
   it('leaves what was switched off alone', async () => {
     await seeded()
-    await act(async () => { box.store.resetApp({ week: true, tracking: false, targets: false }) })
+    await act(async () => {
+      box.store.resetApp({ week: true, tracking: false, targets: false, prefs: false })
+    })
     expect(box.store.mealLog).toHaveLength(1)
+    expect(readLS(null, `log_${OLD}`)).toHaveLength(1)
     expect(box.store.goals.calories).toBe(2400)
+    expect([...box.store.groceryHidden]).toEqual(['7'])
+    expect(box.store.favorites.size).toBe(2)
     expect(box.store.weekPlan.every(d => d.ids.every(x => x === null))).toBe(true)
   })
 
-  it('clears the rest of the week’s logs too, not only today’s', async () => {
+  it('empties this week’s bars as well as today’s', async () => {
     saveLS(null, 'weekplan', PLAN)
     const other = planDates(7, TODAY)[(TODAY + 1) % 7]
     saveLS(null, `log_${other}`, [{ id: 'y', recipeId: 2 }])
     await mount()
     expect(box.store.logsByDay[(TODAY + 1) % 7]).toHaveLength(1)
-    await act(async () => { box.store.resetApp({ week: false, tracking: true, targets: false }) })
+    await act(async () => { box.store.resetApp({ week: false, tracking: true, targets: false, prefs: false }) })
     expect(box.store.logsByDay.every(l => l.length === 0)).toBe(true)
-    expect(readLS(null, `log_${other}`)).toEqual([])
   })
 
-  it('the sheet resets only what is left switched on', async () => {
+  it('the sheet starts with all four on, and resets only what is left on', async () => {
     saveLS(null, 'weekplan', PLAN)
     saveLS(null, 'goals', { calories: 2400, protein: 200, carbs: 250, fat: 80 })
+    saveLS(null, 'favorites', [3])
     const onClose = vi.fn()
     await mount(<ResetSheet open onClose={onClose} />)
 
     const switches = [...host.querySelectorAll('[role="switch"]')]
-    expect(switches).toHaveLength(3)
+    expect(switches).toHaveLength(4)
     expect(switches.every(s => s.getAttribute('aria-checked') === 'true')).toBe(true)
 
     await act(async () => { switches[2].click() })            // keep my targets
     await act(async () => { host.querySelector('[data-reset-confirm]').click() })
 
     expect(box.store.goals.calories).toBe(2400)
+    expect(box.store.favorites.size).toBe(0)
     expect(box.store.weekPlan.every(d => d.ids.every(x => x === null))).toBe(true)
     expect(onClose).toHaveBeenCalled()
   })

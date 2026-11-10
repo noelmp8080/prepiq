@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore'
 import { auth, db, cloudEnabled } from '../firebase'
 import { recipes, recipeById } from '../data/recipes'
 import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, saveLS,
@@ -9,7 +9,7 @@ import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, sav
          rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan,
          planDates, fromISO, emptiedWeekPlan, groceryProgressByDay,
          buildWeekGroceryItems, weekRowKeys, weekRowChecked,
-         addMealToDay, removeMealFromDay } from './storeLogic'
+         addMealToDay, removeMealFromDay, removeLocalLogs } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
@@ -301,18 +301,31 @@ export function AppStoreProvider({ children }) {
      One getDoc per date rather than a collection query: the dates are
      the document ids, a month is at most 31 of them, and it keeps this
      on the two Firestore calls the rest of the store already uses. */
+  /* `logsEpoch` is bumped when the history is wiped. It is a dependency
+     here for one reason: it changes this function's identity, which is
+     what tells a calendar already on screen to read again. */
+  const [logsEpoch, setLogsEpoch] = useState(0)
+  /* The wipe in progress, if there is one. A read that raced it would
+     fetch documents a moment before they were deleted and paint them
+     back onto the calendar; so a read waits for it. */
+  const clearingLogs = useRef(null)
+
   const readLogsLocal = useCallback(dateList => Object.fromEntries(
-    dateList.map(d => [d, loadLS(lsKey(scopeUid, `log_${d}`), [])])), [scopeUid])
+    dateList.map(d => [d, loadLS(lsKey(scopeUid, `log_${d}`), [])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scopeUid, logsEpoch])
 
   const readLogsCloud = useCallback(async (dateList) => {
     if (!user || !cloudEnabled || !dateList.length) return null
+    if (clearingLogs.current) await clearingLogs.current
     const snaps = await Promise.all(
       dateList.map(d => getDoc(doc(db, 'users', user.uid, 'logs', d))))
     return Object.fromEntries(dateList.map((d, i) => {
       const meals = snaps[i]?.exists?.() ? snaps[i].data().meals : null
       return [d, Array.isArray(meals) ? meals : null]
     }))
-  }, [user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, logsEpoch])
 
   /* WRITES ARE LOCAL-FIRST, CLOUD-SECOND, AND NO LONGER SILENT.
    *
@@ -599,20 +612,48 @@ export function AppStoreProvider({ children }) {
   }, [user, writeGroc, writeExcluded])
 
   /* ── RESET ───────────────────────────────────────────────────────
-     One button for "start over". Three independent parts, because they
-     are three different things to lose and the sheet lets each be kept:
+     One button for a CLEAN START. Four independent parts, all on unless
+     the sheet turns one off:
 
        week      every plan slot emptied, and the shop that belonged to
                  it — checks and "already have" exclusions — with it.
-                 NOT the hidden set: "I never need this" is about the
-                 person, the same reason START A NEW LIST leaves it.
-       tracking  what was logged this week, today included, so the
-                 calorie and macro counters read zero.
+       tracking  EVERY logged day, in every month, so the counters read
+                 zero and the calendar is empty.
        targets   the four daily goals back to the defaults.
+       prefs     favourites and the "never need this" hidden set.
 
-     Every part goes through the ordinary writers, so a reset reaches the
-     cloud — and reports a failure — exactly like any other change. */
-  const resetApp = useCallback(({ week = true, tracking = true, targets = true } = {}) => {
+     Every part reaches the cloud and reports a failure like any other
+     change. */
+  /* EVERY LOG DOCUMENT IN THE ACCOUNT, deleted. The one place the store
+     lists a collection: a wipe cannot know which dates exist, and
+     guessing a range would leave whatever fell outside it. A failure is
+     reported through syncErrors like any other write — the device is
+     already clean, so the disagreement must not be silent. */
+  const clearCloudLogs = useCallback((uid) => {
+    if (!uid || !cloudEnabled) return null
+    const what = 'logged history'
+    const run = (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users', uid, 'logs'))
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
+        setSyncErrors(prev => {
+          if (!(what in prev)) return prev
+          const next = { ...prev }
+          delete next[what]
+          return next
+        })
+      } catch (err) {
+        console.error(`[cloudWrite:${what}]`, err)
+        const detail = err?.code ? `[${err.code}] ${err.message}` : String(err?.message ?? err)
+        setSyncErrors(prev => ({ ...prev, [what]: detail }))
+      }
+    })()
+    clearingLogs.current = run
+    run.finally(() => { if (clearingLogs.current === run) clearingLogs.current = null })
+    return run
+  }, [])
+
+  const resetApp = useCallback(({ week = true, tracking = true, targets = true, prefs = true } = {}) => {
     const uid = user?.uid
     if (week) {
       const next = emptiedWeekPlan(weekPlan)
@@ -623,16 +664,30 @@ export function AppStoreProvider({ children }) {
       setGroceryDay(null)
     }
     if (tracking) {
-      setMealLog([]); writeLog(uid, [], logDate)
-      for (const [date, entries] of Object.entries(weekLogs)) {
-        if (entries?.length) writeLog(uid, [], date)
-      }
+      /* THE WHOLE HISTORY, not this week's. The owner asked for a clean
+         start, and a calendar still holding last month is not one.
+         Device first — every log key in this scope — then the account. */
+      removeLocalLogs(uid)
+      clearCloudLogs(uid)
+      setMealLog([])
       setWeekLogs({})
+      setLogsEpoch(n => n + 1)
     }
     if (targets) {
       setGoalsState(DEFAULT_GOALS); writeGoals(uid, DEFAULT_GOALS)
     }
-  }, [user, weekPlan, weekLogs, logDate, writePlan, writeExcluded, writeGroc, writeLog, writeGoals])
+    if (prefs) {
+      /* Favourites and "never need this". Kept out of the other three
+         because they are about the person rather than a week — which is
+         why they are their own switch, and why a clean start takes them
+         too unless it is turned off. */
+      const noFavs = new Set()
+      setFavorites(noFavs); writeFavs(uid, noFavs)
+      const noHidden = new Set()
+      setGroceryHidden(noHidden); writeHiddenDoc(uid, noHidden)
+    }
+  }, [user, weekPlan, writePlan, writeExcluded, writeGroc, writeGoals,
+      writeFavs, writeHiddenDoc, clearCloudLogs, setGroceryDay])
 
   const signIn = useCallback((email, password) =>
     signInWithEmailAndPassword(auth, email, password), [])
