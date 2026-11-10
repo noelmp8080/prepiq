@@ -254,11 +254,13 @@ test.describe(`${W}x${SHORT} — the shared panel`, () => {
     await settled(page)
 
     const m = await page.getByRole('dialog').evaluate(el => ({
-      padBottom: getComputedStyle(el).paddingBottom,
+      /* On the OVERLAY since the sheet became a centred card: 12px of
+         margin plus the inset. */
+      padBottom: getComputedStyle(el.parentElement).paddingBottom,
       overlayHeight: getComputedStyle(el.parentElement).height,
       viewport: window.innerHeight,
     }))
-    expect(m.padBottom, 'the shared panel must carry the inset').toBe(`${SAFE_B}px`)
+    expect(m.padBottom, 'the shared overlay must carry the inset').toBe(`${SAFE_B + 12}px`)
     /* The overlay is the dynamic viewport, not the document. */
     expect(parseFloat(m.overlayHeight)).toBeCloseTo(m.viewport, 0)
   })

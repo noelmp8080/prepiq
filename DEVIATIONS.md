@@ -1223,6 +1223,24 @@ day and I add it."
 
 ---
 
+## 27. Sheets fly to the centre instead of docking (amends §23)
+
+**Requested by the owner, 2026-11-10.** Every menu and submenu is
+`Sheet.jsx` — Settings, the recipe sheet, Reset, hidden items, the Plan
+picker — so the change is made once: the panel is a centred card with all
+four corners rounded, and it flies up from below the screen
+(`pq-sheet-fly`, 0.46s, slight overshoot) while the scrim fades in.
+Reduced motion gets a fade only.
+
+§23's sizing still holds: the overlay is `100dvh`, anchored by top and
+height. The safe-area inset moved from the panel to the overlay's bottom
+padding, since a centred panel is nowhere near the home-indicator strip
+and the inset's job is now to keep "centre" inside the usable screen.
+There is no exit animation: three of the five sheets are unmounted by
+their caller the moment they close.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

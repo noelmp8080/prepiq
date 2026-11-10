@@ -72,12 +72,16 @@ function type(key, value) {
 }
 
 describe('the panel', () => {
-  it('is a sheet: scrim, top-only radius, capped at 88%', async () => {
+  it('is a centred card: scrim, all four corners rounded, capped at 88%', async () => {
     await open()
     const panel = dialog()
     expect(panel.style.maxHeight).toBe('88%')
-    expect(panel.style.borderTopLeftRadius).toBe('18px')
-    expect(panel.style.borderBottomLeftRadius).toBe('')      // bottom stays square
+    /* It no longer docks to the bottom edge — it flies up to the middle
+       of the screen — so all four corners round, as one shorthand. */
+    expect(panel.style.borderRadius).toBe('18px')
+    expect(panel.parentElement.style.alignItems).toBe('center')
+    expect(panel.parentElement.style.justifyContent).toBe('center')
+    expect(panel.style.animation).toContain('pq-sheet-fly')
     expect(panel.style.background).toBe('var(--pq-sheet-bg)')
     expect(panel.parentElement.style.background).toBe('var(--pq-scrim)')
   })

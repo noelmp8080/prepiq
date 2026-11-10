@@ -63,7 +63,21 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
         height: '100dvh',
         zIndex: 200,
         background: 'var(--pq-scrim)',
-        display: 'flex', alignItems: 'flex-end',
+        /* ── CENTRED, NOT DOCKED ─────────────────────────────────────
+           Every menu in the app is this component, and at the owner's
+           request it no longer sits on the bottom edge: it flies up
+           from below the screen and comes to rest in the middle.
+
+           The home-indicator inset moves with it. It used to pad the
+           PANEL, to keep a docked sheet's last button out of the strip
+           the system swipes from. A centred panel is nowhere near that
+           strip, so the inset pads the OVERLAY instead — which is what
+           makes "the middle" the middle of the screen you can use,
+           rather than of the glass. */
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '12px 12px calc(12px + var(--pq-safe-b))',
+        boxSizing: 'border-box',
+        animation: 'pq-scrim-in .28s ease-out',
       }}
     >
       <div
@@ -76,35 +90,36 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
           /* 88% of a container that is now the VISIBLE viewport rather
              than the large one. The percentage is unchanged; what it
              resolves against is what was wrong. */
-          width: '100%', maxHeight: '88%',
+          /* Full width on a phone, less the overlay's 12px margins; on
+             a wide screen a card, not a banner. */
+          width: '100%', maxWidth: 560, maxHeight: '88%',
           display: 'flex', flexDirection: 'column',
-          /* THE HOME INDICATOR TAKES THE BOTTOM 34px on these phones,
-             and the system takes taps there for its own swipe. A sheet
-             flush to the bottom puts its last action — SHOW ALL AGAIN,
-             or RecipeSheet's buttons — inside that strip. Padded here
-             on the PANEL rather than in each sheet's content, so every
-             sheet in the app gets it from one place: this was a pattern
-             bug, not one screen's bug.
-
-             Zero on every desktop browser, so nothing moves there. */
-          paddingBottom: 'var(--pq-safe-b)',
           background: 'var(--pq-sheet-bg)',
           boxShadow: 'var(--pq-sheet-shadow)',
-          /* 18, not the README's 20. Both sheets in the prototype
-             markup round at 18 and they agree with each other; the
-             prose does not agree with them. Fourth contradiction,
-             resolved the same way as the three before it. */
-          borderTopLeftRadius: 18, borderTopRightRadius: 18,
-          borderTop: 'var(--pq-card-border)',
-          /* Slides up from the bottom. The only entrance animation in
-             the app — motion is minimal by design. */
-          animation: 'pq-sheet-up .22s cubic-bezier(.22,.61,.36,1)',
+          /* 18, not the README's 20 — the prototype's sheets round at
+             18. All four corners now: nothing is anchored to an edge. */
+          borderRadius: 18,
+          border: 'var(--pq-card-border)',
+          overflow: 'hidden',
+          /* FLIES UP FROM BELOW THE SCREEN TO THE CENTRE. 100vh of
+             travel starts it fully off the bottom whatever its height;
+             it fades and grows the last few percent as it arrives, and
+             the curve overshoots by a hair so it lands rather than
+             stops. One definition, so every menu and submenu moves the
+             same way. */
+          animation: 'pq-sheet-fly .46s cubic-bezier(.2,1.12,.32,1) both',
+          willChange: 'transform',
         }}
       >
         <style>{`
-          @keyframes pq-sheet-up { from { transform: translateY(100%) } to { transform: none } }
+          @keyframes pq-sheet-fly {
+            from { transform: translateY(100vh) scale(.94); opacity: 0 }
+            35%  { opacity: 1 }
+            to   { transform: none; opacity: 1 }
+          }
+          @keyframes pq-scrim-in { from { background: transparent } }
           @media (prefers-reduced-motion: reduce) {
-            @keyframes pq-sheet-up { from { transform: none } to { transform: none } }
+            @keyframes pq-sheet-fly { from { opacity: 0 } to { opacity: 1 } }
           }
         `}</style>
         {children}

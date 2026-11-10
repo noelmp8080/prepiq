@@ -57,8 +57,16 @@ describe('the sheet is sized to the viewport the user can see', () => {
     expect(SHEET_SRC).toMatch(/height:\s*'100dvh'/)
   })
 
-  it('pads the panel for the home indicator', () => {
-    expect(SHEET_SRC).toContain('var(--pq-safe-b)')
+  /* The inset pads the OVERLAY now: the panel is centred, so what the
+     inset has to do is keep "the centre" inside the usable screen. */
+  it('pads the overlay for the home indicator', () => {
+    expect(SHEET_SRC).toMatch(/padding:\s*'12px 12px calc\(12px \+ var\(--pq-safe-b\)\)'/)
+  })
+
+  it('flies every sheet in from below the screen, with a reduced-motion fallback', () => {
+    expect(SHEET_SRC).toMatch(/pq-sheet-fly[^}]*translateY\(100vh\)/s)
+    expect(SHEET_SRC).toMatch(/prefers-reduced-motion: reduce/)
+    expect(SHEET_SRC).toMatch(/alignItems:\s*'center'/)
   })
 
   /* A bare env() in a component is untestable — it is 0 in every
