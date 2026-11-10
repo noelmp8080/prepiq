@@ -255,7 +255,7 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
                     <span style={{
                       ...MONO, fontSize: 9, fontWeight: 600,
                       color: 'var(--pq-on-accent-ink)', background: 'var(--pq-accent-grad)',
-                      padding: '2px 6px', borderRadius: 4,
+                      padding: '2px 6px', borderRadius: 999,
                       letterSpacing: 'var(--pq-track-label)',
                     }}>TODAY</span>
                   )}
@@ -289,7 +289,7 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
                         cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--pq-sans)',
                       }}>
                       <span style={{
-                        width: 36, height: 36, borderRadius: 7, flexShrink: 0,
+                        width: 36, height: 36, borderRadius: 12, flexShrink: 0,
                         border: 'var(--pq-rule-dashed)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>

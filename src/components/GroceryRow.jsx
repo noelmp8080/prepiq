@@ -59,15 +59,15 @@ export default function GroceryRow({
             width: 'var(--pq-check)', height: 'var(--pq-check)',
             borderRadius: 'var(--pq-r-check)', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `1.5px solid ${checked ? 'transparent' : 'rgba(255,255,255,0.3)'}`,
-            background: checked ? 'var(--pq-accent-grad)' : 'rgba(0,0,0,0.28)',
+            border: `1.5px solid ${checked ? 'var(--pq-accent-grad)' : 'var(--pq-check-border)'}`,
+            background: checked ? 'var(--pq-accent-grad)' : 'var(--pq-check-bg)',
             boxShadow: checked
               ? 'var(--pq-accent-raise)'
-              : 'inset 0 2px 4px rgba(0,0,0,0.45)',
+              : 'none',
           }}>
             {/* Always present, so a tap adds no node. */}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              aria-hidden="true" stroke="#0E1012" strokeWidth="3"
+              aria-hidden="true" stroke="var(--pq-on-accent-ink)" strokeWidth="3"
               strokeLinecap="round" strokeLinejoin="round"
               style={{ opacity: checked ? 1 : 0 }}>
               <path d="M20 6 9 17l-5-5" />

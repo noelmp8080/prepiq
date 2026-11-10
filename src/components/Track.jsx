@@ -41,11 +41,11 @@ function dateEyebrow(date = new Date()) {
 function Bar({ value, goal, height, fill }) {
   return (
     <div style={{
-      height, borderRadius: 2, overflow: 'hidden',
+      height, borderRadius: height / 2, overflow: 'hidden',
       background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
     }}>
       <div style={{
-        height: '100%', width: `${pct(value, goal)}%`, borderRadius: 2,
+        height: '100%', width: `${pct(value, goal)}%`, borderRadius: height / 2,
         background: fill, transition: 'width .3s',
       }} />
     </div>
@@ -113,7 +113,7 @@ function WeekCard({
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
             }}>
             <div style={{
-              width: '100%', height: 44, borderRadius: 4, overflow: 'hidden',
+              width: '100%', height: 44, borderRadius: 8, overflow: 'hidden',
               display: 'flex', alignItems: 'flex-end',
               background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
               outline: d.today ? '1px solid var(--pq-accent)' : 'none',
@@ -230,7 +230,7 @@ export default function Track({ onChange, onReset, surface = 'phone' }) {
               onClick={() => setView(id)}
               style={{
                 flex: 1, minHeight: 'var(--pq-tap-min)', border: 'none', cursor: 'pointer',
-                borderRadius: 7,
+                borderRadius: 999,
                 background: on ? 'var(--pq-accent-grad)' : 'transparent',
                 boxShadow: on ? 'var(--pq-accent-raise)' : 'none',
                 color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
@@ -370,7 +370,7 @@ export default function Track({ onChange, onReset, surface = 'phone' }) {
                     cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--pq-sans)',
                   }}>
                   <span aria-hidden="true" style={{
-                    width: 26, height: 26, borderRadius: 7, flexShrink: 0,
+                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                     border: '1.5px dashed var(--pq-rule-strong)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>

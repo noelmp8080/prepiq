@@ -138,10 +138,10 @@ export default function Auth({ onSkip }) {
             {error && (
               <div role="alert" style={{
                 fontSize: 12, fontWeight: 500, lineHeight: 1.5, wordBreak: 'break-word',
-                padding: '10px 12px', borderRadius: 'var(--pq-r-button)',
-                background: 'rgba(197,48,48,0.14)',
-                border: '1px solid rgba(233,120,120,0.34)',
-                color: '#F2C7C7',
+                padding: '10px 12px', borderRadius: 14,
+                background: 'var(--pq-danger-bg)',
+                border: '1px solid var(--pq-danger-border)',
+                color: 'var(--pq-danger-text)',
               }}>
                 {error}
               </div>

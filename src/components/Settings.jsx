@@ -80,7 +80,7 @@ export function Toggle({ checked, onChange, label, hint }) {
         <span style={{
           width: 20, height: 20, borderRadius: '50%',
           background: checked ? 'var(--pq-on-accent-ink)' : 'var(--pq-accent)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.45)',
+          boxShadow: 'none',
         }} />
       </span>
     </button>
@@ -152,7 +152,7 @@ export default function Settings({ open, onClose, onReset, inline = false }) {
             background: 'none', border: 'none', padding: 0, cursor: 'pointer',
           }}>
           <span style={{
-            width: 36, height: 36, borderRadius: 9,
+            width: 36, height: 36, borderRadius: '50%',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'var(--pq-thumb-fallback)',
             boxShadow: 'var(--pq-thumb-fallback-lip)',
@@ -197,7 +197,7 @@ export default function Settings({ open, onClose, onReset, inline = false }) {
                 onChange={e => set(f.key, e.target.value)}
                 style={{
                   width: 96, minHeight: 'var(--pq-tap-min)', textAlign: 'center',
-                  padding: '9px 12px', borderRadius: 9,
+                  padding: '9px 12px', borderRadius: 'var(--pq-r-button)',
                   background: 'var(--pq-track-bg)',
                   border: '1px solid var(--pq-rule-cell)',
                   boxShadow: 'var(--pq-well-shadow)',
@@ -218,7 +218,7 @@ export default function Settings({ open, onClose, onReset, inline = false }) {
         {!cloudEnabled && (
           <div data-local-only style={{
             marginBottom: 20, padding: '10px 12px',
-            borderRadius: 'var(--pq-r-button)',
+            borderRadius: 14,
             background: 'var(--pq-well-bg)',
             border: '1px solid var(--pq-rule-soft)',
           }}>
@@ -242,9 +242,9 @@ export default function Settings({ open, onClose, onReset, inline = false }) {
         <div style={{ ...MONO_SECTION, marginBottom: 10 }}>PREFERENCES</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
           <Toggle
-            label="Light theme"
-            hint="THE APP IS BUILT DARK"
-            checked={theme === 'light'}
+            label="Dark theme"
+            hint="INK ON PAPER, OR PAPER ON INK"
+            checked={theme === 'dark'}
             onChange={toggleTheme}
           />
         </div>

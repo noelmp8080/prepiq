@@ -33,33 +33,38 @@ export default function BottomNav({ active, onChange, badges = {} }) {
     <nav
       aria-label="Primary"
       style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
+        /* A FLOATING CAPSULE, not a bar docked to the edge. It sits 12px
+           in from the sides and clear of the home indicator, with the
+           current tab filled in ink. Paper and ink has no gradients or
+           blur; the capsule is one flat surface with a hairline. */
+        position: 'absolute', left: 12, right: 12,
+        bottom: 'calc(10px + var(--pq-safe-b))',
         height: 'var(--pq-nav-h)',
         background: 'var(--pq-nav-bg)',
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
-        borderTop: 'var(--pq-card-border)',
+        border: 'var(--pq-card-border)',
+        borderRadius: 999,
         boxShadow: 'var(--pq-nav-shadow)',
-        display: 'flex', justifyContent: 'space-around',
+        display: 'flex', gap: 2, padding: 5,
         zIndex: 100,
-        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {TABS.map(({ id, label, Icon, badge }) => {
         const on = active === id
-        const color = on ? 'var(--pq-accent)' : 'var(--pq-text-faint)'
+        const color = on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-faint)'
         return (
           <button
             key={id}
             onClick={() => onChange(id)}
             aria-current={on ? 'page' : undefined}
             style={{
-              position: 'relative', flex: 1,
+              position: 'relative', flex: 1, minWidth: 0,
               display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 4,
-              padding: '6px 0',
-              background: 'none', border: 'none', cursor: 'pointer',
+              alignItems: 'center', justifyContent: 'center', gap: 3,
+              padding: 0, borderRadius: 999,
+              background: on ? 'var(--pq-accent-grad)' : 'transparent',
+              border: 'none', cursor: 'pointer',
               fontFamily: 'var(--pq-mono)',
+              transition: 'background var(--pq-t-paint)',
             }}
           >
             {/* The badge marks a day whose list still has unchecked
@@ -71,9 +76,12 @@ export default function BottomNav({ active, onChange, badges = {} }) {
                 screen renders, so the dot and the list cannot disagree. */}
             {badge && badges[id] && (
               <span style={{
-                position: 'absolute', top: 9, right: 'calc(50% - 16px)',
-                width: 6, height: 6, borderRadius: '50%',
+                position: 'absolute', top: 8, right: 'calc(50% - 17px)',
+                width: 7, height: 7, borderRadius: '50%',
                 background: 'var(--pq-accent)',
+                /* A ring in the tab's own colour, so the red dot reads
+                   on the ink fill as well as on paper. */
+                boxShadow: `0 0 0 2px ${on ? 'var(--pq-accent-grad)' : 'var(--pq-nav-bg)'}`,
               }} />
             )}
             <Icon

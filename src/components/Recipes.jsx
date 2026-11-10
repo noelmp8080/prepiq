@@ -230,7 +230,7 @@ export default function Recipes({ surface = 'phone' }) {
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                   }}>
                   <span style={{
-                    width: 34, height: 34, borderRadius: 9,
+                    width: 34, height: 34, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: planned ? 'var(--pq-accent-grad)' : 'var(--pq-thumb-fallback)',
                     boxShadow: planned ? 'var(--pq-accent-raise)' : 'var(--pq-thumb-fallback-lip)',

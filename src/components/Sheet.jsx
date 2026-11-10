@@ -98,7 +98,7 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
           boxShadow: 'var(--pq-sheet-shadow)',
           /* 18, not the README's 20 — the prototype's sheets round at
              18. All four corners now: nothing is anchored to an edge. */
-          borderRadius: 18,
+          borderRadius: 24,
           border: 'var(--pq-card-border)',
           overflow: 'hidden',
           /* FLIES UP FROM BELOW THE SCREEN TO THE CENTRE. 100vh of

@@ -247,9 +247,9 @@ export default function Grocery({ onChange, surface = 'phone' }) {
           Clear will do are all things you look at mid-aisle. */}
       <div data-grocery-header style={{
         position: 'sticky', top: 0, zIndex: 20,
-        background: 'linear-gradient(180deg,#49535A 0%,#3A4349 100%)',
+        background: 'var(--pq-header-bg)',
         borderBottom: '1px solid var(--pq-rule-strong)',
-        boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+        boxShadow: 'var(--pq-header-shadow)',
         padding: '12px var(--pq-gutter) 10px',
         display: 'flex', flexDirection: 'column', gap: 9,
       }}>
@@ -291,7 +291,7 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             disabled={done === 0}
             style={{
               flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 14px',
-              borderRadius: 9, border: 'none',
+              borderRadius: 'var(--pq-r-button)', border: 'none',
               cursor: done ? 'pointer' : 'default',
               background: done ? 'var(--pq-accent-grad)' : 'transparent',
               boxShadow: done ? 'var(--pq-accent-raise)' : 'none',
@@ -345,8 +345,8 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 2,
               background: week ? 'var(--pq-accent-grad)' : 'transparent',
-              boxShadow: week ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
-              border: `1px solid ${week ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+              boxShadow: week ? 'var(--pq-accent-raise)' : 'none',
+              border: `1px solid ${week ? 'var(--pq-accent-grad)' : 'var(--pq-pill-border)'}`,
               color: week ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
               ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
               letterSpacing: 'var(--pq-track-chip)',
@@ -386,8 +386,8 @@ export default function Grocery({ onChange, surface = 'phone' }) {
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center', gap: 2,
                   background: on ? 'var(--pq-accent-grad)' : 'transparent',
-                  boxShadow: on ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
-                  border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+                  boxShadow: on ? 'var(--pq-accent-raise)' : 'none',
+                  border: `1px solid ${on ? 'var(--pq-accent-grad)' : 'var(--pq-pill-border)'}`,
                   color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
                   ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
                   letterSpacing: 'var(--pq-track-chip)',
@@ -421,8 +421,8 @@ export default function Grocery({ onChange, surface = 'phone' }) {
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 2,
               background: !dayView ? 'var(--pq-accent-grad)' : 'transparent',
-              boxShadow: !dayView ? 'var(--pq-accent-raise)' : 'inset 0 1px 2px rgba(0,0,0,0.35)',
-              border: `1px solid ${!dayView ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+              boxShadow: !dayView ? 'var(--pq-accent-raise)' : 'none',
+              border: `1px solid ${!dayView ? 'var(--pq-accent-grad)' : 'var(--pq-pill-border)'}`,
               color: !dayView ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
               ...MONO, fontSize: wide ? 11 : 10, fontWeight: 600,
               letterSpacing: 'var(--pq-track-chip)',
@@ -457,13 +457,13 @@ export default function Grocery({ onChange, surface = 'phone' }) {
             a tap cannot alter the header's height and cannot move the
             list beneath it. */}
         <div style={{
-          height: 4, borderRadius: 2, overflow: 'hidden',
+          height: 6, borderRadius: 3, overflow: 'hidden',
           background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
         }}>
           <div data-progress-fill style={{
             height: '100%',
             width: `${pct}%`,
-            borderRadius: 2,
+            borderRadius: 3,
             background: 'var(--pq-accent-bar)', transition: 'width .4s ease',
           }} />
         </div>

@@ -54,8 +54,8 @@ export default function Rail({ active, onChange, expanded, onToggle, badges = {}
     display: 'flex', flexDirection: v.dir, alignItems: 'center',
     justifyContent: 'center', gap: v.gap, padding: v.itemPad,
     cursor: 'pointer', fontFamily: 'var(--pq-sans)', textAlign: 'left',
-    border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.06)'}`,
-    background: on ? 'var(--pq-accent-grad)' : 'rgba(0,0,0,0.14)',
+    border: `1px solid ${on ? 'transparent' : 'transparent'}`,
+    background: on ? 'var(--pq-accent-grad)' : 'transparent',
     boxShadow: on ? 'var(--pq-accent-raise)' : 'none',
   })
 
@@ -74,9 +74,9 @@ export default function Rail({ active, onChange, expanded, onToggle, badges = {}
         width: v.width, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         padding: v.pad,
-        background: 'linear-gradient(180deg,rgba(255,255,255,0.09) 0%,rgba(255,255,255,0.03) 100%)',
-        borderRight: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: 'inset -1px 0 0 rgba(0,0,0,0.25)',
+        background: 'var(--pq-rail-bg)',
+        borderRight: '1px solid var(--pq-rule-soft)',
+        boxShadow: 'var(--pq-rail-edge)',
       }}
     >
       {/* The lockup. Collapsed shows the 34px tile alone; expanded adds
@@ -113,10 +113,12 @@ export default function Rail({ active, onChange, expanded, onToggle, badges = {}
                   at 84px there is no room beside a 9px caption. */}
               {expanded && badge > 0 && (
                 <span style={{
-                  flexShrink: 0, padding: '2px 6px', borderRadius: 5,
+                  flexShrink: 0, padding: '2px 6px', borderRadius: 999,
                   fontFamily: 'var(--pq-mono)', fontSize: 10, fontWeight: 600,
-                  color: 'var(--pq-on-accent-ink)',
-                  background: on ? 'rgba(0,0,0,0.18)' : 'var(--pq-accent-grad)',
+                  /* Inverted on the active item, so the count stays a
+                     filled chip against the item's own ink fill. */
+                  color: on ? 'var(--pq-accent-grad)' : 'var(--pq-on-accent-ink)',
+                  background: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-accent-grad)',
                   boxShadow: on ? 'none' : 'var(--pq-accent-raise)',
                 }}>{badge}</span>
               )}
@@ -159,9 +161,9 @@ export default function Rail({ active, onChange, expanded, onToggle, badges = {}
         }}
       >
         <span style={{
-          flex: 1, minHeight: 34, borderRadius: 9,
+          flex: 1, minHeight: 34, borderRadius: 'var(--pq-r-button)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-          background: 'rgba(0,0,0,0.14)',
+          background: 'transparent',
           border: '1px solid var(--pq-rule-soft)',
         }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"

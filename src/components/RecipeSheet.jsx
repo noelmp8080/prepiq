@@ -95,7 +95,7 @@ const ICON_BUTTON = {
   background: 'none', border: 'none', padding: 0, cursor: 'pointer',
 }
 const ICON_TILE = {
-  width: 36, height: 36, borderRadius: 9,
+  width: 36, height: 36, borderRadius: '50%',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   background: 'var(--pq-thumb-fallback)',
   boxShadow: 'var(--pq-thumb-fallback-lip)',

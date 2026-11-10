@@ -284,8 +284,8 @@ describe('the screen renders real food, for exactly one day', () => {
     expect(box.style.width).toBe('var(--pq-check)')
     expect(box.style.borderRadius).toBe('var(--pq-r-check)')
     expect(box.style.border).toContain('1.5px')
-    expect(box.style.background).toBe('rgba(0, 0, 0, 0.28)')
-    expect(box.style.boxShadow).toBe('inset 0 2px 4px rgba(0,0,0,0.45)')
+    expect(box.style.background).toBe('var(--pq-check-bg)')
+    expect(box.style.boxShadow).toBe('none')
     expect(rowButtons()[0].style.gap).toBe('14px')
     expect(TOKENS).toMatch(/--pq-check:\s*22px/)
     expect(TOKENS).toMatch(/--pq-r-check:\s*50%/)
@@ -432,7 +432,7 @@ describe('A CHECKED ROW SINKS, AND ONLY THAT ROW MOVES', () => {
     }
 
     const fill = headerEl().querySelector('[data-progress-fill]')
-    expect(fill.parentElement.style.height).toBe('4px')
+    expect(fill.parentElement.style.height).toBe('6px')
     expect(fill.parentElement.style.overflow).toBe('hidden')
 
     /* the text SHOULD change — that is the header doing its job */
@@ -475,7 +475,7 @@ describe('A CHECKED ROW SINKS, AND ONLY THAT ROW MOVES', () => {
     const check = box.querySelector('svg')
     expect(check.style.opacity).toBe('1')
     expect(check.getAttribute('width')).toBe('14')
-    expect(check.getAttribute('stroke')).toBe('#0E1012')
+    expect(check.getAttribute('stroke')).toBe('var(--pq-on-accent-ink)')
     expect(check.getAttribute('stroke-width')).toBe('3')
   })
 

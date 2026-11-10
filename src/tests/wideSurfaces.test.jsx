@@ -103,9 +103,9 @@ describe('the rail', () => {
 
   it('carries the handoff surface treatment', () => {
     const html = render()
-    expect(html).toContain('linear-gradient(180deg,rgba(255,255,255,0.09) 0%,rgba(255,255,255,0.03) 100%)')
-    expect(html).toContain('border-right:1px solid rgba(255,255,255,0.1)')
-    expect(html).toContain('inset -1px 0 0 rgba(0,0,0,0.25)')
+    expect(html).toContain('background:var(--pq-rail-bg)')
+    expect(html).toContain('border-right:1px solid var(--pq-rule-soft)')
+    expect(html).toContain('box-shadow:var(--pq-rail-edge)')
   })
 
   it('shows the 34px tile collapsed and the full lockup expanded', () => {
@@ -430,9 +430,9 @@ describe('iPad and desktop are not the same wide surface', () => {
   it('grows the title only at desktop, through the token', () => {
     /* base stays 28px; the override rides the same breakpoint as the
        gutter, so a screen cannot get one without the other */
-    expect(TOKENS).toMatch(/--pq-size-title:\s*28px/)
+    expect(TOKENS).toMatch(/--pq-size-title:\s*34px/)
     const desktopBlock = TOKENS.slice(TOKENS.indexOf('@media (min-width: 1400px)'))
-    expect(desktopBlock).toMatch(/--pq-size-title:\s*34px/)
+    expect(desktopBlock).toMatch(/--pq-size-title:\s*40px/)
     expect(desktopBlock).toMatch(/--pq-gutter:\s*32px/)
 
     const tabletBlock = TOKENS.slice(

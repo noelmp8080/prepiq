@@ -260,7 +260,7 @@ describe('the standing gate', () => {
   it('draws fallback tiles at the three sizes with the fixed radii', async () => {
     const { default: Thumb } = await import('../components/Thumb')
     const { renderToStaticMarkup } = await import('react-dom/server')
-    for (const [size, radius] of [[36, 7], [48, 9], [56, 10]]) {
+    for (const [size, radius] of [[36, 12], [48, 14], [56, 16]]) {
       const html = renderToStaticMarkup(<Thumb recipe={{ name: 'Test Recipe' }} size={size} />)
       expect(html).toContain(`width:${size}px`)
       expect(html).toContain(`border-radius:${radius}px`)

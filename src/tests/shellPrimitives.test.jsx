@@ -137,7 +137,7 @@ describe('BottomNav', () => {
 
     const on = render(<BottomNav active="today" onChange={() => {}} badges={{ grocery: true }} />)
     expect((on.match(/border-radius:50%/g) || []).length).toBe(1)
-    expect(on).toContain('width:6px')
+    expect(on).toContain('width:7px')
     expect(on).toContain('var(--pq-accent)')
   })
 

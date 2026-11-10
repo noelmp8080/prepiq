@@ -53,6 +53,9 @@ body {
   color: var(--pq-text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  /* Space Grotesk stands where a monospace used to: tabular figures
+     keep columns of numbers aligned the way that monospace did. */
+  font-variant-numeric: tabular-nums;
   overflow-x: hidden;
 }
 #root { min-height: 100vh; }

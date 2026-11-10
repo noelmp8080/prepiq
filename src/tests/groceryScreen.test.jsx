@@ -165,7 +165,7 @@ describe('day chips', () => {
     expect(pill(chips()[0]).style.background).toBe('var(--pq-accent-grad)')
     expect(pill(chips()[0]).style.boxShadow).toBe('var(--pq-accent-raise)')
     expect(pill(chips()[3]).style.background).toBe('transparent')
-    expect(pill(chips()[3]).style.boxShadow).toBe('inset 0 1px 2px rgba(0,0,0,0.35)')
+    expect(pill(chips()[3]).style.boxShadow).toBe('none')
   })
 })
 

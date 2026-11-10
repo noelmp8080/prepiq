@@ -33,7 +33,7 @@ import {
 
 const MONO = { fontFamily: 'var(--pq-mono)' }
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-const OVER = '#F0997B'
+const OVER = 'var(--pq-over)'
 
 /* Each status is a different KIND of mark, not only a different colour:
    filled, tinted, outlined, bare. Two of them would be told apart in
@@ -41,8 +41,8 @@ const OVER = '#F0997B'
 const CELL = {
   hit:   { background: 'var(--pq-accent-grad)', color: 'var(--pq-on-accent-ink)',
            borderColor: 'transparent', fontWeight: 600 },
-  under: { background: 'rgba(208,242,36,0.14)', color: 'var(--pq-text)',
-           borderColor: 'rgba(208,242,36,0.45)' },
+  under: { background: 'var(--pq-under-bg)', color: 'var(--pq-text)',
+           borderColor: 'var(--pq-under-border)' },
   over:  { background: 'transparent', color: OVER, borderColor: OVER },
   none:  { background: 'transparent', color: 'var(--pq-text-3)', borderColor: 'transparent' },
 }
@@ -274,7 +274,7 @@ export default function MonthCalendar({ style }) {
                   onFocus={() => show(i)}
                   onBlur={() => show(null)}
                   style={{
-                    aspectRatio: '1', borderRadius: 9,
+                    aspectRatio: '1', borderRadius: 12,
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 3,
                     border: '1px solid', outline: 'none',
@@ -309,7 +309,7 @@ export default function MonthCalendar({ style }) {
           style={{
             position: 'absolute', left: pos.left, top: pos.top, width: POP_W, zIndex: 5,
             pointerEvents: 'none',
-            padding: '10px 12px', borderRadius: 12,
+            padding: '10px 12px', borderRadius: 16,
             background: 'var(--pq-sheet-bg)', border: 'var(--pq-card-border)',
             boxShadow: 'var(--pq-sheet-shadow)',
             opacity: active != null ? 1 : 0,

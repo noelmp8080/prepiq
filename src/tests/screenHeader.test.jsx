@@ -120,7 +120,7 @@ describe('one definition of the bar', () => {
 
   it('draws the rule across the full content width on wide, and none on phone', () => {
     for (const s of ['tablet', 'desktop']) {
-      expect(render({ surface: s }), s).toContain('border-bottom:1px solid rgba(255,255,255,0.09)')
+      expect(render({ surface: s }), s).toContain('border-bottom:1px solid var(--pq-rule-soft)')
     }
     expect(render({ surface: 'phone' })).toContain('border-bottom:none')
   })
@@ -175,7 +175,7 @@ describe('every screen puts its title in the header, above the body', () => {
     const h = header()
     /* jsdom normalises rgba spacing on read-back; the served value is
        asserted un-normalised in the markup test above. */
-    expect(h.style.borderBottom.replace(/,\s+/g, ',')).toBe('1px solid rgba(255,255,255,0.09)')
+    expect(h.style.borderBottom.replace(/,\s+/g, ',')).toBe('1px solid var(--pq-rule-soft)')
     const grid = [...host.querySelectorAll('div')]
       .find(d => (d.style.gridTemplateColumns || '').includes('minmax(0,1fr)'))
     expect(grid).toBeTruthy()

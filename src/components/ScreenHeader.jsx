@@ -53,7 +53,7 @@ export default function ScreenHeader({
         /* 1px rgba(255,255,255,0.09), full content width. On phone there
            is no second column for it to span and no bar in the design,
            so it is not drawn. */
-        borderBottom: wide ? '1px solid rgba(255,255,255,0.09)' : 'none',
+        borderBottom: wide ? '1px solid var(--pq-rule-soft)' : 'none',
         display: 'flex',
         alignItems: wide ? 'flex-end' : 'flex-start',
         justifyContent: 'space-between',
@@ -75,6 +75,7 @@ export default function ScreenHeader({
           /* 28px, and 34px at >=1400 through the token — the prototype's
              h1Size, whose `wide` flag means desktop rather than either
              wide surface. */
+          fontFamily: 'var(--pq-display)',
           fontSize: 'var(--pq-size-title)',
           fontWeight: 700,
           letterSpacing: 'var(--pq-tight-title)',

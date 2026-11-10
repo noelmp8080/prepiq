@@ -154,7 +154,7 @@ describe('no invented recipe content', () => {
 })
 
 describe('the sheet renders the handoff values', () => {
-  it('header: 56px tile at 10px radius, name 17px/700, mono meta', async () => {
+  it('header: 56px tile at 16px radius, name 17px/700, mono meta', async () => {
     await open(recipeById[1])
     const d = dialog()
 
@@ -163,7 +163,7 @@ describe('the sheet renders the handoff values', () => {
     const tile = [...d.querySelectorAll('*')].find(e => e.style.width === '56px')
     expect(tile, 'no 56px thumbnail in the header').toBeTruthy()
     expect(tile.style.height).toBe('56px')
-    expect(tile.style.borderRadius).toBe('10px')
+    expect(tile.style.borderRadius).toBe('16px')
     /* Every recipe in this app HAS a photo — measured, all 260 files
        present — so the header shows one. The tile is the failure path,
        covered separately below. */
@@ -320,14 +320,14 @@ describe('a photo that fails to load falls back to the tile', () => {
 
     const tile = [...dialog().querySelectorAll('*')].find(e => e.style.width === '56px')
     expect(tile.tagName).not.toBe('IMG')
-    expect(tile.style.borderRadius).toBe('10px')      // unchanged: no reflow
+    expect(tile.style.borderRadius).toBe('16px')      // unchanged: no reflow
     expect(tile.textContent).toBe('SC')               // Spicy Chicken Wraps
   })
 
   it('maps every size to the radius the handoff fixes for it', async () => {
     const { default: Thumb } = await import('../components/Thumb')
     const { renderToStaticMarkup } = await import('react-dom/server')
-    for (const [size, radius, font] of [[36, 7, 11], [48, 9, 13], [56, 10, 15]]) {
+    for (const [size, radius, font] of [[36, 12, 11], [48, 14, 13], [56, 16, 15]]) {
       const html = renderToStaticMarkup(<Thumb recipe={{ name: 'Peri Peri Chicken' }} size={size} />)
       expect(html, `${size}px`).toContain(`width:${size}px`)
       expect(html, `${size}px`).toContain(`border-radius:${radius}px`)

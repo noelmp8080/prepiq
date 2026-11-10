@@ -81,11 +81,11 @@ describe('the list', () => {
     expect(loadMore()).toBeUndefined()
   }, FULL_CATALOG_MS)
 
-  it('renders rows at 48px with the 9px radius', async () => {
+  it('renders rows at 48px with the 14px radius', async () => {
     await mount()
     const thumbs = [...host.querySelectorAll('img, div')].filter(e => e.style.width === '48px')
     expect(thumbs).toHaveLength(40)
-    for (const t of thumbs) expect(t.style.borderRadius).toBe('9px')
+    for (const t of thumbs) expect(t.style.borderRadius).toBe('14px')
   })
 })
 

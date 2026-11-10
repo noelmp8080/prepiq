@@ -221,19 +221,19 @@ describe('editing a day', () => {
 })
 
 describe('the handoff values', () => {
-  it('sizes Plan thumbnails at 36px with the 7px radius', async () => {
+  it('sizes Plan thumbnails at 36px with the 12px radius', async () => {
     await mount()
     const thumbs = [...host.querySelectorAll('img, div, span')]
       .filter(e => e.style.width === '36px')
     expect(thumbs.length).toBeGreaterThan(0)
-    for (const t of thumbs) expect(t.style.borderRadius).toBe('7px')
+    for (const t of thumbs) expect(t.style.borderRadius).toBe('12px')
   })
 
   it('draws the empty slot as a dashed 36px square with a plus', async () => {
     await mount()
     const square = addSlots()[0].querySelector('span')
     expect(square.style.width).toBe('36px')
-    expect(square.style.borderRadius).toBe('7px')
+    expect(square.style.borderRadius).toBe('12px')
     expect(square.style.border).toBe('var(--pq-rule-dashed)')
     expect(square.querySelector('svg')).toBeTruthy()
   })

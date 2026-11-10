@@ -54,7 +54,7 @@ function AppInner() {
   if (user === undefined && !bootScope) {
     return (
       <div style={{ minHeight:'100dvh', background:'var(--pq-page)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid rgba(255,255,255,0.14)', borderTopColor:'var(--pq-accent)', animation:'spin 0.7s linear infinite' }} />
+        <div style={{ width:'40px', height:'40px', borderRadius:'50%', border:'3px solid var(--pq-track-bg)', borderTopColor:'var(--pq-accent)', animation:'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       </div>
     )

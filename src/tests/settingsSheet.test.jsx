@@ -78,7 +78,7 @@ describe('the panel', () => {
     expect(panel.style.maxHeight).toBe('88%')
     /* It no longer docks to the bottom edge — it flies up to the middle
        of the screen — so all four corners round, as one shorthand. */
-    expect(panel.style.borderRadius).toBe('18px')
+    expect(panel.style.borderRadius).toBe('24px')
     expect(panel.parentElement.style.alignItems).toBe('center')
     expect(panel.parentElement.style.justifyContent).toBe('center')
     expect(panel.style.animation).toContain('pq-sheet-fly')
@@ -189,9 +189,9 @@ describe('the preference toggle', () => {
 
   it('flips the real preference, not a local copy', async () => {
     await open()
-    expect(document.body.getAttribute('data-theme')).toBe('dark')
-    act(() => { sw().click() })
     expect(document.body.getAttribute('data-theme')).toBe('light')
+    act(() => { sw().click() })
+    expect(document.body.getAttribute('data-theme')).toBe('dark')
   })
 })
 

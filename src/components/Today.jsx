@@ -64,11 +64,11 @@ function MacroCell({ label, value, goal, suffix = '', accent, fill, style }) {
         </span>
       </div>
       <div style={{
-        height: 3, borderRadius: 2, overflow: 'hidden',
+        height: 6, borderRadius: 3, overflow: 'hidden',
         background: 'var(--pq-track-bg)', boxShadow: 'var(--pq-track-shadow)',
       }}>
         <div style={{
-          height: '100%', width: `${pct(value, goal)}%`, borderRadius: 2,
+          height: '100%', width: `${pct(value, goal)}%`, borderRadius: 3,
           background: fill, transition: 'width .3s',
         }} />
       </div>
@@ -282,8 +282,11 @@ export default function Today({ onChange, onOpenSettings, onReset, surface = 'ph
                     onClick={() => done ? removeLoggedMeal(log.id) : logMeal(r.id, 'planned')}
                     aria-label={done ? `Unlog ${r.name}` : `Log ${r.name}`}
                     style={{
+                      /* Its own height, centred — stretched to the row
+                         it became a tall oval once buttons went round. */
+                      alignSelf: 'center',
                       flexShrink: 0, width: 86, minHeight: 'var(--pq-tap-min)',
-                      margin: '12px 12px 12px 8px', borderRadius: 9, cursor: 'pointer',
+                      margin: '12px 12px 12px 8px', borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
                       ...MONO, fontSize: 11, fontWeight: 600, letterSpacing: 'var(--pq-track-chip)',
                       background: done ? 'transparent' : 'var(--pq-accent-grad)',
                       boxShadow: done ? 'none' : 'var(--pq-accent-raise)',

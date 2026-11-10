@@ -235,7 +235,7 @@ describe('chrome', () => {
     await mount()
     const marker = plannedRows()[0].querySelector('span[aria-hidden="true"]')
     expect(marker.style.width).toBe('26px')
-    expect(marker.style.borderRadius).toBe('7px')
+    expect(marker.style.borderRadius).toBe('50%')
     expect(marker.style.border).toContain('dashed')
     expect(marker.querySelector('svg')).toBeTruthy()
   })

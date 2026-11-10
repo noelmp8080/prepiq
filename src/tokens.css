@@ -1,185 +1,196 @@
-/* PrepIQ design tokens - graphite & chartreuse
+/* PrepIQ design tokens — PAPER AND INK
  *
- * Pasted from the redesign handoff (design/tokens.css). Every value here
- * is authoritative; do not round, substitute, or re-derive.
+ * The owner chose this look from ten mockups on 2026-11-10, asked for it
+ * rounder than first drawn, and asked for a dark version beside it. It
+ * replaces graphite and chartreuse entirely. See DEVIATIONS §30.
  *
- * THE ACCENT RAMP IS SEVEN LITERALS. Do not regenerate it, and do not
- * reintroduce a shade() helper to do so.
+ * THE IDEA: paper, ink, and one red.
  *
- * The published method and the published values disagree. Rather than
- * restate the arithmetic here - which is exactly what would tempt the
- * next reader to "just derive it" - the full comparison lives in
- * DEVIATIONS.md under "The accent ramp". Read that before touching
- * these seven values.
+ *   PAPER  the ground everything sits on.
+ *   INK    type, and every filled control — primary buttons, the active
+ *          tab, a ticked check, a selected chip.
+ *   RED    progress and emphasis only: the bar that fills, the number
+ *          you steer by, the day that is today. Never a button fill.
  *
- * SELF-HOSTED TYPE. The handoff specifies a Google Fonts <link>. This
- * app removed exactly that dependency: the grocery list is used standing
- * in a shop, and a supermarket is where the request fails - the app
- * would fall back to a generic sans after every row width had been
- * measured against Plex. Same outcome, no network. Latin subset, only
- * the weights the handoff names: Sans 400/500/600/700, Mono 400/500/600.
+ * So two tokens that used to be the same chartreuse are now different
+ * colours ON PURPOSE:
+ *
+ *   --pq-accent-grad   what a filled control is painted with  -> INK
+ *   --pq-accent        emphasis as text, bar or outline       -> RED
+ *
+ * and `--pq-on-accent-ink` is what sits on a filled control: paper.
+ * The names are kept — every component already speaks them — so the
+ * whole app changes here rather than in forty files.
+ *
+ * FLAT. The old look was built from gradients, inset highlights and
+ * drop shadows; this one has none. The gradient-named tokens
+ * (`-grad`, `-bar`, `--pq-shell`, `--pq-card-bg`) hold a single colour,
+ * and the `-raise` / `-shadow` tokens are `none`, so a component that
+ * asks for one gets the flat answer without knowing anything changed.
+ *
+ * TWO THEMES, ONE SET OF NAMES. `:root` is light. `[data-theme="dark"]`
+ * swaps paper and ink and brightens the red so it still reads; nothing
+ * else — no size, radius or spacing — differs between them.
+ *
+ * SELF-HOSTED TYPE, as before and for the same reason: the grocery list
+ * is used standing in a shop, where a font CDN request is the one that
+ * fails. Inter for reading, Space Grotesk for titles, numbers and the
+ * small capital labels. Latin subset, only the weights used.
  */
-@import '@fontsource/ibm-plex-sans/latin-400.css';
-@import '@fontsource/ibm-plex-sans/latin-500.css';
-@import '@fontsource/ibm-plex-sans/latin-600.css';
-@import '@fontsource/ibm-plex-sans/latin-700.css';
-@import '@fontsource/ibm-plex-mono/latin-400.css';
-@import '@fontsource/ibm-plex-mono/latin-500.css';
-@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/space-grotesk/latin-500.css';
+@import '@fontsource/space-grotesk/latin-600.css';
+@import '@fontsource/space-grotesk/latin-700.css';
 
 :root {
-  /* ── Shell ─────────────────────────────────────────────── */
-  --pq-page:              #08090A;   /* page behind the app */
-  --pq-page-wide:         #0B0D0E;
-  --pq-shell-1:           #3D464C;   /* gradient stops, light → dark */
-  --pq-shell-2:           #313A40;
-  --pq-shell-3:           #262D32;
-  --pq-shell-4:           #1D2327;
-  --pq-panel:             #141619;   /* flat panels: Plan day cards, inputs */
+  /* ── Ground ────────────────────────────────────────────── */
+  --pq-page:              #F6F4EF;   /* behind the app: the same paper, so an overscroll shows no seam */
+  --pq-page-wide:         #F6F4EF;
+  --pq-shell-1:           #F6F4EF;
+  --pq-shell-2:           #F6F4EF;
+  --pq-shell-3:           #F6F4EF;
+  --pq-shell-4:           #F6F4EF;
+  --pq-panel:             #FFFDF8;   /* flat panels: Plan day cards, inputs, chips */
+  --pq-shell:             #F6F4EF;
+  --pq-shell-wide:        #F6F4EF;
 
-  /* The shell runs the full height of the scroll container, so content
-     at the top sits on lighter graphite than content at the bottom. */
-  --pq-shell: linear-gradient(176deg,
-    var(--pq-shell-1) 0%, var(--pq-shell-2) 24%,
-    var(--pq-shell-3) 56%, var(--pq-shell-4) 100%);
-  --pq-shell-wide: linear-gradient(168deg,
-    var(--pq-shell-1) 0%, var(--pq-shell-2) 22%,
-    var(--pq-shell-3) 54%, var(--pq-shell-4) 100%);
+  /* ── Ink: every filled control ─────────────────────────── */
+  --pq-accent-grad:       #17171A;
+  --pq-on-accent:         #F6F4EF;
+  --pq-on-accent-ink:     #F6F4EF;   /* text, icon and check mark on an ink fill */
+  --pq-accent-raise:      none;
 
-  /* ── Accent ────────────────────────────────────────────── */
-  --pq-accent:            #D0F224;
-  --pq-accent-lift:       #DDF667;   /* literal - see DEVIATIONS.md */
-  --pq-accent-drop:       #99B31B;   /* literal - see DEVIATIONS.md */
-  --pq-accent-edge:       #F2FCBE;   /* top inset highlight */
-  --pq-accent-shade:      #798C15;   /* bottom inset shade */
-  --pq-on-accent:         #131719;   /* text on accent fills */
-  --pq-on-accent-ink:     #0E1012;   /* checkmark stroke */
-
-  --pq-accent-grad: linear-gradient(150deg,
-    var(--pq-accent-lift) 0%, var(--pq-accent) 46%, var(--pq-accent-drop) 100%);
-  --pq-accent-bar: linear-gradient(90deg,
-    #A2BD1C 0%, var(--pq-accent) 72%, #D7F44F 100%);
-
-  /* every accent-filled control */
-  --pq-accent-raise:
-    inset 0 1.5px 0 var(--pq-accent-edge),
-    inset 0 -3px 0 var(--pq-accent-shade),
-    0 5px 12px rgba(0,0,0,0.45),
-    0 1px 2px rgba(0,0,0,0.3);
+  /* ── Red: progress and emphasis ────────────────────────── */
+  --pq-accent:            #B3261E;
+  --pq-accent-lift:       #B3261E;
+  --pq-accent-drop:       #B3261E;
+  --pq-accent-edge:       #B3261E;
+  --pq-accent-shade:      #B3261E;
+  --pq-accent-bar:        #B3261E;
+  --pq-accent-tint:       #F7E3E0;   /* the "560 left" tag */
 
   /* ── Text ──────────────────────────────────────────────── */
-  --pq-text:              #F2F5EE;
-  --pq-text-2:            #C7CDC1;
-  --pq-text-3:            #AAB1A6;   /* mono labels */
-  --pq-text-muted:        #9BA398;
-  --pq-text-faint:        #8A938F;   /* logo brackets, inactive nav */
-  --pq-text-faintest:     #6F7873;   /* eyebrows */
+  --pq-text:              #17171A;
+  --pq-text-2:            #33322E;
+  --pq-text-3:            #5C5A55;   /* small capital labels */
+  --pq-text-muted:        #5C5A55;
+  --pq-text-faint:        #66635C;   /* inactive nav */
+  --pq-text-faintest:     #6B6861;
 
   /* ── Card surface ──────────────────────────────────────── */
-  /* Translucent white over the shell, so position affects lightness.
-     The two inset lines are what make it read as raised. */
-  --pq-card-bg: linear-gradient(168deg,
-    rgba(255,255,255,0.16) 0%,
-    rgba(255,255,255,0.085) 48%,
-    rgba(255,255,255,0.04) 100%);
-  --pq-card-border:       1px solid rgba(255,255,255,0.14);
-  --pq-card-shadow:
-    0 8px 20px rgba(0,0,0,0.4),
-    0 2px 4px rgba(0,0,0,0.26),
-    inset 0 1px 0 rgba(255,255,255,0.16),
-    inset 0 -1px 0 rgba(0,0,0,0.22);
+  --pq-card-bg:           #FFFDF8;
+  --pq-card-border:       1px solid #DDD9D0;
+  --pq-card-shadow:       none;
 
-  /* photo fallback tile — most recipes have no photo */
-  --pq-thumb-fallback:    linear-gradient(158deg,#59636A,#333C42);
-  --pq-thumb-fallback-lip: inset 0 1px 0 rgba(255,255,255,0.12);
+  --pq-thumb-fallback:    #ECE8DF;
+  --pq-thumb-fallback-lip: none;
 
   /* ── Lines ─────────────────────────────────────────────── */
-  --pq-rule-row:          rgba(255,255,255,0.06);  /* rows in a card */
-  --pq-rule-cell:         rgba(255,255,255,0.07);  /* stat grid cells */
-  --pq-rule-meal:         rgba(255,255,255,0.05);  /* Plan meal rows */
-  --pq-rule-strong:       rgba(255,255,255,0.14);  /* card border */
-  --pq-rule-soft:         rgba(255,255,255,0.08);  /* panel border */
-  --pq-rule-dashed:       1px dashed rgba(255,255,255,0.14);
+  --pq-rule-row:          #E7E3DA;
+  --pq-rule-cell:         #E7E3DA;
+  --pq-rule-meal:         #ECE8DF;
+  --pq-rule-strong:       #C9C5BB;
+  --pq-rule-soft:         #DDD9D0;
+  --pq-rule-dashed:       1px dashed #C9C5BB;
 
-  /* ── Wells and insets ──────────────────────────────────── */
-  --pq-well-bg:           rgba(0,0,0,0.28);
-  --pq-well-shadow:       inset 0 2px 4px rgba(0,0,0,0.45);
-  --pq-track-bg:          rgba(0,0,0,0.3);
-  --pq-track-shadow:      inset 0 1px 2px rgba(0,0,0,0.4);
+  /* ── Wells and tracks ──────────────────────────────────── */
+  --pq-well-bg:           #F6F4EF;
+  --pq-well-shadow:       none;
+  --pq-track-bg:          #E7E3DA;
+  --pq-track-shadow:      none;
+
+  /* An unticked check, and an unselected pill. */
+  --pq-check-bg:          #FFFDF8;
+  --pq-check-border:      #A39F95;
+  --pq-pill-border:       #DDD9D0;
+
+  /* The month calendar's three kinds of day. */
+  --pq-under-bg:          #ECE8DF;
+  --pq-under-border:      #A39F95;
+  --pq-over:              #B3261E;
+
+  /* Something went wrong. */
+  --pq-danger-bg:         #F7E3E0;
+  --pq-danger-border:     #E0A9A3;
+  --pq-danger-text:       #8C1D17;
 
   /* ── Chrome ────────────────────────────────────────────── */
-  --pq-nav-bg: linear-gradient(180deg, rgba(62,71,78,0.94), rgba(40,47,52,0.96));
-  --pq-nav-shadow:
-    0 -8px 22px rgba(0,0,0,0.4),
-    inset 0 1px 0 rgba(255,255,255,0.14);
-  --pq-nav-h:             64px;
-  --pq-nav-clearance:     92px;      /* scroll container padding-bottom */
+  --pq-nav-bg:            #FFFDF8;
+  --pq-nav-shadow:        0 6px 20px rgba(23,23,26,0.10);
+  --pq-nav-h:             60px;
+  --pq-nav-clearance:     96px;      /* scroll container padding-bottom */
 
   /* THE HOME INDICATOR'S STRIP, as a token rather than a bare env().
-     Two reasons it is named. It is 0 on every desktop browser and ~34px
-     on the iPhones this app is actually used on, so the value that
-     matters is the one no development machine ever produces — and a
-     token is something a layout test can set to 34px and measure
-     against. A bare env() in the component is untestable by
-     construction. Anything anchored to the bottom of the screen pads
-     by this. */
+     It is 0 on every desktop browser and ~34px on the iPhones this app
+     is actually used on, so the value that matters is the one no
+     development machine ever produces — and a token is something a
+     layout test can set to 34px and measure against. */
   --pq-safe-b:            env(safe-area-inset-bottom, 0px);
 
-  --pq-sheet-bg: linear-gradient(180deg,#4A545B 0%,#333C42 42%,#282F34 100%);
-  --pq-sheet-shadow:      0 -12px 40px rgba(0,0,0,0.55);
-  --pq-scrim:             rgba(0,0,0,0.6);
+  --pq-header-bg:         #F6F4EF;   /* the grocery list's sticky header */
+  --pq-header-shadow:     none;
 
-  --pq-rail-bg: linear-gradient(180deg,
-    rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.03) 100%);
-  --pq-rail-edge:         inset -1px 0 0 rgba(0,0,0,0.25);
+  --pq-sheet-bg:          #FFFDF8;
+  --pq-sheet-shadow:      0 24px 60px rgba(23,23,26,0.28);
+  --pq-scrim:             rgba(23,23,26,0.45);
+
+  --pq-rail-bg:           #FFFDF8;
+  --pq-rail-edge:         none;
   --pq-rail-w-collapsed:  84px;
   --pq-rail-w-expanded:   224px;
 
-  --pq-logo-tile: linear-gradient(160deg,#3F484F,#1E2427);
-  --pq-logo-tile-shadow:
-    0 2px 6px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.16);
+  --pq-logo-tile:         #17171A;
+  --pq-logo-tile-shadow:  none;
+  --pq-logo-ink:          #F6F4EF;
 
   /* ── Type ──────────────────────────────────────────────── */
-  --pq-sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --pq-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --pq-sans:    'Inter', system-ui, sans-serif;
+  /* Titles, numbers, and the small capital labels. The token keeps its
+     old name — it used to be a monospace — because every label and stat
+     in the app already asks for it. Tabular figures, so a column of
+     numbers still lines up the way a monospace made it. */
+  --pq-mono:    'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --pq-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
 
-  --pq-size-title:        28px;  /* screen title, 700, -.02em */
-  --pq-size-sheet:        17px;  /* sheet title, 700, -.01em */
-  --pq-size-headline:     19px;  /* card headline, 700, -.01em */
+  --pq-size-title:        34px;  /* screen title */
+  --pq-size-sheet:        18px;
+  --pq-size-headline:     19px;
   --pq-size-grocery:      18px;  /* GROCERY ITEM NAME — do not reduce */
   --pq-size-logo:         16px;
-  --pq-size-meal:         15px;
-  --pq-size-row:          14px;
+  --pq-size-meal:         16px;
+  --pq-size-row:          15px;
   --pq-size-body:         13px;
-  --pq-size-stat-lg:      26px;  /* mono, 600 */
-  --pq-size-stat:         18px;  /* mono, 600 */
-  --pq-size-eyebrow:      11px;  /* mono, 500 */
-  --pq-size-label:        10px;  /* mono, 500 */
-  --pq-size-nav:          9px;   /* mono, 600 */
+  --pq-size-stat-lg:      30px;
+  --pq-size-stat:         19px;
+  --pq-size-eyebrow:      12px;
+  --pq-size-label:        11px;
+  --pq-size-nav:          10px;
 
-  --pq-track-eyebrow:     .12em;
-  --pq-track-section:     .14em;
-  --pq-track-label:       .10em;
-  --pq-track-caption:     .08em;
-  --pq-track-chip:        .06em;
+  --pq-track-eyebrow:     .10em;
+  --pq-track-section:     .10em;
+  --pq-track-label:       .08em;
+  --pq-track-caption:     .06em;
+  --pq-track-chip:        .04em;
   --pq-tight-title:       -.02em;
   --pq-tight-row:         -.01em;
   --pq-tight-logo:        -.03em;
 
   /* ── Space ─────────────────────────────────────────────── */
-  --pq-gutter:            16px;  /* phone screen gutter */
-  --pq-gap-card:          20px;  /* card to card */
-  --pq-gap-section:       24px;  /* section with an eyebrow */
+  --pq-gutter:            18px;  /* phone screen gutter */
+  --pq-gap-card:          20px;
+  --pq-gap-section:       24px;
   --pq-pad-card:          16px;
   --pq-pad-row:           12px;
 
-  /* ── Radii ─────────────────────────────────────────────── */
+  /* ── Radii — ROUND, as asked ───────────────────────────── */
   --pq-r-device:          28px;
-  --pq-r-card:            14px;
-  --pq-r-button:          10px;
-  --pq-r-thumb:           9px;   /* 7px at 36px, 10px at 56px */
-  --pq-r-chip:            8px;
+  --pq-r-card:            20px;
+  --pq-r-button:          999px; /* pills: buttons, inputs, tabs */
+  --pq-r-thumb:           12px;
+  --pq-r-chip:            999px;
   --pq-r-check:           50%;   /* a check CIRCLE, as on a notes checklist */
 
   /* ── Targets ───────────────────────────────────────────── */
@@ -192,8 +203,90 @@
   --pq-thumb-sheet:       56px;
 
   /* ── Motion ────────────────────────────────────────────── */
-  --pq-t-paint:           .15s;  /* opacity, transform — the only motion */
-  --pq-undo-ms:           3500;  /* ms the Undo affordance persists */
+  --pq-t-paint:           .15s;
+  --pq-undo-ms:           3500;
+}
+
+/* ── DARK ─────────────────────────────────────────────────────────────
+ *
+ * Paper and ink change places: the ground goes near-black, type and
+ * filled controls go to paper. The red is lifted — #B3261E on a dark
+ * card is 2.6:1, which is a bar you can see and a number you cannot
+ * read — so text takes a lighter red and the bar a slightly deeper one.
+ *
+ * Set on <body> by useTheme. Only colours appear here; every size,
+ * radius and spacing above is shared.
+ */
+[data-theme="dark"] {
+  --pq-page:              #141416;
+  --pq-page-wide:         #141416;
+  --pq-shell-1:           #141416;
+  --pq-shell-2:           #141416;
+  --pq-shell-3:           #141416;
+  --pq-shell-4:           #141416;
+  --pq-panel:             #1E1E21;
+  --pq-shell:             #141416;
+  --pq-shell-wide:        #141416;
+
+  --pq-accent-grad:       #F2EFE8;
+  --pq-on-accent:         #141416;
+  --pq-on-accent-ink:     #141416;
+
+  --pq-accent:            #FF8A7E;
+  --pq-accent-lift:       #FF8A7E;
+  --pq-accent-drop:       #FF8A7E;
+  --pq-accent-edge:       #FF8A7E;
+  --pq-accent-shade:      #FF8A7E;
+  --pq-accent-bar:        #F0574A;
+  --pq-accent-tint:       #3A1F1C;
+
+  --pq-text:              #F2EFE8;
+  --pq-text-2:            #D6D2C9;
+  --pq-text-3:            #A9A59C;
+  --pq-text-muted:        #A9A59C;
+  --pq-text-faint:        #9C988F;
+  --pq-text-faintest:     #96928A;
+
+  --pq-card-bg:           #1E1E21;
+  --pq-card-border:       1px solid #303034;
+
+  --pq-thumb-fallback:    #2A2A2E;
+
+  --pq-rule-row:          #2A2A2E;
+  --pq-rule-cell:         #2A2A2E;
+  --pq-rule-meal:         #28282C;
+  --pq-rule-strong:       #47474C;
+  --pq-rule-soft:         #303034;
+  --pq-rule-dashed:       1px dashed #47474C;
+
+  --pq-well-bg:           #141416;
+  --pq-track-bg:          #303034;
+
+  --pq-check-bg:          #141416;
+  --pq-check-border:      #6B6B72;
+  --pq-pill-border:       #303034;
+
+  --pq-under-bg:          #2A2A2E;
+  --pq-under-border:      #6B6B72;
+  --pq-over:              #FF8A7E;
+
+  --pq-danger-bg:         #3A1F1C;
+  --pq-danger-border:     #6E3530;
+  --pq-danger-text:       #FFB4AB;
+
+  --pq-nav-bg:            #1E1E21;
+  --pq-nav-shadow:        0 6px 20px rgba(0,0,0,0.5);
+
+  --pq-header-bg:         #141416;
+
+  --pq-sheet-bg:          #1E1E21;
+  --pq-sheet-shadow:      0 24px 60px rgba(0,0,0,0.6);
+  --pq-scrim:             rgba(0,0,0,0.6);
+
+  --pq-rail-bg:           #1E1E21;
+
+  --pq-logo-tile:         #F2EFE8;
+  --pq-logo-ink:          #141416;
 }
 
 /* ── WIDE SURFACES ────────────────────────────────────────────────────
@@ -203,14 +296,7 @@
  * pads with var(--pq-gutter), so widening it widens all of them at once
  * and no screen can be left at the phone value by accident.
  *
- * Nothing else about the visual language moves: same ramp mechanism,
- * same card recipe, same type scale, same accent. Only layout and
- * affordance sizes, which is what the handoff asks for.
- *
- * The breakpoints match useSurface.js — 900 and 1400, chosen to sit
- * BELOW the handoff's reference widths (1194 and 1512) so a real iPad
- * with browser chrome, and a desktop window the user has dragged
- * narrower, both land in the band they were designed for. If these two
+ * The breakpoints match useSurface.js — 900 and 1400. If these two
  * files ever disagree the rail appears at a width the layout has not
  * widened for, so a test asserts they match. */
 @media (min-width: 900px) {
@@ -219,10 +305,6 @@
 @media (min-width: 1400px) {
   :root {
     --pq-gutter: 32px;
-    /* The prototype's `h1Size: wide ? '34px' : '28px'`, where its `wide`
-       flag means DESKTOP rather than "either wide surface". So the title
-       grows at 1512, not on the iPad — where the content column is
-       narrower and 28px is already the right weight against it. */
-    --pq-size-title: 34px;
+    --pq-size-title: 40px;
   }
 }

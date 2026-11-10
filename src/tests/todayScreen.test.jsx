@@ -206,13 +206,13 @@ describe('the macro card', () => {
     expect(text()).toMatch(/C \d+g · F \d+g/)
   })
 
-  it('draws 3px bars on the inset well, dividing cells with 1px rules', async () => {
+  it('draws 6px bars on the track, dividing cells with 1px rules', async () => {
     await mountWith()
     const cells = [...grid().children]
     expect(cells[0].style.borderRight).toBe('1px solid var(--pq-rule-cell)')
     for (const cell of cells) {
-      const track = [...cell.querySelectorAll('div')].find(d => d.style.height === '3px')
-      expect(track, 'no 3px bar in a macro cell').toBeTruthy()
+      const track = [...cell.querySelectorAll('div')].find(d => d.style.height === '6px')
+      expect(track, 'no 6px bar in a macro cell').toBeTruthy()
       expect(track.style.background).toBe('var(--pq-track-bg)')
       expect(track.style.boxShadow).toBe('var(--pq-track-shadow)')
     }
@@ -280,11 +280,11 @@ describe('chrome', () => {
     }
   })
 
-  it('sizes meal thumbnails at 48px with the 9px radius', async () => {
+  it('sizes meal thumbnails at 48px with the 14px radius', async () => {
     await mountWith()
     const thumbs = [...host.querySelectorAll('img, div')].filter(e => e.style.width === '48px')
     expect(thumbs.length).toBeGreaterThan(0)
-    for (const t of thumbs) expect(t.style.borderRadius).toBe('9px')
+    for (const t of thumbs) expect(t.style.borderRadius).toBe('14px')
   })
 })
 

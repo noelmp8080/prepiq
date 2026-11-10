@@ -38,12 +38,12 @@ export default function SyncErrorBanner() {
       data-sync-error
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 10,
-        padding: '10px 12px', borderRadius: 'var(--pq-r-button)',
+        padding: '10px 12px', borderRadius: 14,
         /* Not the card surface: a card is translucent over the shell and
            would tint with scroll position. An alert holds still. */
-        background: 'rgba(197,48,48,0.14)',
-        border: '1px solid rgba(233,120,120,0.34)',
-        color: '#F2C7C7',
+        background: 'var(--pq-danger-bg)',
+        border: '1px solid var(--pq-danger-border)',
+        color: 'var(--pq-danger-text)',
         fontFamily: 'var(--pq-sans)', fontSize: 12, fontWeight: 500,
         lineHeight: 1.5, wordBreak: 'break-word',
       }}
@@ -66,7 +66,7 @@ export default function SyncErrorBanner() {
         style={{
           flexShrink: 0, minHeight: 'var(--pq-tap-min)', padding: '0 4px',
           background: 'none', border: 'none', cursor: 'pointer',
-          color: '#F2C7C7', fontFamily: 'var(--pq-mono)',
+          color: 'var(--pq-danger-text)', fontFamily: 'var(--pq-mono)',
           fontSize: 11, fontWeight: 600, letterSpacing: 'var(--pq-track-chip)',
         }}
       >

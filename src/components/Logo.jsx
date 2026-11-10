@@ -30,7 +30,8 @@ export function LogoTile({ size = 30 }) {
         boxShadow: 'var(--pq-logo-tile-shadow)',
         fontFamily: 'var(--pq-mono)', fontWeight: 700, fontSize: s.mono,
         letterSpacing: 'var(--pq-tight-logo)',
-        color: 'var(--pq-accent)',
+        /* Paper on the ink tile. The red accent would be 2.3:1 here. */
+        color: 'var(--pq-logo-ink)',
       }}
     >
       IQ

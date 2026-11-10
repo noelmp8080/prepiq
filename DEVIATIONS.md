@@ -1289,6 +1289,44 @@ clean start."
 
 ---
 
+## 30. Paper and ink replaces graphite and chartreuse
+
+**Chosen by the owner, 2026-11-10**, from ten mockups, then asked for
+rounder and with a dark version. This supersedes the handoff's visual
+language — the accent ramp, the shell gradient, the translucent card, the
+raised controls, IBM Plex — everywhere it is described above. Layout,
+behaviour and every measurement of the grocery row are unchanged.
+
+- **Paper, ink, one red.** Filled controls are ink (`--pq-accent-grad`);
+  emphasis — progress bars, the calorie number, today — is red
+  (`--pq-accent`). Those two tokens used to be one colour and are now
+  deliberately two. Text on a fill is `--pq-on-accent-ink`.
+- **Flat.** Gradient-named tokens hold one colour and shadow tokens are
+  `none`, so components did not have to change to lose them. The old
+  rule that a Card must stay translucent over the shell ramp no longer
+  has a ramp to protect.
+- **Round.** Cards 20px, buttons/inputs/tabs pills, thumbnails 12–18px,
+  sheets 24px. The bottom nav is a floating capsule with the current tab
+  filled.
+- **Type.** Inter for reading; Space Grotesk for titles, numbers and the
+  small capital labels, with tabular figures. `--pq-mono` keeps its name
+  though it is no longer a monospace. Both self-hosted, as before.
+- **Two themes, colour only.** `:root` is light, `[data-theme="dark"]`
+  overrides colours and nothing else; a test asserts that, and that every
+  text pairing clears 4.5:1 in both.
+- **Light is the default, under a new storage key** (`prepiq_theme_v2`).
+  The old key was written as `dark` on first load whether or not anyone
+  chose it, so it could not be read as a preference.
+- **Hardcoded colours are gone from the components** — about 25, mostly
+  white-alpha borders that assumed a dark ground. New tokens cover them:
+  check, pill, header, calendar under/over, danger.
+- **Not changed:** labels and buttons stay in capitals. The rounder
+  mockup drew some in sentence case; the app keeps its existing wording.
+
+Screens as built: `docs/design/paper-and-ink/`.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.
