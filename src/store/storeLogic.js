@@ -748,6 +748,84 @@ export function sinkChecked(items = [], rankOf) {
   return [...open, ...got]
 }
 
+/* ── THE MONTH CALENDAR ───────────────────────────────────────────────
+ *
+ * Progress over months, on Track. Everything here is pure: the screen
+ * hands in a year, a month and the logs it has, and gets back cells and
+ * totals. Dates are built from LOCAL parts throughout, for the reason
+ * todayISO gives.
+ */
+
+/** Every date in a month, as YYYY-MM-DD. `month` is 0-based, like Date. */
+export function monthDates(year, month) {
+  const days = new Date(year, month + 1, 0).getDate()
+  return Array.from({ length: days }, (_, i) => todayISO(new Date(year, month, i + 1)))
+}
+
+/** How many blank cells sit before the 1st in a MONDAY-first grid — the
+ *  same week the Plan screen draws. */
+export const monthLeadingBlanks = (year, month) =>
+  (new Date(year, month, 1).getDay() + 6) % 7
+
+/** Within this fraction of the calorie target counts as on target, and
+ *  the same fraction short of the protein target still counts as hit. A
+ *  day at 1,795 of 1,800 is not a miss. */
+export const ON_TARGET_BAND = 0.1
+
+/** A day's calories against the target: none | under | hit | over. */
+export function dayStatus(kcal, goal) {
+  if (!kcal || kcal <= 0) return 'none'
+  if (!goal || goal <= 0) return 'under'
+  const r = kcal / goal
+  if (r > 1 + ON_TARGET_BAND) return 'over'
+  return r >= 1 - ON_TARGET_BAND ? 'hit' : 'under'
+}
+
+export const proteinHit = (protein, goal) =>
+  !!goal && goal > 0 && protein >= goal * (1 - ON_TARGET_BAND)
+
+/** One cell per date: its totals and its status.
+ *
+ *  A date AFTER `today` is `future` and carries nothing, so the screen
+ *  can dim it instead of reporting a miss for a day that has not come.
+ *  Totals are rounded — a few recipes carry half-calories.
+ */
+export function monthCells(dates = [], logsByDate = {}, recipeById = {}, goals = {}, today = todayISO()) {
+  return dates.map(date => {
+    const future = date > today
+    const entries = future ? [] : (logsByDate[date] || [])
+    const t = sumLog(entries, recipeById)
+    const kcal = Math.round(t.calories), protein = Math.round(t.protein)
+    return {
+      date, future, entries, kcal, protein,
+      carbs: Math.round(t.carbs), fat: Math.round(t.fat),
+      status: future ? 'none' : dayStatus(kcal, goals.calories),
+      proteinHit: !future && proteinHit(protein, goals.protein),
+    }
+  })
+}
+
+/** The four numbers above the grid.
+ *
+ *  `streak` is the LONGEST run of consecutive logged days in the month,
+ *  not the current one: a current streak reads 0 the morning after a
+ *  perfect fortnight, which is discouraging and tells you nothing.
+ */
+export function monthSummary(cells = []) {
+  let logged = 0, onTarget = 0, kcal = 0, proteinDays = 0, streak = 0, run = 0
+  for (const c of cells) {
+    if (c.future) continue
+    if (c.kcal > 0) {
+      logged++; kcal += c.kcal
+      if (c.status === 'hit') onTarget++
+      if (c.proteinHit) proteinDays++
+      run++; if (run > streak) streak = run
+    } else run = 0
+  }
+  return { logged, onTarget, proteinDays, streak,
+           avgKcal: logged ? Math.round(kcal / logged) : 0 }
+}
+
 /** Macro totals for one day's LOG entries. */
 export function sumLog(entries = [], recipeById = {}) {
   return sumMacros((entries || []).map(e => e?.recipeId), recipeById)

@@ -1241,6 +1241,33 @@ their caller the moment they close.
 
 ---
 
+## 28. A month calendar on Track
+
+**Requested by the owner, 2026-11-10**, approved from a mockup. Track
+gains a TODAY / MONTH switch; Month is `MonthCalendar.jsx`.
+
+- **One cell per day**, by calories against the target: filled (within
+  10% either way), tinted (under), outlined (over), bare (nothing
+  logged). A dot marks protein at 90% of target or more. The band is
+  `ON_TARGET_BAND` in `storeLogic.js`.
+- **Four totals**: days on target of days logged, average calories,
+  protein days, and the LONGEST run of logged days in the month — not
+  the current one, which reads 0 the morning after a perfect fortnight.
+- **A day opens without a click.** Hover, keyboard focus, or a finger
+  slid across the grid pops a preview beside the day. The grid sets
+  `touch-action: none`, so a finger on it reads days rather than
+  scrolling; the page scrolls from anywhere else. Lifting the finger
+  closes the preview — there is no pinned state.
+- **Logs are read on demand, not stored.** A month is fetched when
+  opened — the device copy at once, then one `getDoc` per date from the
+  cloud — and held by the component. Today comes from the live log.
+- **Past days are measured against the CURRENT targets.** No history of
+  targets is stored, so changing one re-colours earlier months.
+- **Reset still clears this week's logs**, which removes those days from
+  the calendar. Left as is; flagged to the owner.
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.

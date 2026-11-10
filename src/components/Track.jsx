@@ -6,6 +6,7 @@ import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
 import { planVsLog, pct, sumMacros, sumLog } from '../store/storeLogic'
 import { ResetButton } from './ResetSheet'
+import MonthCalendar from './MonthCalendar'
 
 /* ── Track — what I actually ate ──────────────────────────────────────
  *
@@ -163,6 +164,7 @@ export default function Track({ onChange, onReset, surface = 'phone' }) {
   const todayGroceryLeft = todayProg.total - todayProg.got
 
   const [sheetRecipe, setSheetRecipe] = useState(null)
+  const [view, setView] = useState('today')
 
   const day = weekPlan[planToday]
   const { planned } = planVsLog(day?.ids || [], mealLog)
@@ -208,7 +210,43 @@ export default function Track({ onChange, onReset, surface = 'phone' }) {
         </>}
       />
 
-      <div style={cols ? {
+      {/* ── TODAY / MONTH ───────────────────────────────────────────
+          Two readings of the same question — how did I do. Today is
+          the screen as it has always been; Month is the calendar. */}
+      <div role="tablist" aria-label="Track view" style={{
+        display: 'flex', gap: 4, padding: 3,
+        margin: '16px var(--pq-gutter) 0', maxWidth: 320,
+        borderRadius: 'var(--pq-r-button)', background: 'var(--pq-panel)',
+        border: '1px solid var(--pq-rule-soft)',
+      }}>
+        {[['today', 'TODAY'], ['month', 'MONTH']].map(([id, label]) => {
+          const on = view === id
+          return (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={on}
+              data-track-view={id}
+              onClick={() => setView(id)}
+              style={{
+                flex: 1, minHeight: 'var(--pq-tap-min)', border: 'none', cursor: 'pointer',
+                borderRadius: 7,
+                background: on ? 'var(--pq-accent-grad)' : 'transparent',
+                boxShadow: on ? 'var(--pq-accent-raise)' : 'none',
+                color: on ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+                ...MONO, fontSize: 12, fontWeight: 600, letterSpacing: 'var(--pq-track-chip)',
+              }}>{label}</button>
+          )
+        })}
+      </div>
+
+      {view === 'month' && (
+        <MonthCalendar style={{
+          padding: '18px var(--pq-gutter) 0', maxWidth: 560, boxSizing: 'content-box',
+        }} />
+      )}
+
+      {view === 'today' && <div style={cols ? {
         display: 'grid', gridTemplateColumns: cols,
         gap: surface === 'desktop' ? 26 : 20,
         alignItems: 'start', padding: '0 var(--pq-gutter)',
@@ -425,7 +463,7 @@ export default function Track({ onChange, onReset, surface = 'phone' }) {
       </div>
 
       </div>
-      </div>
+      </div>}
 
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
     </div>

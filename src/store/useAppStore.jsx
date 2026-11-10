@@ -288,6 +288,32 @@ export function AppStoreProvider({ children }) {
     return () => { stale = true }
   }, [datesKey, logDate, scopeUid, user])
 
+  /* ── READING OLD LOGS, for the month calendar ───────────────────
+     The store keeps today and this week in state. A month is read on
+     demand and held by the screen that asked, because paging back
+     through a year should not grow app state for good.
+
+     TWO HALVES, the same order as everything else: the device answers
+     at once, the cloud answers when it can and wins where it has a
+     document. `null` from the cloud for a date means "no document",
+     and the caller keeps the device's answer for that date.
+
+     One getDoc per date rather than a collection query: the dates are
+     the document ids, a month is at most 31 of them, and it keeps this
+     on the two Firestore calls the rest of the store already uses. */
+  const readLogsLocal = useCallback(dateList => Object.fromEntries(
+    dateList.map(d => [d, loadLS(lsKey(scopeUid, `log_${d}`), [])])), [scopeUid])
+
+  const readLogsCloud = useCallback(async (dateList) => {
+    if (!user || !cloudEnabled || !dateList.length) return null
+    const snaps = await Promise.all(
+      dateList.map(d => getDoc(doc(db, 'users', user.uid, 'logs', d))))
+    return Object.fromEntries(dateList.map((d, i) => {
+      const meals = snaps[i]?.exists?.() ? snaps[i].data().meals : null
+      return [d, Array.isArray(meals) ? meals : null]
+    }))
+  }, [user])
+
   /* WRITES ARE LOCAL-FIRST, CLOUD-SECOND, AND NO LONGER SILENT.
    *
    * Every write saves to localStorage and then to Firestore. When the
@@ -630,6 +656,8 @@ export function AppStoreProvider({ children }) {
   const value = {
     user,
     logsByDay,
+    readLogsLocal,
+    readLogsCloud,
     planDates: dates,
     groceryProgress,
     groceryWeek,
