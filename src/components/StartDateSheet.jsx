@@ -93,8 +93,16 @@ export default function StartDateSheet({ open, onClose }) {
             min={today}
             onChange={e => setValue(e.target.value)}
             aria-label="Plan start date"
+            /* iOS SAFARI SIZES A DATE FIELD ITSELF. It gives the control a
+               native minimum width and its own appearance, which ignores
+               width:100% and pushed the field past the sheet's right edge
+               on an iPhone. Dropping the native appearance and allowing it
+               to shrink makes it obey the column like the buttons above. */
             style={{
-              display: 'block', width: '100%', minHeight: 'var(--pq-tap-min)', marginTop: 6,
+              display: 'block', width: '100%', maxWidth: '100%', minWidth: 0,
+              boxSizing: 'border-box', appearance: 'none', WebkitAppearance: 'none',
+              textAlign: 'left',
+              minHeight: 'var(--pq-tap-min)', marginTop: 6,
               padding: '10px 14px', borderRadius: 'var(--pq-r-button)',
               background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
               color: 'var(--pq-text)', fontSize: 'var(--pq-size-row)',
