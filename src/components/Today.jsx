@@ -6,7 +6,7 @@ import Thumb from './Thumb'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipeById } from '../data/recipes'
-import { planVsLog, sumMacros, pct } from '../store/storeLogic'
+import { planVsLog, sumMacros, pct, longDate, startsInLabel } from '../store/storeLogic'
 import { ResetButton } from './ResetSheet'
 
 /* ── Today — a VIEW of the plan, not a screen with its own state ──────
@@ -90,7 +90,7 @@ export default function Today({ onChange, onOpenSettings, onReset, surface = 'ph
   const wide = surface === 'tablet' || surface === 'desktop'
   const {
     weekPlan, planToday, mealLog, goals, consumed,
-    logMeal, removeLoggedMeal,
+    logMeal, removeLoggedMeal, planUpcoming, planStart, logDate,
   } = useAppStore()
 
   const [sheetRecipe, setSheetRecipe] = useState(null)
@@ -234,9 +234,13 @@ export default function Today({ onChange, onOpenSettings, onReset, surface = 'ph
             <p style={{
               margin: '0 0 4px', fontSize: 'var(--pq-size-row)', fontWeight: 500,
               color: 'var(--pq-text-muted)',
-            }}>Nothing planned for today</p>
+            }}>{planUpcoming
+              ? `Your plan starts ${longDate(planStart)}`
+              : 'Nothing planned for today'}</p>
             <p style={{ ...MONO, margin: 0, fontSize: 12, color: 'var(--pq-text-3)' }}>
-              TAP TO OPEN THE WEEK PLAN
+              {planUpcoming
+                ? `${startsInLabel(planStart, logDate)} · TAP TO PREP THE WEEK`
+                : 'TAP TO OPEN THE WEEK PLAN'}
             </p>
           </EmptyBlock>
         ) : (
