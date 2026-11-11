@@ -9,7 +9,9 @@ import { todayISO, resolveField, dayChanged, setToArray, arrayToSet, loadLS, sav
          rememberScope, buildGroceryItems, readRail, writeRail, normalizeWeekPlan,
          planDates, fromISO, emptiedWeekPlan, groceryProgressByDay,
          buildWeekGroceryItems, weekRowKeys, weekRowChecked,
-         addMealToDay, removeMealFromDay, removeLocalLogs } from './storeLogic'
+         addMealToDay, removeMealFromDay, removeLocalLogs,
+         isISODate, planIsUpcoming, rotatePlanToStart, shiftDayKeys,
+         planTodayIndex, planDatesWithStart } from './storeLogic'
 import groceryCatalog from '../data/groceryCatalog.json'
 
 const AppStoreContext = createContext(null)
@@ -42,6 +44,9 @@ export function AppStoreProvider({ children }) {
      breaks Plan, Grocery, Today and Track at once. See
      normalizeWeekPlan in storeLogic. */
   const [weekPlan,      setWeekPlan]      = useState(() => normalizeWeekPlan(boot.weekPlan, recipeById))
+  /* THE DAY THE PLAN STARTS, or null for "it is already running". See
+     "A PLAN CAN START ON A DAY YOU CHOOSE" in storeLogic. */
+  const [planStart,     setPlanStartState] = useState(() => (isISODate(boot.planStart) ? boot.planStart : null))
   const [favorites,     setFavorites]     = useState(boot.favorites)
   const [groceryChecks, setGroceryChecks] = useState(boot.groceryChecks)
   /* { [what]: detail } — one slot per writer, so a successful write
@@ -89,8 +94,12 @@ export function AppStoreProvider({ children }) {
   /* WHICH DAY IS TODAY, in the plan's own terms. Today, Track and the
      grocery default all resolve through this one call so they cannot
      disagree about what day it is. */
-  const planToday = todayIndex(weekPlan)
-  const groceryDay = groceryDayRaw ?? planToday
+  /* -1 WHILE THE PLAN HAS NOT STARTED: no plan day is today yet. Read
+     against `logDate` so it moves at midnight with everything else. */
+  const planToday = planTodayIndex(weekPlan, planStart, fromISO(logDate))
+  const planUpcoming = planToday < 0
+  /* Before the start, the default list is day 1's — the shop you prep for. */
+  const groceryDay = groceryDayRaw ?? Math.max(0, planToday)
 
   /* THE LIST IS DERIVED HERE, ONCE.
      The screen and the nav badge both need it, and two derivations of
@@ -122,8 +131,8 @@ export function AppStoreProvider({ children }) {
 
   /* Which calendar date each plan day is, this week. */
   const dates = useMemo(
-    () => planDates(weekPlan.length, planToday, fromISO(logDate)),
-    [weekPlan.length, planToday, logDate])
+    () => planDatesWithStart(weekPlan.length, planToday, planStart, fromISO(logDate)),
+    [weekPlan.length, planToday, planStart, logDate])
   const datesKey = dates.join()
 
   const groceryUnchecked = useMemo(
@@ -141,6 +150,7 @@ export function AppStoreProvider({ children }) {
     setGoalsState(local.goals)
     setMealLog(local.mealLog)
     setWeekPlan(normalizeWeekPlan(local.weekPlan, recipeById))
+    setPlanStartState(isISODate(local.planStart) ? local.planStart : null)
     setFavorites(local.favorites)
     setGroceryChecks(local.groceryChecks)
     setGroceryExcluded(local.groceryExcluded)
@@ -168,6 +178,10 @@ export function AppStoreProvider({ children }) {
       const g = goalsSnap.exists() ? goalsSnap.data() : null
       const l = logSnap.exists()   ? logSnap.data().meals  : null
       const p = planSnap.exists()  ? planSnap.data().days  : null
+      /* The start rides in the plan's own document, so the two cannot
+         arrive out of step. A document from before this existed has no
+         `start` field: undefined -> the device's answer. */
+      const ps = planSnap.exists() ? planSnap.data().start : undefined
       const f = favSnap.exists()   ? favSnap.data().ids    : null
       const c = grocSnap.exists()  ? grocSnap.data()       : null
       const x = exclSnap.exists()  ? exclSnap.data()       : null
@@ -184,6 +198,8 @@ export function AppStoreProvider({ children }) {
       setGoalsState(resolvedGoals)
       setMealLog(resolvedLog)
       setWeekPlan(normalizeWeekPlan(resolvedPlan, recipeById))
+      const resolvedStart = ps === undefined ? loadLS(lsKey(uid, 'planstart'), null) : ps
+      setPlanStartState(isISODate(resolvedStart) ? resolvedStart : null)
       setFavorites(arrayToSet(resolvedFavs))
       setGroceryChecks(readChecks(resolvedGroc, CHECKS_VERSION))
       setGroceryExcluded(readChecks(resolvedExcl, EXCLUDED_VERSION))
@@ -385,9 +401,15 @@ export function AppStoreProvider({ children }) {
     cloudWrite(uid, ['logs', date], { meals: value }, "today's log")
   }, [cloudWrite])
 
-  const writePlan = useCallback((uid, value) => {
+  /* THE START IS WRITTEN WITH THE DAYS, every time. setDoc replaces the
+     document, so a plan write without it would erase the start date.
+     `start` defaults to the current one; pass null to clear it. */
+  const planStartRef = useRef(planStart)
+  useEffect(() => { planStartRef.current = planStart }, [planStart])
+  const writePlan = useCallback((uid, value, start = planStartRef.current) => {
     saveLS(lsKey(uid, 'weekplan'), value)
-    cloudWrite(uid, ['weekPlan', 'current'], { days: value }, 'weekly plan')
+    saveLS(lsKey(uid, 'planstart'), start ?? null)
+    cloudWrite(uid, ['weekPlan', 'current'], { days: value, start: start ?? null }, 'weekly plan')
   }, [cloudWrite])
 
   const writeFavs = useCallback((uid, value) => {
@@ -461,11 +483,33 @@ export function AppStoreProvider({ children }) {
 
   const shuffleWeekPlan = useCallback(() => {
     const shuffled = [...recipes].sort(() => Math.random() - 0.5)
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    /* The plan's own labels, so a week rotated to its start day stays so. */
+    const days = weekPlan.length ? weekPlan.map(d => d.day) : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
     const plan = days.map((day, i) => ({ day, ids: [shuffled[i * 2]?.id ?? null, shuffled[i * 2 + 1]?.id ?? null] }))
     setWeekPlan(plan)
     writePlan(user?.uid, plan)
-  }, [user, writePlan])
+  }, [user, weekPlan, writePlan])
+
+  /* CHOOSE THE DAY THE PLAN STARTS — or null to drop the start date.
+     The week is rotated so the start day is plan day 0, and the grocery
+     ticks and "already have" clears move with their days, so nothing a
+     shopper has done is lost or lands on the wrong day. */
+  const setPlanStart = useCallback((start) => {
+    const uid = user?.uid
+    const next = isISODate(start) ? start : null
+    const { plan, shift } = next ? rotatePlanToStart(weekPlan, next) : { plan: weekPlan, shift: 0 }
+    setPlanStartState(next)
+    planStartRef.current = next
+    if (shift) {
+      setWeekPlan(plan)
+      const checks = shiftDayKeys(groceryChecks, shift, plan.length)
+      const excluded = shiftDayKeys(groceryExcluded, shift, plan.length)
+      setGroceryChecks(checks);     writeGroc(uid, checks)
+      setGroceryExcluded(excluded); writeExcluded(uid, excluded)
+    }
+    writePlan(uid, plan, next)
+    setGroceryDayRaw(null)
+  }, [user, weekPlan, groceryChecks, groceryExcluded, writePlan, writeGroc, writeExcluded])
 
   /* ── EDITING THE PLAN ────────────────────────────────────────────
      weekPlan is the single source of truth, so these are the only
@@ -734,6 +778,9 @@ export function AppStoreProvider({ children }) {
     unhideGroceryItem,
     unhideAllGroceryItems,
     planToday,
+    planStart,
+    planUpcoming,
+    setPlanStart,
     railStored,
     setRailExpanded,
     groceryDay,
@@ -743,7 +790,7 @@ export function AppStoreProvider({ children }) {
        the app can render before auth resolves. */
     bootScope: boot.scope,
     cloudEnabled,
-    groceryDayIsToday: groceryDayRaw === null,
+    groceryDayIsToday: groceryDayRaw === null && !planUpcoming,
     setGroceryDay,
     undoClear,
     startNewGroceryList,

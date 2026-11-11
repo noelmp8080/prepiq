@@ -6,8 +6,9 @@ import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
 import { useAppStore } from '../store/useAppStore'
 import { recipes, recipeById } from '../data/recipes'
-import { sumMacros, planVsLog } from '../store/storeLogic'
+import { sumMacros, planVsLog, fromISO, longDate, startsInLabel } from '../store/storeLogic'
 import { ResetButton } from './ResetSheet'
+import StartDateSheet from './StartDateSheet'
 
 /* ── Plan — the source of truth, and the only screen that writes it ───
  *
@@ -25,13 +26,12 @@ import { ResetButton } from './ResetSheet'
 
 const MONO = { fontFamily: 'var(--pq-mono)' }
 
-function weekRange(date = new Date()) {
-  const monday = new Date(date)
-  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7))
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const f = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  return `${f(monday)} – ${f(sunday)}`.toUpperCase()
+/* The plan's own first and last dates, not "this Monday to Sunday": a
+   plan can start on any day, and on a future one. */
+function weekRange(dates = []) {
+  if (!dates.length) return ''
+  const f = iso => fromISO(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${f(dates[0])} – ${f(dates[dates.length - 1])}`.toUpperCase()
 }
 
 function StatCell({ value, label, accent, style }) {
@@ -134,7 +134,9 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
     weekPlan, planToday, assignMeal, removeMeal, shuffleWeekPlan,
     goals, logsByDay, groceryProgress, setGroceryDay,
     groceryWeekProgress: weekProg, setGroceryWeek,
+    planDates, planStart, planUpcoming, logDate,
   } = useAppStore()
+  const [choosingStart, setChoosingStart] = useState(false)
 
   /* THE PLAN SAYS WHAT THE OTHER SCREENS ARE DOING WITH IT. Each day
      card carries that day's grocery progress and marks the meals already
@@ -160,7 +162,7 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
     <div>
       <ScreenHeader
         surface={surface}
-        eyebrow={weekRange()}
+        eyebrow={weekRange(planDates)}
         title="Week"
         actions={<>
           {onReset && <ResetButton onClick={onReset} />}
@@ -178,7 +180,42 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
         </>}
       />
 
-      <Card style={{ margin: '20px var(--pq-gutter) 0' }}>
+      {/* THE START DATE. Plan ahead for a diet that begins next week:
+          the days, the grocery list and Today all follow it. */}
+      <button
+        data-plan-start
+        onClick={() => setChoosingStart(true)}
+        aria-label={planUpcoming
+          ? `Plan starts ${longDate(planStart)}. Change start date`
+          : 'Set a start date'}
+        style={{
+          width: 'calc(100% - 2 * var(--pq-gutter))', margin: '16px var(--pq-gutter) 0',
+          minHeight: 'var(--pq-tap-min)', padding: '0 14px',
+          display: 'flex', alignItems: 'center', gap: 10,
+          borderRadius: 'var(--pq-r-button)', cursor: 'pointer',
+          background: 'var(--pq-panel)',
+          border: `1px solid ${planUpcoming ? 'var(--pq-accent)' : 'var(--pq-rule-soft)'}`,
+          textAlign: 'left',
+          ...MONO, fontSize: 'var(--pq-size-eyebrow)', fontWeight: 600,
+          letterSpacing: 'var(--pq-track-label)',
+        }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+          stroke={planUpcoming ? 'var(--pq-accent)' : 'var(--pq-text-3)'} strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" />
+        </svg>
+        <span style={{ flex: 1, color: planUpcoming ? 'var(--pq-text)' : 'var(--pq-text-2)' }}>
+          {planUpcoming
+            ? `STARTS ${longDate(planStart).toUpperCase()}`
+            : 'PLAN STARTS · THIS WEEK'}
+        </span>
+        <span style={{ color: planUpcoming ? 'var(--pq-accent)' : 'var(--pq-text-muted)' }}>
+          {planUpcoming ? startsInLabel(planStart, logDate) : 'SET START DATE'}
+        </span>
+        <span aria-hidden="true" style={{ color: 'var(--pq-text-3)' }}>›</span>
+      </button>
+
+      <Card style={{ margin: '16px var(--pq-gutter) 0' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
           <StatCell value={weekKcal.toLocaleString()} label="WEEK KCAL"
                     style={{ borderRight: CARD_CELL_RULE }} />
@@ -251,6 +288,20 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
                     letterSpacing: 'var(--pq-track-label)',
                     color: isToday ? 'var(--pq-accent)' : 'var(--pq-text-3)',
                   }}>{day.day.toUpperCase()}</span>
+                  {planDates?.[dayIndex] && (
+                    <span style={{ ...MONO, fontSize: 11, color: 'var(--pq-text-3)' }}>
+                      {fromISO(planDates[dayIndex])
+                        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                    </span>
+                  )}
+                  {planUpcoming && dayIndex === 0 && (
+                    <span style={{
+                      ...MONO, fontSize: 9, fontWeight: 600, color: 'var(--pq-accent)',
+                      border: '1px solid var(--pq-accent)',
+                      padding: '1px 6px', borderRadius: 999,
+                      letterSpacing: 'var(--pq-track-label)',
+                    }}>DAY 1</span>
+                  )}
                   {isToday && (
                     <span style={{
                       ...MONO, fontSize: 9, fontWeight: 600,
@@ -417,6 +468,7 @@ export default function Plan({ surface = 'phone', onChange, onReset }) {
         />
       )}
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
+      <StartDateSheet open={choosingStart} onClose={() => setChoosingStart(false)} />
     </div>
   )
 }

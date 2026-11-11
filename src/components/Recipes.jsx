@@ -58,7 +58,7 @@ export default function Recipes({ surface = 'phone' }) {
      see a meal, tap +, it is on that day. Starts on today, and stays
      where you put it while you fill a day — which is how a week
      actually gets planned, a day at a time. */
-  const [targetDay, setTargetDay] = useState(planToday)
+  const [targetDay, setTargetDay] = useState(Math.max(0, planToday))   // -1 before a future start: day 1
   const target = weekPlan[targetDay] || weekPlan[0]
   const targetIds = target?.ids || []
   const [query, setQuery] = useState('')
