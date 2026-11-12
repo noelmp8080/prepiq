@@ -282,7 +282,14 @@ export default function Recipes({ surface = 'phone' }) {
         </div>
       )}
 
-      <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
+      {/* The sheet gets the list as it stands — filter and search applied —
+          so a swipe in the sheet walks the same order as the rows here. */}
+      <RecipeSheet
+        recipe={sheetRecipe}
+        onClose={() => setSheetRecipe(null)}
+        list={filtered}
+        onNavigate={setSheetRecipe}
+      />
     </div>
   )
 }

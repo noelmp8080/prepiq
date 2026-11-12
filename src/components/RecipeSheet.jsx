@@ -1,5 +1,7 @@
+import { useState, useRef, useEffect } from 'react'
 import Sheet from './Sheet'
 import Thumb from './Thumb'
+import PhotoViewer from './PhotoViewer'
 import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
 import { getRecipeDetails } from '../data/recipeDetails'
@@ -101,12 +103,116 @@ const ICON_TILE = {
   boxShadow: 'var(--pq-thumb-fallback-lip)',
 }
 
-export default function RecipeSheet({ recipe, onClose }) {
+/* ── Swipe to the next recipe ─────────────────────────────────────────
+ *
+ * When the screen that opened the sheet passes the list it opened it
+ * from (`list` + `onNavigate`), a sideways swipe moves through that list
+ * without closing the sheet: swipe LEFT for the next recipe, RIGHT for
+ * the previous one — the direction a page turns. Recipes passes its
+ * current filtered, searched list, so the order is the order on screen.
+ * Screens that pass nothing get the sheet exactly as before.
+ *
+ * WHY IT DOES NOT FIGHT THE SCROLL. The sheet body scrolls vertically.
+ * The first 10px of movement decide the gesture: mostly sideways and
+ * it is a swipe, otherwise it is left entirely to the browser. The
+ * panel is `touch-action: pan-y`, so the browser keeps vertical
+ * scrolling and hands sideways movement to this code.
+ *
+ * A SWIPE IS NEVER ALSO A TAP. A swipe that starts on a day chip would
+ * otherwise end in a click on that chip and put the meal on a day. Once
+ * a gesture is judged sideways, the click that follows it is swallowed.
+ *
+ * At either end of the list the panel drags with resistance and springs
+ * back, so the edge is felt rather than silently ignored. The arrows in
+ * the position row do the same job for a mouse, and so do the ← and →
+ * keys. */
+const SWIPE_COMMIT = 60     /* px of sideways travel that turns the page */
+const SWIPE_DECIDE = 10     /* px before the gesture is judged */
+
+export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
   const {
     favorites, toggleFavorite, logMeal, weekPlan, planToday, assignMeal, unassignMeal,
   } = useAppStore()
 
+  const [photoOpen, setPhotoOpen] = useState(false)
+  /* Which recipe's photo failed to load — by id, so moving to the next
+     recipe gives it a fresh chance without resetting state in an effect. */
+  const [failedPhotoId, setFailedPhotoId] = useState(null)
+  const [dragging, setDragging] = useState(false)
+  const [dragX, setDragX] = useState(0)
+  const [enterFrom, setEnterFrom] = useState(null)   // 'next' | 'prev' | null
+  const touch = useRef(null)
+  const swallowClick = useRef(false)
+
+  const index = recipe && list ? list.findIndex(r => r.id === recipe.id) : -1
+  const canNav = index >= 0 && typeof onNavigate === 'function' && list.length > 1
+  const prev = canNav && index > 0 ? list[index - 1] : null
+  const next = canNav && index < list.length - 1 ? list[index + 1] : null
+
+  const go = (target, from) => {
+    if (!target) return
+    setDragX(0)
+    setPhotoOpen(false)
+    setEnterFrom(from)
+    onNavigate(target)
+  }
+
+  /* Keyboard: ← → move through the list. Not while typing, and not
+     while the photo is open (the photo is its own layer). */
+  useEffect(() => {
+    if (!canNav || photoOpen) return
+    const onKey = e => {
+      const tag = (e.target?.tagName || '').toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return
+      if (e.key === 'ArrowRight' && next) go(next, 'next')
+      if (e.key === 'ArrowLeft' && prev) go(prev, 'prev')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   if (!recipe) return null
+  const photoFailed = failedPhotoId === recipe.id
+
+  const onTouchStart = e => {
+    swallowClick.current = false
+    if (!canNav || e.touches.length !== 1) { touch.current = null; return }
+    const t = e.touches[0]
+    touch.current = { x: t.clientX, y: t.clientY, axis: null, dx: 0 }
+  }
+  const onTouchMove = e => {
+    const g = touch.current
+    if (!g) return
+    const t = e.touches[0]
+    const dx = t.clientX - g.x
+    const dy = t.clientY - g.y
+    if (!g.axis) {
+      if (Math.abs(dx) < SWIPE_DECIDE && Math.abs(dy) < SWIPE_DECIDE) return
+      g.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y'
+    }
+    if (g.axis !== 'x') return
+    if (!dragging) setDragging(true)
+    g.dx = dx
+    /* Past the end of the list: resistance, then spring back. */
+    const blocked = (dx < 0 && !next) || (dx > 0 && !prev)
+    setDragX(blocked ? dx * 0.25 : dx)
+  }
+  const onTouchEnd = () => {
+    const g = touch.current
+    touch.current = null
+    if (!g || g.axis !== 'x') return
+    setDragging(false)
+    swallowClick.current = true
+    if (g.dx <= -SWIPE_COMMIT && next) go(next, 'next')
+    else if (g.dx >= SWIPE_COMMIT && prev) go(prev, 'prev')
+    else setDragX(0)
+  }
+  const onClickCapture = e => {
+    if (!swallowClick.current) return
+    swallowClick.current = false
+    e.stopPropagation()
+    e.preventDefault()
+  }
 
   /* Which days already hold this recipe — the lit chips. */
   const onDays = weekPlan
@@ -127,13 +233,59 @@ export default function RecipeSheet({ recipe, onClose }) {
 
   return (
       <Sheet open onClose={onClose} title={recipe.name}>
+        <div
+          key={recipe.id}
+          data-recipe-swipe
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchEnd}
+          onClickCapture={onClickCapture}
+          style={{
+            flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+            touchAction: canNav ? 'pan-y' : undefined,
+            transform: dragX ? `translateX(${dragX}px)` : undefined,
+            opacity: dragX ? Math.max(0.4, 1 - Math.abs(dragX) / 500) : undefined,
+            transition: dragging ? 'none' : 'transform .2s ease-out, opacity .2s ease-out',
+            animation: enterFrom
+              ? `pq-recipe-in-${enterFrom} .24s cubic-bezier(.2,1,.32,1) both` : undefined,
+          }}
+        >
+        <style>{`
+          @keyframes pq-recipe-in-next { from { transform: translateX(48px); opacity: 0 } }
+          @keyframes pq-recipe-in-prev { from { transform: translateX(-48px); opacity: 0 } }
+          @media (prefers-reduced-motion: reduce) {
+            @keyframes pq-recipe-in-next { from { opacity: 0 } }
+            @keyframes pq-recipe-in-prev { from { opacity: 0 } }
+          }
+        `}</style>
         {/* ── Header ─────────────────────────────────────────────── */}
         <div style={{
           flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12,
           padding: '16px var(--pq-gutter) 12px',
           borderBottom: '1px solid var(--pq-rule-cell)',
         }}>
-          <Thumb recipe={recipe} size={56} src={recipe.image} />
+          {/* TAP THE DISH FOR THE FULL PHOTO. Only when there is one —
+              the initials tile is not a photo and opens nothing. The
+              probe below learns whether the file loads; Thumb catches
+              its own failure but does not report it. */}
+          {recipe.image && !photoFailed ? (
+            <button
+              data-photo-open
+              onClick={() => setPhotoOpen(true)}
+              aria-label={`View larger photo of ${recipe.name}`}
+              style={{
+                flexShrink: 0, minHeight: 'var(--pq-tap-min)',
+                padding: 0, border: 'none', background: 'none',
+                cursor: 'zoom-in', borderRadius: 16, display: 'block',
+              }}
+            >
+              <Thumb recipe={recipe} size={56} src={recipe.image} />
+              <img src={recipe.image} alt="" hidden onError={() => setFailedPhotoId(recipe.id)} />
+            </button>
+          ) : (
+            <Thumb recipe={recipe} size={56} src={recipe.image} />
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: 'var(--pq-size-sheet)', fontWeight: 700,
@@ -170,6 +322,48 @@ export default function RecipeSheet({ recipe, onClose }) {
             </span>
           </button>
         </div>
+
+        {/* ── Position in the list ───────────────────────────────────
+            Says that there IS a next recipe, and where this one sits.
+            Without it a swipe is a gesture you would only find by
+            accident. The arrows are the same move for a mouse. */}
+        {canNav && (
+          <div data-recipe-position style={{
+            flexShrink: 0, display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 calc(var(--pq-gutter) - 10px)',
+            borderBottom: '1px solid var(--pq-rule-cell)',
+          }}>
+            <button
+              data-recipe-prev
+              onClick={() => go(prev, 'prev')}
+              disabled={!prev}
+              aria-label={prev ? `Previous recipe: ${prev.name}` : 'No previous recipe'}
+              style={{ ...ICON_BUTTON, opacity: prev ? 1 : 0.3, cursor: prev ? 'pointer' : 'default' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="var(--pq-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <span style={{
+              fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-label)',
+              color: 'var(--pq-text-3)', letterSpacing: 'var(--pq-track-label)',
+            }}>{index + 1} OF {list.length} · SWIPE FOR MORE</span>
+            <button
+              data-recipe-next
+              onClick={() => go(next, 'next')}
+              disabled={!next}
+              aria-label={next ? `Next recipe: ${next.name}` : 'No next recipe'}
+              style={{ ...ICON_BUTTON, opacity: next ? 1 : 0.3, cursor: next ? 'pointer' : 'default' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="var(--pq-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* ── Body ───────────────────────────────────────────────── */}
         <div style={{
@@ -319,6 +513,15 @@ export default function RecipeSheet({ recipe, onClose }) {
               fontWeight: 600, letterSpacing: '.04em',
             }}>I ATE THIS TODAY</button>
         </div>
+        </div>
+
+        {photoOpen && (
+          <PhotoViewer
+            src={recipe.image}
+            alt={recipe.name}
+            onClose={() => setPhotoOpen(false)}
+          />
+        )}
       </Sheet>
   )
 }

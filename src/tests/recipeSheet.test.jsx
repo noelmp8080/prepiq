@@ -246,7 +246,15 @@ describe('a 36-ingredient recipe does not push the actions off the sheet', () =>
     expect(panel.style.display).toBe('flex')
     expect(panel.style.flexDirection).toBe('column')
 
-    const [header, body, actions] = [...panel.children].filter(c => c.tagName === 'DIV')
+    /* The sections sit inside the swipe wrapper (swipe between recipes),
+       which must itself pass the height down: flex:1 + min-height:0, or
+       the body below would grow instead of scrolling. */
+    const wrap = panel.querySelector('[data-recipe-swipe]')
+    expect(wrap.parentElement).toBe(panel)
+    expect(wrap.style.flex).toMatch(/^1( 1 0%)?$/)
+    expect(wrap.style.minHeight).toBe('0px')
+    expect(wrap.style.flexDirection).toBe('column')
+    const [header, body, actions] = [...wrap.children].filter(c => c.tagName === 'DIV')
     expect(header.style.flexShrink).toBe('0')
     expect(actions.style.flexShrink).toBe('0')
     /* THE LOAD-BEARING PAIR. flex:1 alone is not enough — a flex item's
