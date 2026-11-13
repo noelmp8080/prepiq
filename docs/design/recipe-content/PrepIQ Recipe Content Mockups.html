@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrepIQ Recipe Content</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from src/tokens.css (Paper and ink). */
+:root {
+  --page:#F6F4EF; --panel:#FFFDF8; --ink:#17171A; --on-ink:#F6F4EF;
+  --red:#B3261E; --red-tint:#F7E3E0;
+  --text:#17171A; --text-2:#33322E; --text-3:#5C5A55; --faint:#66635C;
+  --card-border:#DDD9D0; --thumb:#ECE8DF;
+  --rule:#E7E3DA; --rule-meal:#ECE8DF; --rule-strong:#C9C5BB;
+  --nav-shadow:0 6px 20px rgba(23,23,26,.10);
+  --sheet-shadow:0 24px 60px rgba(23,23,26,.28); --scrim:rgba(23,23,26,.45);
+  --board:#E9E5DC; --board-text:#17171A; --hl:#B3261E;
+  --sans:'Inter',system-ui,sans-serif; --mono:'Space Grotesk','Inter',system-ui,sans-serif;
+  --gutter:18px;
+}
+[data-theme="dark"] {
+  --page:#141416; --panel:#1E1E21; --ink:#F2EFE8; --on-ink:#141416;
+  --red:#FF8A7E; --red-tint:#3A1F1C;
+  --text:#F2EFE8; --text-2:#D6D2C9; --text-3:#A9A59C; --faint:#9C988F;
+  --card-border:#303034; --thumb:#2A2A2E;
+  --rule:#2A2A2E; --rule-meal:#28282C; --rule-strong:#47474C;
+  --nav-shadow:0 6px 20px rgba(0,0,0,.5);
+  --sheet-shadow:0 24px 60px rgba(0,0,0,.6); --scrim:rgba(0,0,0,.6);
+  --board:#0C0C0E; --board-text:#F2EFE8; --hl:#FF8A7E;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--board); color:var(--board-text); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+button { font:inherit; color:inherit; }
+
+/* ── Board ─────────────────────────────────────────── */
+.top { position:sticky; top:0; z-index:50; background:var(--board); border-bottom:1px solid var(--rule-strong);
+  padding:14px 28px; display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.top h1 { font-family:var(--mono); font-size:22px; font-weight:600; letter-spacing:-.01em; margin-right:auto; }
+.top h1 small { display:block; font-family:var(--sans); font-size:13px; font-weight:400; color:var(--text-3); letter-spacing:0; margin-top:2px; }
+.seg { display:flex; background:var(--panel); border:1px solid var(--card-border); border-radius:999px; padding:3px; }
+.seg button { border:0; background:none; border-radius:999px; padding:7px 14px; cursor:pointer;
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; color:var(--text-3); min-height:32px; }
+.seg button[aria-pressed="true"] { background:var(--ink); color:var(--on-ink); }
+.frames { display:flex; flex-wrap:wrap; gap:40px 32px; padding:32px 28px 64px; justify-content:center; }
+.col { width:390px; max-width:100%; scroll-margin-top:90px; }
+.col h2 { font-family:var(--mono); font-size:15px; font-weight:600; margin-bottom:12px; display:flex; gap:10px; align-items:baseline; }
+.col h2 span { font-size:11px; color:var(--red); letter-spacing:.08em; }
+.notes { margin-top:16px; font-size:13px; line-height:1.55; color:var(--text-2); }
+.notes li { margin:0 0 6px 18px; }
+.notes b { color:var(--text); }
+
+/* What's new outline */
+body.hl .new { outline:1.5px dashed var(--hl); outline-offset:3px; border-radius:6px; }
+
+/* ── Phone ─────────────────────────────────────────── */
+.phone { position:relative; width:390px; max-width:100%; height:844px; border-radius:44px; overflow:hidden;
+  background:var(--page); border:1px solid var(--rule-strong); box-shadow:0 20px 50px rgba(0,0,0,.12); }
+.scrim { position:absolute; inset:0; background:var(--scrim); }
+.under { position:absolute; inset:0; padding:56px var(--gutter); }
+.under .ghost { height:120px; border-radius:20px; background:var(--panel); margin-bottom:14px; opacity:.9; }
+.sheet { position:absolute; left:0; right:0; top:44px; bottom:0; background:var(--panel); border-radius:28px 28px 0 0;
+  box-shadow:var(--sheet-shadow); display:flex; flex-direction:column; overflow:hidden; }
+.grab { width:36px; height:4px; border-radius:2px; background:var(--rule-strong); margin:8px auto 0; flex-shrink:0; }
+
+/* Sheet header */
+.sh-head { flex-shrink:0; padding:12px var(--gutter) 12px; border-bottom:1px solid var(--rule); }
+.sh-row { display:flex; align-items:center; gap:12px; }
+.thumb { width:56px; height:56px; border-radius:12px; object-fit:cover; background:var(--thumb); flex-shrink:0; }
+.sh-name { font-size:18px; font-weight:700; color:var(--text); letter-spacing:-.01em; line-height:1.25; }
+.meta { font-family:var(--mono); font-size:12px; color:var(--text-3); margin-top:4px; letter-spacing:.04em; }
+.meta b { color:var(--text-2); font-weight:600; }
+.icon-btn { width:44px; height:44px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:none; border:0; cursor:pointer; }
+.icon-tile { width:36px; height:36px; border-radius:50%; background:var(--thumb); display:flex; align-items:center; justify-content:center; }
+.intro { font-size:13.5px; line-height:1.5; color:var(--text-2); margin-top:10px; }
+
+.body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.body::-webkit-scrollbar { width:0; }
+
+/* Macro strip */
+.macro-wrap { border-bottom:1px solid var(--rule); }
+.macros { display:grid; grid-template-columns:repeat(4,1fr); }
+.macros > div { padding:12px 14px; border-right:1px solid var(--rule); }
+.macros .v { font-family:var(--mono); font-size:16px; font-weight:600; line-height:1; color:var(--text); font-variant-numeric:tabular-nums; }
+.macros .v.acc { color:var(--red); }
+.macros .l { font-family:var(--mono); font-size:9px; color:var(--text-3); letter-spacing:.08em; margin-top:5px; }
+.sauce { display:flex; justify-content:space-between; align-items:center; padding:10px var(--gutter) 12px; gap:10px; }
+.sauce .lbl { font-family:var(--mono); font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.08em; }
+.sauce .seg { background:var(--page); }
+.sauce .seg button { padding:6px 12px; font-size:10.5px; min-height:30px; }
+
+.sec { padding:16px var(--gutter) 0; }
+.sec:last-child { padding-bottom:24px; }
+.label { font-family:var(--mono); font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.10em; margin-bottom:8px; display:flex; justify-content:space-between; }
+.label i { font-style:normal; font-weight:500; letter-spacing:.06em; }
+
+/* Ingredients */
+.grp { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--text); letter-spacing:.04em;
+  padding:14px 0 4px; display:flex; justify-content:space-between; align-items:baseline; text-transform:uppercase; }
+.grp:first-of-type { padding-top:2px; }
+.grp i { font-style:normal; font-weight:500; color:var(--text-3); font-size:11px; }
+.ing { display:flex; align-items:baseline; gap:10px; padding:9px 0; border-bottom:1px solid var(--rule-meal); }
+.ing::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--red); flex-shrink:0; position:relative; top:-2px; }
+.ing span { font-size:15px; color:var(--text-2); line-height:1.4; }
+
+/* Steps */
+ol.steps { list-style:none; display:flex; flex-direction:column; gap:14px; }
+ol.steps li { display:flex; gap:12px; }
+ol.steps .n { flex-shrink:0; font-family:var(--mono); font-size:12px; font-weight:600; color:var(--red); padding-top:2px; }
+ol.steps .t { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--text); letter-spacing:.06em; text-transform:uppercase; margin-bottom:3px; }
+ol.steps p { font-size:13.5px; color:var(--text-2); line-height:1.6; }
+
+/* Cook's notes */
+.tip { background:var(--page); border:1px solid var(--card-border); border-radius:16px; padding:14px 16px; }
+.tip ul { list-style:none; display:flex; flex-direction:column; gap:8px; }
+.tip li { font-size:13.5px; line-height:1.5; color:var(--text-2); padding-left:14px; position:relative; }
+.tip li::before { content:''; position:absolute; left:0; top:8px; width:5px; height:5px; border-radius:50%; background:var(--text-3); }
+
+/* Serve it with */
+.pair h4 { font-size:13px; font-weight:600; color:var(--text); margin:2px 0 6px; }
+.pair ul { list-style:none; margin-bottom:12px; }
+.pair li { font-size:13.5px; color:var(--text-2); line-height:1.5; padding:7px 0; border-bottom:1px solid var(--rule-meal); }
+
+/* Watch it made */
+.vids { display:flex; gap:8px; }
+.vid { flex:1; min-height:44px; border-radius:999px; border:1px solid var(--rule-strong); background:transparent; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--text-2); text-decoration:none; }
+
+.linkrow { display:flex; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--card-border); border-radius:16px;
+  background:var(--page); color:var(--text); text-decoration:none; min-height:56px; }
+.linkrow b { display:block; font-size:14px; font-weight:600; }
+.linkrow small { display:block; font-size:12px; color:var(--text-3); margin-top:2px; }
+.linkrow .chev { margin-left:auto; color:var(--text-3); }
+
+/* Sheet footer */
+.foot { flex-shrink:0; padding:12px var(--gutter) 26px; border-top:1px solid var(--rule); display:flex; flex-direction:column; gap:8px; background:var(--panel); }
+.days { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.day { min-height:44px; border-radius:999px; border:1px solid var(--card-border); background:var(--panel);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--mono); font-size:10px; font-weight:600; color:var(--text-2); letter-spacing:.04em; }
+.day i { font-style:normal; font-size:9px; color:var(--text-3); font-weight:500; }
+.day.on { background:var(--ink); color:var(--on-ink); border-color:var(--ink); }
+.day.on i { color:var(--on-ink); opacity:.7; }
+.ate { width:100%; min-height:44px; border-radius:999px; border:1px solid var(--rule-strong); background:transparent;
+  font-family:var(--mono); font-size:13px; font-weight:600; letter-spacing:.04em; color:var(--text-2); }
+
+/* ── Recipes screen ───────────────────────────────── */
+.screen { position:absolute; inset:0; overflow-y:auto; padding:56px 0 110px; }
+.screen::-webkit-scrollbar { width:0; }
+.eyebrow { font-family:var(--mono); font-size:11px; color:var(--text-3); letter-spacing:.10em; padding:0 var(--gutter); }
+.title { font-family:var(--mono); font-size:34px; font-weight:700; letter-spacing:-.02em; color:var(--text); padding:2px var(--gutter) 14px; }
+.search { margin:0 var(--gutter) 12px; height:44px; border-radius:999px; background:var(--panel); border:1px solid var(--card-border);
+  display:flex; align-items:center; gap:8px; padding:0 16px; color:var(--text-3); font-size:14px; }
+.chips { display:flex; gap:6px; padding:0 var(--gutter) 14px; overflow-x:auto; }
+.chips::-webkit-scrollbar { height:0; }
+.chip { flex-shrink:0; height:34px; padding:0 13px; border-radius:999px; border:1px solid var(--card-border); background:var(--panel);
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.06em; color:var(--text-2); display:flex; align-items:center; }
+.chip.on { background:var(--ink); color:var(--on-ink); border-color:var(--ink); }
+.guide-card { margin:0 var(--gutter) 16px; border-radius:20px; background:var(--panel); border:1px solid var(--card-border);
+  padding:14px 16px; display:flex; align-items:center; gap:14px; text-decoration:none; color:var(--text); }
+.guide-card .gi { width:44px; height:44px; border-radius:12px; background:var(--ink); color:var(--on-ink); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.guide-card b { display:block; font-size:15px; font-weight:600; }
+.guide-card small { display:block; font-size:12px; color:var(--text-3); margin-top:2px; line-height:1.4; }
+.list { margin:0 var(--gutter); border-radius:20px; background:var(--panel); border:1px solid var(--card-border); overflow:hidden; }
+.row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-bottom:1px solid var(--rule); }
+.row:last-child { border-bottom:0; }
+.row img { width:48px; height:48px; border-radius:12px; object-fit:cover; background:var(--thumb); flex-shrink:0; }
+.row .nm { font-size:15px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row .mc { font-family:var(--mono); font-size:11px; color:var(--text-3); margin-top:3px; letter-spacing:.02em; }
+.row .tag { display:inline-block; font-family:var(--mono); font-size:9.5px; font-weight:600; letter-spacing:.08em; color:var(--red); background:var(--red-tint); border-radius:999px; padding:2px 7px; margin-left:6px; vertical-align:1px; }
+.row .plus { width:32px; height:32px; border-radius:50%; border:1px solid var(--rule-strong); display:flex; align-items:center; justify-content:center; margin-left:auto; flex-shrink:0; color:var(--text-2); }
+
+/* Nav capsule */
+.nav { position:absolute; left:12px; right:12px; bottom:20px; height:60px; background:var(--panel); border:1px solid var(--card-border);
+  border-radius:999px; box-shadow:var(--nav-shadow); display:flex; gap:2px; padding:5px; }
+.nav div { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border-radius:999px;
+  font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.06em; color:var(--faint); }
+.nav div.on { background:var(--ink); color:var(--on-ink); }
+
+/* ── Guides sheet ─────────────────────────────────── */
+details.g { border-bottom:1px solid var(--rule); }
+details.g summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px; padding:14px var(--gutter); min-height:64px; }
+details.g summary::-webkit-details-marker { display:none; }
+details.g summary b { display:block; font-size:15px; font-weight:600; color:var(--text); }
+details.g summary small { display:block; font-size:12px; color:var(--text-3); margin-top:2px; }
+details.g summary .chev { margin-left:auto; color:var(--text-3); transition:transform .15s; flex-shrink:0; }
+details.g[open] summary .chev { transform:rotate(90deg); }
+.g-body { padding:0 var(--gutter) 18px; }
+.g-body h5 { font-family:var(--mono); font-size:11px; font-weight:600; color:var(--text-3); letter-spacing:.10em; margin:14px 0 6px; }
+.g-body h5:first-child { margin-top:0; }
+.g-body ul { list-style:none; }
+.g-body li { font-size:13.5px; color:var(--text-2); line-height:1.5; padding:6px 0 6px 14px; position:relative; }
+.g-body li::before { content:''; position:absolute; left:0; top:13px; width:5px; height:5px; border-radius:50%; background:var(--red); }
+.facts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px; }
+.fact { background:var(--page); border:1px solid var(--card-border); border-radius:14px; padding:12px; }
+.fact .v { font-family:var(--mono); font-size:19px; font-weight:600; color:var(--red); }
+.fact .l { font-family:var(--mono); font-size:10px; color:var(--text-3); letter-spacing:.08em; margin-top:4px; }
+table.reheat { width:100%; border-collapse:collapse; font-size:13px; }
+table.reheat th { text-align:left; font-family:var(--mono); font-size:10px; font-weight:600; color:var(--text-3); letter-spacing:.08em; padding:6px 0; border-bottom:1px solid var(--rule); }
+table.reheat td { padding:9px 8px 9px 0; border-bottom:1px solid var(--rule-meal); color:var(--text-2); vertical-align:top; line-height:1.4; }
+table.reheat td:first-child { font-weight:600; color:var(--text); }
+table.reheat td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+@media (max-width:440px) {
+  .frames { padding:20px 0 48px; gap:32px; }
+  .col { width:100%; }
+  .col h2, .notes { padding:0 16px; }
+  .phone { border-radius:0; border-left:0; border-right:0; width:100%; }
+  .top { padding:12px 16px; }
+}
+</style>
+</head>
+<body class="hl">
+
+<div class="top">
+  <h1>PrepIQ: recipe content, proposed
+    <small>Mockups only. Nothing in the app has changed. Dashed red outlines mark what's new.</small></h1>
+  <div class="seg" role="group" aria-label="Theme">
+    <button data-theme-btn="light" aria-pressed="true">LIGHT</button>
+    <button data-theme-btn="dark" aria-pressed="false">DARK</button>
+  </div>
+  <div class="seg" role="group" aria-label="Highlight new parts">
+    <button id="hl-on" aria-pressed="true">SHOW NEW</button>
+    <button id="hl-off" aria-pressed="false">HIDE</button>
+  </div>
+</div>
+
+<div class="frames" id="frames"></div>
+
+<script>
+const IMG = id => `../../../public/recipes/${id}.webp`
+
+const ic = {
+  heart: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  play: '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+  chev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  book: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+  snow: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1 19.1 4.9"/></svg>',
+  search: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+}
+
+const DAYS = [['MON',2],['TUE',2,1],['WED',2],['THU',1],['FRI',2],['SAT',0],['SUN',1]]
+
+/* ── Recipe data, as printed in the books ─────────── */
+const R1 = {
+  id:2, name:'Honey BBQ Chicken Mac & Cheese', book:"JALAL'S", page:6,
+  makes:'4 SERVINGS',
+  intro:'Truly one of the best combos, the perfect balance of sweet, savoury and spicy! Also another great way to add variety to your weekly meal preps!',
+  macros:{ base:[511,50,50,10] },
+  groups:[{ h:'Crispy Chicken', items:[
+    '700g (25oz) Raw Chicken Breast, cubed','3-4 Garlic Cloves Minced','1 Tsp Black Pepper','2 Tsp Paprika','1 Tsp Salt','2 Tsp Olive Oil',
+    '30g (2 Tbsp) Honey','40g (1.5oz) BBQ Sauce Reduced Sugar','225g (8oz) Uncooked Macaroni Pasta / 500g (18oz) Cooked',
+    '250ml (8.8oz) Skimmed Milk','60ml (2.1oz) Buffalo Hot Sauce (or hot sauce of choice)','120g (4.3oz) Light Cream Cheese',
+    '40g (1.4oz) Low Fat Cheddar Cheese','Garnish with Parsley']}],
+  steps:[
+    {p:'Cut the chicken breasts into small cubes. In a bowl, mix the chicken with minced garlic, black pepper, paprika, salt, and olive oil. Stir until the chicken is evenly coated. Optional: Add a little extra paprika or a dash of turmeric for deeper color.'},
+    {p:'While the chicken is marinating, bring a pot of salted water to a boil. Cook the macaroni pasta according to the package instructions until al dente. Drain and set aside.'},
+    {p:'Heat a pan over medium-high heat and spray lightly with cooking spray (or add a small amount of oil). Add the seasoned chicken cubes and cook for 3–4 minutes on each side until golden brown and slightly charred. Ensure the chicken is fully cooked through. Turn off the heat completely. Drizzle in the honey and BBQ sauce, then toss the chicken to coat evenly. Transfer to a bowl and set aside.'},
+    {p:'In the same pan (no need to clean it), reduce the heat to low. Pour in the milk and hot sauce, then add the cream cheese and shredded cheddar. Gently whisk until the cheese has melted and the sauce is smooth, thick, and creamy.'},
+    {p:'Add the cooked macaroni to the cheese sauce and stir to combine. Serve in bowls and top with the BBQ honey chicken. Garnish with chopped parsley and enjoy!'},
+  ],
+  notes:['Make sure you TURN OFF the heat before adding honey and BBQ sauce.','You can freeze these meals and reheat in a pan or microwave.','Keep in the fridge for up to 4 days.'],
+  videos:true,
+}
+
+const R2 = {
+  id:144, name:'Korean BBQ Beef Bowls', book:'MEAL PREP', page:84,
+  makes:'5 SERVINGS', fixedMakes:true,
+  intro:'Tastes absolutely incredible for how easy this is to make, packed with 56g of protein!',
+  macros:{ base:[557,56,66,8] },
+  groups:[
+    { h:'Korean BBQ Beef', items:['1000g (35oz) Raw 5% Minced/Ground Beef','65g (2.2oz) Light Soy Sauce','20g (1oz) Dark Soy Sauce','1.5 Tbsp Garlic Paste','1 Tbsp Ginger Paste','60g (2.1oz) Gochujang Paste','30g (1.1oz) Honey','50g (1.7oz) Oyster Sauce','30g (1.1oz) Rice Vinegar','2 Tbsp Sesame Seeds','20g (1oz) Light Butter (for cooking)','100g (3.5oz) White Onion, finely chopped','50g (1.7oz) Green Onion, chopped']},
+    { h:'Creamy Gochujang Sauce', items:['200g (7.1oz) Fat Free/Low Fat Yogurt','20g (1oz) Gochujang Paste','15-20g (1oz) Honey','Milk/Evaporated Milk for desired consistency']},
+    { h:'Long Grain Rice', items:['250g (8.8oz) Uncooked Jasmine or Basmati Rice','2 Tbsp Sesame Seeds']},
+    { h:'Crunchy Cucumber Salad', items:['400g (14.1oz) Cucumber, thinly sliced','300g (10.6oz) Carrots, grated','250g (8.8oz) Red Onion, thinly sliced','100g (3.5oz) Green Onion, chopped','25g (1oz) Light Soy Sauce','20g (1oz) Rice Vinegar','25g (1oz) Sriracha','1 Tsp Garlic Powder','2 Tbsp Sesame Seeds']},
+  ],
+  steps:[
+    {p:'In a bowl, combine light and dark soy sauce, garlic and ginger paste, gochujang, honey, oyster sauce, rice vinegar, and sesame seeds. Mix until fully combined, then set aside.'},
+    {p:'Heat a pan on medium, melt some butter, and cook chopped onions for 5 minutes until soft. Increase heat to high, add lean ground beef, and cook for 8 minutes until browned, using a spatula to break it up.'},
+    {p:'Lower the heat to medium, pour in the prepared sauce, and cook for 4-5 minutes until the beef turns golden and slightly caramelised. Finish with chopped green onion and sesame seeds, then set aside.'},
+    {p:'For the Korean spicy sauce, mix low-fat yogurt, gochujang, and honey in a bowl. Add a splash of milk to loosen the consistency if needed. Bottle and store for future use.'},
+    {p:'In a large bowl, combine thinly sliced cucumber, grated carrots, red onion, green onion, light soy sauce, sriracha, rice vinegar, and garlic powder. Toss gently until evenly coated. Store separately to keep fresh and make reheating easier.'},
+    {p:'Serve and divide the Korean beef, white rice, crunchy slaw, and spicy sauce into 5 portions. Your high-protein Korean-style meals are ready to ENJOY!'},
+  ],
+  notes:null, videos:true,
+}
+
+const R3 = {
+  id:374, name:'Korean BBQ Chicken', book:'MEAL PREP', page:240, batch:true,
+  makes:'MAKES 8',
+  intro:'Sweet, smoky and slightly spicy chicken with a rich umami glaze. Perfect with rice, crunchy slaw, and a drizzle of creamy gochujang sauce for a balanced, flavour-packed bowl.',
+  macros:{ base:[286,39,9,10], sauce:[339,42,14,13] },
+  groups:[
+    { h:'Korean BBQ Chicken Marinade', items:['1500g (53oz / 3.3lbs) Raw Chicken Thighs, boneless skinless','2.5 Tsp Black Pepper','40g (1.4oz / 3 Tbsp) Garlic Paste','40g (1.4oz / 2 Tbsp) Ginger Paste','65g (2.3oz / 4 Tbsp) Gochujang Paste','50g (1.8oz / 2.5 Tbsp) Sriracha','50g (1.8oz / 3 Tbsp) Light Soy Sauce','35g (1.3oz / 5 Tbsp) Sesame Seeds']},
+    { h:'Gochujang Spicy Sauce', items:['80g (2.8oz) Light Mayo','200g (7oz) Any Yogurt','15g (1 Tbsp / 0.5oz) Gochujang Paste','15g (3 Tsp) Rice Vinegar','25g (1oz) Honey']},
+  ],
+  steps:[
+    {t:'Marinate the chicken', p:'Trim any excess fat from your boneless chicken thighs, then place them in a large mixing bowl. Add black pepper, garlic paste, ginger paste, gochujang, sriracha, sesame seeds, and light soy sauce. Mix thoroughly until the chicken is fully coated and the colour deepens. Set aside to marinate for at least 1 hour, or overnight for more intense flavour.'},
+    {t:'Cook the chicken', p:'When ready to cook, spread the marinated chicken thighs evenly in a single layer on a lined sheet pan. Oven bake or air fry at 200°C / 400°F for 16-18 minutes, until the chicken is cooked through, juicy, and has a light golden char on the edges.'},
+    {t:'Rest the chicken', p:'Let the chicken thighs rest for 3-4 minutes, then leave them whole for storage. Make sure to pack all the resting juices from the sheet pan together with the chicken when storing.'},
+    {t:'Store for the week', p:'Allow the chicken to cool completely, then store the whole pieces in airtight glass containers and refrigerate for the week. Slice or cube the chicken only when serving to maintain maximum tenderness and juiciness. ENJOY!'},
+  ],
+  serve:['Korean rice bowls with cucumber slaw, pickled carrots and spring onions','Tortilla wraps or Korean inspired tacos with shredded lettuce and slaw','Lettuce wraps with rice and a spoon of gochujang sauce'],
+  sauces:['Gochujang spicy sauce (included in the recipe)','Sesame soy drizzle','Kimchi or pickled vegetables for contrast'],
+  notes:null, videos:false,
+}
+
+function macroCells(m) {
+  const L = ['KCAL','PROTEIN','CARBS','FAT']
+  return m.map((v,i)=>`<div><div class="v${i?'':' acc'}">${i?v+'g':v}</div><div class="l">${L[i]}</div></div>`).join('')
+}
+
+function sheet(r) {
+  const total = r.groups.reduce((n,g)=>n+g.items.length,0)
+  const meta = `${r.batch ? 'MEAL PREP · <b class="new">BATCH PROTEIN</b>' : r.book} · <b class="${r.fixedMakes||r.batch?'new':''}">${r.makes}</b>`
+  const sauceSwitch = r.macros.sauce ? `
+    <div class="sauce new">
+      <span class="lbl">PER SERVING</span>
+      <div class="seg" role="group" aria-label="Macros with or without sauce">
+        <button aria-pressed="true" data-sauce="base">WITHOUT SAUCE</button>
+        <button aria-pressed="false" data-sauce="sauce">WITH SAUCE</button>
+      </div>
+    </div>` : ''
+  const grouped = r.groups.length > 1 || r.groups[0].h
+  const ingr = r.groups.map(g=>`
+      ${grouped?`<div class="grp new">${g.h}<i>${g.items.length}</i></div>`:''}
+      ${g.items.map(t=>`<div class="ing"><span>${t}</span></div>`).join('')}`).join('')
+  const steps = r.steps.map((s,i)=>`
+      <li><span class="n">${String(i+1).padStart(2,'0')}</span>
+        <div>${s.t?`<div class="t new">${s.t}</div>`:''}<p>${s.p}</p></div></li>`).join('')
+  const notes = r.notes ? `
+    <div class="sec new"><div class="label">COOK'S NOTES</div>
+      <div class="tip"><ul>${r.notes.map(n=>`<li>${n}</li>`).join('')}</ul></div></div>` : ''
+  const serve = r.serve ? `
+    <div class="sec new pair"><div class="label">SERVE IT WITH</div>
+      <h4>Meal ideas</h4><ul>${r.serve.map(s=>`<li>${s}</li>`).join('')}</ul>
+      <h4>Sauce pairings</h4><ul>${r.sauces.map(s=>`<li>${s}</li>`).join('')}</ul></div>
+    <div class="sec new"><a class="linkrow" href="#f5">
+      <span class="icon-tile">${ic.snow}</span>
+      <span><b>Storage, freezing &amp; reheating</b><small>Fridge 4–5 days · freezer 2–3 months</small></span>
+      <span class="chev">${ic.chev}</span></a></div>` : ''
+  const vids = r.videos ? `
+    <div class="sec new"><div class="label">WATCH IT MADE</div>
+      <div class="vids">
+        <button class="vid" title="Opens YouTube">${ic.play} YouTube</button>
+        <button class="vid" title="Opens TikTok">${ic.play} TikTok</button>
+        <button class="vid" title="Opens Instagram">${ic.play} Instagram</button>
+      </div></div>` : ''
+  return `
+  <div class="phone" data-recipe="${r.id}">
+    <div class="under"><div class="ghost"></div><div class="ghost"></div><div class="ghost"></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="sh-head">
+        <div class="sh-row">
+          <img class="thumb" src="${IMG(r.id)}" alt="">
+          <div style="flex:1;min-width:0">
+            <div class="sh-name">${r.name}</div>
+            <div class="meta">${meta}</div>
+          </div>
+          <button class="icon-btn" style="color:var(--text-3)" aria-label="Favourite">${ic.heart}</button>
+          <button class="icon-btn" aria-label="Close"><span class="icon-tile" style="color:var(--text-3)">${ic.x}</span></button>
+        </div>
+        <p class="intro new">${r.intro}</p>
+      </div>
+      <div class="body">
+        <div class="macro-wrap"><div class="macros">${macroCells(r.macros.base)}</div>${sauceSwitch}</div>
+        <div class="sec"><div class="label">INGREDIENTS<i>${total} ITEMS</i></div>${ingr}</div>
+        <div class="sec" style="padding-top:22px"><div class="label">INSTRUCTIONS</div><ol class="steps">${steps}</ol></div>
+        ${notes}${serve}${vids}
+        <div class="sec" style="padding-top:0"></div>
+      </div>
+      <div class="foot">
+        <div class="label" style="margin:0">ADD TO A DAY<i style="color:var(--red)"></i></div>
+        <div class="days">${DAYS.map(([d,n,on])=>`<div class="day${on?' on':''}">${d}<i>${n}</i></div>`).join('')}</div>
+        <button class="ate">I ATE THIS TODAY</button>
+      </div>
+    </div>
+  </div>`
+}
+
+function recipesScreen() {
+  const rows = [
+    [374,'Korean BBQ Chicken','286 KCAL · 39P · 9C · 10F',1],
+    [375,'Bang Bang Chicken','304 KCAL · 38P · 5C · 14F',1],
+    [217,'Garlic Herb Cajun Chicken','246 KCAL · 37P · 0C · 11F',1],
+    [1,'Spicy Chicken Wraps','347 KCAL · 38P · 24C · 11F'],
+    [2,'Honey BBQ Chicken Mac & Cheese','511 KCAL · 50P · 50C · 10F'],
+    [3,'Chicken Fajita Rice','408 KCAL · 39P · 41C · 9F'],
+    [144,'Korean BBQ Beef Bowls','557 KCAL · 56P · 66C · 8F'],
+  ]
+  const navI = n => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${n?2.4:1.8}" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>`
+  return `
+  <div class="phone">
+    <div class="screen">
+      <div class="eyebrow">262 OF 262 RECIPES</div>
+      <div class="title">Recipes</div>
+      <div class="search">${ic.search} Search recipes</div>
+      <div class="chips">
+        <span class="chip on">ALL</span><span class="chip">JALAL'S</span><span class="chip">MEAL PREP</span>
+        <span class="chip new">BATCH</span><span class="chip">HIGH PROTEIN</span><span class="chip">UNDER 400</span>
+      </div>
+      <a class="guide-card new" href="#f5">
+        <span class="gi">${ic.book}</span>
+        <span><b>Meal prep guides</b><small>Storage &amp; reheating, tips, batch cooking, master grocery list</small></span>
+        <span class="chev" style="margin-left:auto;color:var(--text-3)">${ic.chev}</span>
+      </a>
+      <div class="list">
+        ${rows.map(([id,n,m,b])=>`<div class="row">
+          <img src="${IMG(id)}" alt="">
+          <div style="min-width:0;flex:1"><div class="nm">${n}</div><div class="mc">${m}${b?'<span class="tag new">BATCH</span>':''}</div></div>
+          <span class="plus">${ic.plus}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="nav">
+      ${['TODAY','PLAN','RECIPES','GROCERY','TRACK'].map(t=>`<div class="${t==='RECIPES'?'on':''}">${navI(t==='RECIPES')}${t}</div>`).join('')}
+    </div>
+  </div>`
+}
+
+function guidesSheet() {
+  return `
+  <div class="phone">
+    <div class="under"><div class="ghost"></div><div class="ghost"></div></div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="sh-head"><div class="sh-row">
+        <span class="icon-tile" style="width:44px;height:44px;border-radius:12px;background:var(--ink);color:var(--on-ink)">${ic.book}</span>
+        <div style="flex:1"><div class="sh-name">Meal prep guides</div><div class="meta">FROM THE MEAL PREP COOKBOOK</div></div>
+        <button class="icon-btn" aria-label="Close"><span class="icon-tile" style="color:var(--text-3)">${ic.x}</span></button>
+      </div></div>
+      <div class="body" style="padding-bottom:24px">
+        <details class="g" open>
+          <summary><span><b>Storage, freezing &amp; reheating</b><small>For every batch protein · pp.274–275</small></span><span class="chev">${ic.chev}</span></summary>
+          <div class="g-body">
+            <div class="facts">
+              <div class="fact"><div class="v">4–5 days</div><div class="l">FRIDGE</div></div>
+              <div class="fact"><div class="v">2–3 months</div><div class="l">FREEZER</div></div>
+            </div>
+            <h5>KEEP PROTEINS JUICY ALL WEEK</h5>
+            <ul>
+              <li>Don't slice chicken until serving.</li>
+              <li>Always include leftover juices or glaze with the chicken.</li>
+              <li>Store in shallow containers so it cools faster.</li>
+              <li>Only reheat the portion you plan to eat.</li>
+            </ul>
+            <h5>FREEZING</h5>
+            <ul>
+              <li>Freeze cooked chicken whole, with a little glaze so it doesn't dry out.</li>
+              <li>Freeze ground beef in flat portions so it thaws faster.</li>
+              <li>Don't freeze yogurt, mayo or citrus-heavy sauces. Keep those fresh.</li>
+              <li>Defrost overnight in the fridge before reheating.</li>
+            </ul>
+            <h5>REHEATING CHICKEN</h5>
+            <table class="reheat">
+              <tr><th>METHOD</th><th>HEAT</th><th>TIME</th></tr>
+              <tr><td>Air fryer <span style="font-weight:500;color:var(--red)">· best</span></td><td class="num">190°C / 375°F</td><td class="num">5–7 min whole<br>4–5 min cubed</td></tr>
+              <tr><td>Oven</td><td class="num">180°C / 350°F</td><td class="num">8–10 min, foil on</td></tr>
+              <tr><td>Pan</td><td>Medium</td><td>1–2 tbsp water, cover</td></tr>
+              <tr><td>Microwave</td><td>—</td><td class="num">30–45 sec, covered</td></tr>
+            </table>
+            <h5>REHEATING GROUND BEEF</h5>
+            <table class="reheat">
+              <tr><th>METHOD</th><th>HEAT</th><th>TIME</th></tr>
+              <tr><td>Pan <span style="font-weight:500;color:var(--red)">· best</span></td><td>Medium</td><td class="num">2–4 min, splash of water</td></tr>
+              <tr><td>Microwave</td><td>—</td><td class="num">30–60 sec, covered</td></tr>
+              <tr><td>Oven</td><td class="num">180°C / 350°F</td><td class="num">6–8 min</td></tr>
+            </table>
+          </div>
+        </details>
+        <details class="g">
+          <summary><span><b>Best tips &amp; practices</b><small>13 tips · pp.10–13</small></span><span class="chev">${ic.chev}</span></summary>
+          <div class="g-body"><ul>
+            <li><b>Re-crisp air-fried potatoes:</b> back in the air fryer at 210°C / 420°F for 3–4 minutes. Avoid the microwave.</li>
+            <li><b>Two recipes a week:</b> adds variety, and freeze a few portions early in the week.</li>
+            <li><b>Defrost &amp; reheat:</b> thaw overnight in the fridge, then pan on low 5–6 min or oven/air fryer at 180–190°C for 5–6 min.</li>
+            <li><b>Store sauces and salads separately</b> and add them right before eating.</li>
+            <li style="color:var(--text-3)">…and 9 more: side salads, scaling up, freezing, portioning, searing, extra veg, marinating, why grams, tracking macros.</li>
+          </ul></div>
+        </details>
+        <details class="g">
+          <summary><span><b>Batch cooking your proteins</b><small>How the batch section works · pp.237–239</small></span><span class="chev">${ic.chev}</span></summary>
+          <div class="g-body"><ul>
+            <li>Cook a big tray of chicken or beef once, keep it in the fridge, and build different meals from it all week.</li>
+            <li>17 batch recipes, each marked <b>BATCH</b> in Recipes.</li>
+          </ul></div>
+        </details>
+        <details class="g">
+          <summary><span><b>Master grocery list</b><small>Most-used ingredients by aisle · pp.14–15</small></span><span class="chev">${ic.chev}</span></summary>
+          <div class="g-body"><ul>
+            <li>Meats · Dairy · Produce · Spices &amp; seasonings · Pantry · Noodles &amp; pasta · Other</li>
+          </ul></div>
+        </details>
+      </div>
+    </div>
+  </div>`
+}
+
+const FRAMES = [
+  { id:'f1', n:'1', h:'Recipe sheet · Jalal recipe', html:sheet(R1), notes:[
+    '<b>Intro line</b> from the book sits under the title, in the header.',
+    '<b>Servings</b> stay in the meta line. Recipes that print "4 Burgers" or "3 Wraps" would show that instead.',
+    '<b>Cook\'s notes</b> come after the steps, as one box. Jalal\'s tip box and Meal Prep\'s "Important Cooking Notes" look the same.',
+    '<b>Watch it made</b> opens YouTube, TikTok or Instagram outside the app.',
+  ]},
+  { id:'f2', n:'2', h:'Recipe sheet · Meal Prep recipe', html:sheet(R2), notes:[
+    '<b>Ingredient groups</b> (beef, sauce, rice, salad) with a count, so you can see what goes into which part.',
+    '<b>5 SERVINGS</b> is one of the 23 counts that are blank in the app today.',
+    'This recipe has no notes in the book, so <b>no notes box appears</b>. Nothing is shown that the book doesn\'t print.',
+  ]},
+  { id:'f3', n:'3', h:'Recipe sheet · Batch protein', html:sheet(R3), notes:[
+    '<b>With / without sauce</b> switch on the macro strip. Try it: 286 → 339 kcal.',
+    '<b>Titled steps</b> (Marinate, Cook, Rest, Store) as the book prints them.',
+    '<b>Serve it with</b>: meal ideas and sauce pairings.',
+    'A shortcut to the <b>storage &amp; reheating guide</b> (frame 5).',
+  ]},
+  { id:'f4', n:'4', h:'Recipes screen', html:recipesScreen(), notes:[
+    'A <b>BATCH</b> filter chip and a small BATCH tag on those rows.',
+    '<b>Meal prep guides</b> card at the top opens the guides sheet. No sixth tab needed.',
+    'Count goes from 260 to <b>262</b> with the two missing cards added (Shawarma Rice Bowls with thighs, low-carb Breakfast Pizza).',
+  ]},
+  { id:'f5', n:'5', h:'Guides sheet', html:guidesSheet(), notes:[
+    'The four non-recipe sections of the Meal Prep book. Each opens and closes. Tap them.',
+    'Storage turns the two book pages into <b>two big numbers and two reheating tables</b> you can read at the fridge.',
+  ]},
+]
+
+document.getElementById('frames').innerHTML = FRAMES.map(f=>`
+  <section class="col" id="${f.id}">
+    <h2><span>${f.n}</span>${f.h}</h2>
+    ${f.html}
+    <ul class="notes">${f.notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+  </section>`).join('')
+
+/* Sauce switch */
+document.querySelectorAll('[data-sauce]').forEach(b=>b.addEventListener('click',()=>{
+  const phone = b.closest('.phone'), seg = b.parentElement
+  seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', String(x===b)))
+  phone.querySelector('.macros').innerHTML = macroCells(R3.macros[b.dataset.sauce])
+}))
+/* Theme + highlight */
+document.querySelectorAll('[data-theme-btn]').forEach(b=>b.addEventListener('click',()=>{
+  const t = b.dataset.themeBtn
+  document.documentElement.toggleAttribute('data-theme', t==='dark')
+  if (t==='dark') document.documentElement.setAttribute('data-theme','dark')
+  document.querySelectorAll('[data-theme-btn]').forEach(x=>x.setAttribute('aria-pressed', String(x===b)))
+}))
+const hl = on => { document.body.classList.toggle('hl', on)
+  document.getElementById('hl-on').setAttribute('aria-pressed', String(on))
+  document.getElementById('hl-off').setAttribute('aria-pressed', String(!on)) }
+document.getElementById('hl-on').onclick = () => hl(true)
+document.getElementById('hl-off').onclick = () => hl(false)
+</script>
+</body>
+</html>
