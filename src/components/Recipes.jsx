@@ -3,9 +3,11 @@ import Card, { CARD_ROW_RULE } from './Card'
 import Thumb from './Thumb'
 import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
+import GuidesSheet from './GuidesSheet'
 import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
 import { recipes } from '../data/recipes'
+import { BATCH_IDS } from '../data/recipeExtras'
 
 /* ── Recipes — finding one of 260 ─────────────────────────────────────
  *
@@ -34,6 +36,8 @@ const FILTERS = [
   { label: 'ALL',          test: () => true },
   { label: "JALAL'S",      test: r => r.source === 'jalal' },
   { label: 'MEAL PREP',    test: r => r.source === 'mealprep' },
+  /* The Meal Prep book's cook-once proteins (pp.237–273). */
+  { label: 'BATCH',        test: r => BATCH_IDS.has(r.id) },
   { label: 'HIGH PROTEIN', test: r => r.tags.includes('high-protein') },
   { label: 'UNDER 500',    test: r => r.tags.includes('under-500') },
   { label: 'LOW FAT',      test: r => r.tags.includes('low-fat') },
@@ -66,6 +70,7 @@ export default function Recipes({ surface = 'phone' }) {
   const PAGE = PAGES[surface] || PAGES.phone
   const [shown, setShown] = useState(PAGE)
   const [sheetRecipe, setSheetRecipe] = useState(null)
+  const [guidesOpen, setGuidesOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -172,6 +177,42 @@ export default function Recipes({ surface = 'phone' }) {
         />
       </div>
 
+      {/* ── Meal prep guides ─────────────────────────────────────────
+          The book's storage and batch-cooking pages. A card here rather
+          than a sixth tab: they are reference, read now and then. */}
+      <div style={{ padding: '14px var(--pq-gutter) 0' }}>
+        <button data-open-guides onClick={() => setGuidesOpen(true)} style={{
+          width: '100%', minHeight: 'var(--pq-tap-min)',
+          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+          background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
+          borderRadius: 'var(--pq-r-button)', cursor: 'pointer', textAlign: 'left',
+          fontFamily: 'var(--pq-sans)',
+        }}>
+          <span aria-hidden="true" style={{
+            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--pq-accent-grad)', color: 'var(--pq-on-accent-ink)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{
+              display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 600, color: 'var(--pq-text)',
+            }}>Meal prep guides</span>
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--pq-text-3)', marginTop: 2 }}>
+              Storage &amp; reheating, batch cooking
+            </span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+            stroke="var(--pq-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
+      </div>
+
       {visible.length === 0 ? (
         <p style={{
           margin: 0, padding: '32px 20px', textAlign: 'center',
@@ -208,7 +249,16 @@ export default function Recipes({ surface = 'phone' }) {
                     <span style={{
                       ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
                       color: 'var(--pq-text-muted)', marginTop: 3,
-                    }}>{r.cal} KCAL · {r.protein}P · {r.carbs}C · {r.fat}F</span>
+                    }}>
+                      {r.cal} KCAL · {r.protein}P · {r.carbs}C · {r.fat}F
+                      {BATCH_IDS.has(r.id) && (
+                        <span data-batch-tag style={{
+                          marginLeft: 6, padding: '1px 6px', borderRadius: 999,
+                          border: '1px solid var(--pq-accent)', color: 'var(--pq-accent)',
+                          fontSize: 9, fontWeight: 600, letterSpacing: '.06em',
+                        }}>BATCH</span>
+                      )}
+                    </span>
                   </span>
                 </button>
                 {/* ONE TAP: ON THE DAY. A + that becomes a tick, and the
@@ -290,6 +340,7 @@ export default function Recipes({ surface = 'phone' }) {
         list={filtered}
         onNavigate={setSheetRecipe}
       />
+      {guidesOpen && <GuidesSheet onClose={() => setGuidesOpen(false)} />}
     </div>
   )
 }

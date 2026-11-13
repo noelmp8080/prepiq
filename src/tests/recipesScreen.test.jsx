@@ -151,7 +151,7 @@ describe('filter chips', () => {
       .filter(b => !b.getAttribute('aria-label'))
       .map(b => b.textContent)
     expect(labels).toContain('ALL')
-    expect(labels).toHaveLength(11)
+    expect(labels).toHaveLength(12)
     for (const label of labels) {
       if (label === 'FAVES') continue                 // legitimately empty at first
       act(() => { chip(label).click() })

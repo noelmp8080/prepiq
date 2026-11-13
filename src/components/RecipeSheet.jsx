@@ -4,7 +4,9 @@ import Thumb from './Thumb'
 import PhotoViewer from './PhotoViewer'
 import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
+import GuidesSheet from './GuidesSheet'
 import { getRecipeDetails } from '../data/recipeDetails'
+import { storageGuide } from '../data/recipeExtras'
 
 /* ── The recipe sheet — the ONE detail surface ────────────────────────
  *
@@ -74,10 +76,30 @@ export const isHeading = line => YIELD_HEADING.test(String(line || ''))
 
 export function metaLine(recipe, details) {
   const parts = [SOURCE[recipe.source] || 'RECIPE']
+  /* A batch protein is cooked once for the week: the book's number is
+     how many portions the tray makes, not servings of one meal. */
+  if (details?.batch) parts.push('BATCH PROTEIN')
   /* Only when the book actually gives one — see above. */
-  if (details?.servings) parts.push(`${details.servings} SERV`)
+  if (details?.servings) parts.push(details.batch ? `MAKES ${details.servings}` : `${details.servings} SERV`)
   return parts.join(' · ')
 }
+
+/* A row of the "serve it with" and cook's-notes lists. */
+function Bullet({ children }) {
+  return (
+    <li style={{
+      display: 'flex', alignItems: 'baseline', gap: 10, padding: '5px 0',
+      fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-2)', lineHeight: 1.5,
+    }}>
+      <span aria-hidden="true" style={{
+        width: 5, height: 5, borderRadius: '50%', background: 'var(--pq-accent)',
+        flexShrink: 0, position: 'relative', top: -2,
+      }} />
+      <span style={{ flex: 1 }}>{children}</span>
+    </li>
+  )
+}
+const LIST = { listStyle: 'none', margin: 0, padding: 0 }
 
 const MONO_LABEL = {
   fontFamily: 'var(--pq-mono)',
@@ -135,6 +157,10 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
   } = useAppStore()
 
   const [photoOpen, setPhotoOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  /* Which recipe the with-sauce switch is on for — by id, so the next
+     recipe opens on the book's headline (without-sauce) numbers. */
+  const [sauceFor, setSauceFor] = useState(null)
   /* Which recipe's photo failed to load — by id, so moving to the next
      recipe gives it a fresh chance without resetting state in an effect. */
   const [failedPhotoId, setFailedPhotoId] = useState(null)
@@ -221,14 +247,20 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
 
   const details = getRecipeDetails(recipe)
   const ingredients = details?.ingredients || []
+  const groups = details?.groups || null
   const steps = details?.steps || []
+  const itemCount = groups
+    ? groups.reduce((n, g) => n + g.items.length, 0)
+    : ingredients.filter(l => !isHeading(l)).length
   const faved = favorites.has(recipe.id)
 
+  const withSauce = details?.withSauce && sauceFor === recipe.id
+  const m = withSauce ? details.withSauce : recipe
   const macros = [
-    { val: recipe.cal,           label: 'KCAL',    accent: true },
-    { val: `${recipe.protein}g`, label: 'PROTEIN' },
-    { val: `${recipe.carbs}g`,   label: 'CARBS' },
-    { val: `${recipe.fat}g`,     label: 'FAT' },
+    { val: m.cal,           label: 'KCAL',    accent: true },
+    { val: `${m.protein}g`, label: 'PROTEIN' },
+    { val: `${m.carbs}g`,   label: 'CARBS' },
+    { val: `${m.fat}g`,     label: 'FAT' },
   ]
 
   return (
@@ -369,6 +401,15 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
         <div style={{
           flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain',
         }}>
+          {/* The line the book prints under the title. */}
+          {details?.intro && (
+            <p data-recipe-intro style={{
+              margin: 0, padding: '14px var(--pq-gutter)',
+              fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-2)', lineHeight: 1.55,
+              borderBottom: '1px solid var(--pq-rule-cell)',
+            }}>{details.intro}</p>
+          )}
+
           {/* Macro strip. The last cell keeps its right rule, as in the
               prototype — the strip is flush to the sheet edge and the
               rule reads as the panel's own edge rather than a stray. */}
@@ -394,6 +435,37 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
             ))}
           </div>
 
+          {/* With or without the sauce. The book prints both for its
+              batch proteins; the headline number is without. */}
+          {details?.withSauce && (
+            <div data-sauce-switch style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              padding: '8px var(--pq-gutter)', borderBottom: '1px solid var(--pq-rule-cell)',
+            }}>
+              <span style={MONO_LABEL}>PER SERVING</span>
+              <div role="group" aria-label="Macros with or without sauce" style={{
+                display: 'flex', padding: 3, gap: 2, borderRadius: 999,
+                background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
+              }}>
+                {[['WITHOUT SAUCE', false], ['WITH SAUCE', true]].map(([label, on]) => {
+                  const active = !!withSauce === on
+                  return (
+                    <button key={label} aria-pressed={active}
+                      onClick={() => setSauceFor(on ? recipe.id : null)}
+                      style={{
+                        minHeight: 36, padding: '0 12px', borderRadius: 999, cursor: 'pointer',
+                        border: 'none',
+                        background: active ? 'var(--pq-accent-grad)' : 'transparent',
+                        color: active ? 'var(--pq-on-accent-ink)' : 'var(--pq-text-3)',
+                        fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-label)',
+                        fontWeight: 600, letterSpacing: '.04em',
+                      }}>{label}</button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── Ingredients ─────────────────────────────────────────
               ONE LINE, AS THE BOOK WROTE IT. The README describes a name
               column and a mono quantity column; the prototype renders
@@ -405,16 +477,51 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
               quantity is already in the line; it does not need moving to
               be read. */}
           <div style={{ padding: '16px var(--pq-gutter) 0' }}>
-            <div style={{ ...MONO_LABEL, marginBottom: 8 }}>INGREDIENTS</div>
+            <div style={{ ...MONO_LABEL, marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <span>INGREDIENTS</span>
+              {itemCount > 0 && <span>{itemCount} ITEMS</span>}
+            </div>
 
-            {ingredients.length === 0 && (
+            {!groups && ingredients.length === 0 && (
               <p style={{
                 fontSize: 'var(--pq-size-body)', color: 'var(--pq-text-3)',
                 fontStyle: 'italic', margin: '0 0 4px',
               }}>Ingredients coming soon</p>
             )}
 
-            {ingredients.map((line, i) => isHeading(line) ? (
+            {/* The book's own groups, where they have been read in. */}
+            {groups && groups.map(g => (
+              <div key={g.title} data-ingredient-group>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  padding: '10px 0 4px',
+                  fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
+                  fontWeight: 600, color: 'var(--pq-text-muted)',
+                  letterSpacing: 'var(--pq-track-chip)',
+                }}>
+                  <span>{g.title.toUpperCase()}</span>
+                  <span style={{ color: 'var(--pq-text-3)' }}>{g.items.length}</span>
+                </div>
+                {g.items.map((line, i) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'baseline', gap: 10,
+                    padding: '9px 0', borderBottom: '1px solid var(--pq-rule-meal)',
+                  }}>
+                    <span aria-hidden="true" style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: 'var(--pq-accent)',
+                      flexShrink: 0, position: 'relative', top: -2,
+                    }} />
+                    <span style={{
+                      flex: 1, fontSize: 'var(--pq-size-row)', fontWeight: 400,
+                      color: 'var(--pq-text-2)', lineHeight: 1.4,
+                    }}>{line}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {!groups && ingredients.map((line, i) => isHeading(line) ? (
               <div key={i} style={{
                 padding: '10px 0 4px',
                 fontFamily: 'var(--pq-mono)', fontSize: 'var(--pq-size-eyebrow)',
@@ -452,22 +559,88 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
                 listStyle: 'none', margin: 0, padding: 0,
                 display: 'flex', flexDirection: 'column', gap: 12,
               }}>
-                {steps.map((text, i) => (
+                {steps.map(({ title, text }, i) => (
                   <li key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                     <span style={{
                       flexShrink: 0, fontFamily: 'var(--pq-mono)',
                       fontSize: 12, fontWeight: 600,
                       color: 'var(--pq-accent)', paddingTop: 2,
                     }}>{String(i + 1).padStart(2, '0')}</span>
-                    <p style={{
-                      flex: 1, margin: 0, fontSize: 13.5, fontWeight: 400,
-                      color: 'var(--pq-text-2)', lineHeight: 1.6,
-                    }}>{text}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {title && (
+                        <div style={{
+                          fontSize: 'var(--pq-size-row)', fontWeight: 600,
+                          color: 'var(--pq-text)', marginBottom: 2,
+                        }}>{title}</div>
+                      )}
+                      <p style={{
+                        margin: 0, fontSize: 13.5, fontWeight: 400,
+                        color: 'var(--pq-text-2)', lineHeight: 1.6,
+                      }}>{text}</p>
+                    </div>
                   </li>
                 ))}
               </ol>
             )}
           </div>
+
+          {/* ── Cook's notes — the book's tip box, after the steps. */}
+          {details?.notes && (
+            <div data-cooks-notes style={{ padding: '0 var(--pq-gutter) 20px' }}>
+              <div style={{ ...MONO_LABEL, marginBottom: 8 }}>COOK'S NOTES</div>
+              <div style={{
+                background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
+                borderRadius: 14, padding: '8px 14px',
+              }}>
+                <ul style={LIST}>{details.notes.map(n => <Bullet key={n}>{n}</Bullet>)}</ul>
+              </div>
+            </div>
+          )}
+
+          {/* ── Serve it with — meal ideas and sauce pairings. */}
+          {details?.serveWith && (
+            <div data-serve-with style={{ padding: '0 var(--pq-gutter) 20px' }}>
+              <div style={{ ...MONO_LABEL, marginBottom: 8 }}>SERVE IT WITH</div>
+              {[['Meal ideas', details.serveWith.meals], ['Sauce pairings', details.serveWith.sauces]]
+                .filter(([, list]) => list?.length)
+                .map(([h, list]) => (
+                  <div key={h} style={{ marginBottom: 8 }}>
+                    <div style={{
+                      fontSize: 'var(--pq-size-row)', fontWeight: 600, color: 'var(--pq-text)',
+                      margin: '4px 0 2px',
+                    }}>{h}</div>
+                    <ul style={LIST}>{list.map(t => <Bullet key={t}>{t}</Bullet>)}</ul>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* ── Batch proteins link to how to keep them for the week. */}
+          {details?.batch && (
+            <div style={{ padding: '0 var(--pq-gutter) 24px' }}>
+              <button data-open-storage onClick={() => setGuideOpen(true)} style={{
+                width: '100%', minHeight: 'var(--pq-tap-min)',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                background: 'var(--pq-panel)', border: '1px solid var(--pq-rule-soft)',
+                borderRadius: 14, cursor: 'pointer', textAlign: 'left',
+                fontFamily: 'var(--pq-sans)',
+              }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{
+                    display: 'block', fontSize: 'var(--pq-size-row)', fontWeight: 600,
+                    color: 'var(--pq-text)',
+                  }}>{storageGuide.title}</span>
+                  <span style={{
+                    display: 'block', fontSize: 12, color: 'var(--pq-text-3)', marginTop: 2,
+                  }}>Fridge {storageGuide.facts[0].value} · freezer {storageGuide.facts[1].value}</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                  stroke="var(--pq-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Actions ────────────────────────────────────────────────
@@ -514,6 +687,10 @@ export default function RecipeSheet({ recipe, onClose, list, onNavigate }) {
             }}>I ATE THIS TODAY</button>
         </div>
         </div>
+
+        {guideOpen && (
+          <GuidesSheet initial="storage" onClose={() => setGuideOpen(false)} />
+        )}
 
         {photoOpen && (
           <PhotoViewer

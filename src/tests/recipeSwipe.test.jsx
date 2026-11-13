@@ -150,7 +150,7 @@ describe('swiping between recipes', () => {
 
   it('the Recipes screen hands the sheet its filtered list', async () => {
     await mount(<Recipes />)
-    const first = host.querySelector('button[style*="text-align: left"]')
+    const first = host.querySelector('button[style*="text-align: left"]:not([data-open-guides])')
     await act(async () => { first.click() })
     expect(position()).toContain(`1 OF ${recipes.length}`)
     await swipe(-120)
