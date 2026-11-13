@@ -151,7 +151,7 @@ describe('filter chips', () => {
       .filter(b => !b.getAttribute('aria-label'))
       .map(b => b.textContent)
     expect(labels).toContain('ALL')
-    expect(labels).toHaveLength(11)
+    expect(labels).toHaveLength(12)
     for (const label of labels) {
       if (label === 'FAVES') continue                 // legitimately empty at first
       act(() => { chip(label).click() })
@@ -307,4 +307,43 @@ describe('the shell ramp at 260 rows', () => {
     act(() => { r.unmount() })
     h.remove()
   }, FULL_CATALOG_MS)
+})
+
+/* ── Batch proteins and the guides (recipe-content, 2026-11-13) ──── */
+describe('batch proteins and the meal prep guides', () => {
+  it('lists the two restored recipes', () => {
+    expect(recipes).toHaveLength(262)
+    const names = recipes.map(r => r.name)
+    expect(names).toContain('Chicken Shawarma Rice Bowls (Thighs)')
+    expect(names).toContain('Breakfast Pizza (Low Carb)')
+  })
+
+  it('filters to the 17 batch proteins, each tagged BATCH', async () => {
+    await mount()
+    act(() => { chip('BATCH').click() })
+    expect(rows()).toHaveLength(17)
+    expect(host.querySelectorAll('[data-batch-tag]')).toHaveLength(17)
+    expect(text()).toContain('17 OF 262 RECIPES')
+  })
+
+  it('opens the guides from the card, and hides the card while searching', async () => {
+    await mount()
+    const card = host.querySelector('[data-guides-card]')
+    expect(card.textContent).toContain('Meal prep guides')
+    act(() => { card.click() })
+    const sheet = document.querySelector('[role="dialog"][aria-label="Meal prep guides"]')
+    expect(sheet).toBeTruthy()
+    const sections = [...sheet.querySelectorAll('[data-guide]')].map(s => s.dataset.guide)
+    expect(sections).toEqual(['storage', 'tips', 'batch', 'grocery'])
+    /* All shut until tapped. */
+    expect(sheet.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0)
+    const tips = sheet.querySelector('[data-guide="tips"] button')
+    act(() => { tips.click() })
+    expect(tips.getAttribute('aria-expanded')).toBe('true')
+    expect(sheet.querySelectorAll('[data-guide="tips"] [data-tip]')).toHaveLength(13)
+
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) })
+    search('korean')
+    expect(host.querySelector('[data-guides-card]')).toBe(null)
+  })
 })

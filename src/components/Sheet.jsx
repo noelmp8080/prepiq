@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /* The bottom sheet — Settings and RecipeSheet.
  *
@@ -16,9 +16,17 @@ import { useEffect } from 'react'
 export default function Sheet({ open, onClose, title, children, labelledBy }) {
   /* Escape closes, and the body does not scroll behind an open sheet.
      Both are restored on close so a sheet cannot strand the page. */
+  const panel = useRef(null)
   useEffect(() => {
     if (!open) return
-    const onKey = e => { if (e.key === 'Escape') onClose?.() }
+    /* Only the top sheet closes: a guide opened over a recipe goes back
+       to the recipe, not past it. */
+    const onKey = e => {
+      if (e.key !== 'Escape') return
+      const all = document.querySelectorAll('[role="dialog"]')
+      if (all.length && all[all.length - 1] !== panel.current) return
+      onClose?.()
+    }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
@@ -81,6 +89,7 @@ export default function Sheet({ open, onClose, title, children, labelledBy }) {
       }}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={title}

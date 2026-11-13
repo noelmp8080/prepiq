@@ -71,9 +71,24 @@ function titleCase(name) {
   }).join(' ')
 }
 
+/* ── Restored cards (user decision 2026-08-19, added 2026-11-13) ──
+   Two book versions kept as their own cards. They are not in
+   prepiq-recipe-details.json; their content comes from
+   src/data/recipeContent.json (tools/extract-recipe-content.py).
+   Macros are as printed: Meal Prep p52 "552 CALORIES 46g PROTEIN 48g
+   CARBS 19g FAT"; Jalal p110 "376 CALORIES 30g PROTEIN 28g CARBS 16g FAT". */
+const EXTRA_CARDS = [
+  { id: 385, name: 'Chicken Shawarma Rice Bowls (Thighs)', cal: 552, protein: 46, carbs: 48, fat: 19, book: 'mealprep', pageIndex: 51 },
+  { id: 386, name: 'Breakfast Pizza (Low Carb)', cal: 376, protein: 30, carbs: 28, fat: 16, book: 'jalal', pageIndex: 109 },
+]
+
+/* Batch proteins: Meal Prep pp.240-273 (0-based page index 239+). */
+const isBatch = m => m.book === 'mealprep' && m.pageIndex >= 239
+
 function deriveTags(name, m) {
   const t = []
   const n = ' ' + name.toLowerCase() + ' '
+  if (isBatch(m)) t.push('batch')
   if (m.protein >= 40) t.push('high-protein')
   if (m.cal < 400) t.push('under-400')
   if (m.cal < 500) t.push('under-500')
@@ -105,6 +120,12 @@ const lines = catalog.map(({ id, key }) => {
   const img = fs.existsSync(`public/recipes/${id}.webp`) ? `, image:"/recipes/${id}.webp"` : ''
   return `  { id:${id}, name:${JSON.stringify(name)}, cal:${m.cal}, protein:${m.protein}, carbs:${m.carbs}, fat:${m.fat}, source:"${book}", tags:[${tags.map(t => `'${t}'`).join(',')}]${img} },`
 })
+for (const x of EXTRA_CARDS) {
+  counts[x.book]++
+  const tags = deriveTags(x.name, x)
+  const img = fs.existsSync(`public/recipes/${x.id}.webp`) ? `, image:"/recipes/${x.id}.webp"` : ''
+  lines.push(`  { id:${x.id}, name:${JSON.stringify(x.name)}, cal:${x.cal}, protein:${x.protein}, carbs:${x.carbs}, fat:${x.fat}, source:"${x.book}", tags:[${tags.map(t => `'${t}'`).join(',')}]${img} },`)
+}
 
 const recipesJs = `// PrepIQ recipe catalog — every entry is a real recipe from the source books:
 // - Jalal's Cookbook V3 (${counts.jalal} recipes)
@@ -125,6 +146,7 @@ export const filterRecipes = (recipes, { query = '', filter = 'all', favorites =
     if (query && !r.name.toLowerCase().includes(query.toLowerCase())) return false
     if (filter === 'jalal') return r.source === 'jalal'
     if (filter === 'mealprep') return r.source === 'mealprep'
+    if (filter === 'batch') return r.tags.includes('batch')
     if (filter === 'high-protein') return r.tags.includes('high-protein')
     if (filter === 'under-500') return r.tags.includes('under-500')
     if (filter === 'low-fat') return r.tags.includes('low-fat')

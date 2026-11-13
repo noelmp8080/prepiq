@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { readFileSync } from 'node:fs'
-import details from '../data/prepiq-recipe-details.json'
+import content from '../data/recipeContent.json'
 import { recipes, recipeById } from '../data/recipes'
-import { isHeading, metaLine } from '../components/RecipeSheet'
+import { metaLine } from '../components/RecipeSheet'
 
 /* The one detail surface. Four screens open it, so a fault here is a
    fault in four places, and it is the only screen that renders cookbook
@@ -52,66 +52,84 @@ afterEach(() => { if (root) act(() => root.unmount()); host?.remove(); root = nu
 
 const dialog = () => host.querySelector('[role="dialog"]')
 
-/* ── The classifier ───────────────────────────────────────────────────
+/* ── The content, measured against the shipped data ───────────────────
  *
- * Measured against every ingredient line in the shipped data, not
- * against a fixture. The prototype's rule is reproduced here so the
- * comparison is a test rather than a claim in a comment. */
-describe('ingredient headings, measured against all 4,949 lines', () => {
-  const ALL = Object.values(details.recipes).flatMap(r => r.ingredients)
-  const prototypeRule = t => t.startsWith('(') || t.endsWith(')')
+ * recipeContent.json is generated from the two cookbooks by
+ * tools/extract-recipe-content.py. These hold the facts the sheet relies
+ * on, so a re-extraction that breaks one fails here rather than on a
+ * phone. */
+describe('recipe content from the books', () => {
+  const C = Object.entries(content)
 
-  it('has the data this block was measured on', () => {
-    expect(ALL.length).toBe(4949)
-    expect(Object.keys(details.recipes)).toHaveLength(260)
+  it('has an entry for every card, and nothing else', () => {
+    expect(C).toHaveLength(recipes.length)
+    for (const r of recipes) expect(content[r.id], `card ${r.id}`).toBeTruthy()
   })
 
-  it('takes the yield headings and only those', () => {
-    const hits = ALL.filter(isHeading)
-    expect(hits).toHaveLength(107)
-    /* Every hit is a leading parenthetical naming a portion count. */
-    for (const h of hits) expect(h).toMatch(/^\(\s*\d/)
-  })
-
-  /* THE FAILURE THIS RULE EXISTS TO AVOID, ASSERTED RATHER THAN
-     DESCRIBED. The prototype's version demotes 407 real ingredients to
-     section headings — food that is still on screen, dressed as a label,
-     which is why nobody would report it. */
-  it('does not repeat the prototype rule, which eats 407 ingredients', () => {
-    const theirs = ALL.filter(prototypeRule)
-    const ours = ALL.filter(isHeading)
-    expect(theirs.length).toBe(581)
-    expect(ours.length).toBe(107)
-
-    const demoted = theirs.filter(t => !isHeading(t))
-    expect(demoted.length).toBe(474)
-    /* and the ones it would have lost are unmistakably food */
-    expect(demoted).toContain('60ml (2.1oz) Buffalo Hot Sauce (or hot sauce of choice)')
-    expect(demoted).toContain('300g (10.6oz) Raw Chicken Breast (cut into cubes)')
-  })
-
-  /* A heading never carries a quantity, so anything with one is food. */
-  it('never takes a line that carries a quantity', () => {
-    for (const h of ALL.filter(isHeading)) {
-      expect(h, `${h} looks like it has an amount`).not.toMatch(/\d+\s*(g|ml|oz|tbsp|tsp|cup)\b/i)
+  it('gives every card ingredients and steps', () => {
+    for (const [id, c] of C) {
+      expect(c.groups.flatMap(g => g.items).length, `card ${id} ingredients`).toBeGreaterThan(0)
+      expect(c.steps.length, `card ${id} steps`).toBeGreaterThan(0)
+      for (const s of c.steps) expect(s.text, `card ${id}`).toBeTruthy()
     }
   })
 
-  it('leaves the (Optional) ingredients as ingredients', () => {
-    expect(isHeading('(Optional) 10ml (0.3oz) Rice Vinegar')).toBe(false)
-    expect(isHeading('(Optional) 2 Tsp Olive Oill')).toBe(false)
-    expect(isHeading('(Baking Dish is 23cm x 23cm)')).toBe(false)
-  })
-
-  it('takes the real headings', () => {
-    for (const h of ['(4 Servings) Crispy Chicken', '(6-8 Tacos) Chicken',
-                     '(1 Pizza)', '(2-3 Burritos) Chicken']) {
-      expect(isHeading(h), h).toBe(true)
+  /* The page-turn mark "»» » Continue" was once read as a heading and
+     as the tail of a line. Neither may survive. */
+  it('carries no page-turn marks or empty strings', () => {
+    for (const [id, c] of C) {
+      const all = [
+        ...c.groups.map(g => g.name || ''), ...c.groups.flatMap(g => g.items),
+        ...c.steps.flatMap(s => [s.title || '', s.text]), ...(c.notes || []),
+      ]
+      for (const t of all) expect(t, `card ${id}`).not.toMatch(/»|^Continue$/)
+      for (const t of c.groups.flatMap(g => g.items)) expect(t.trim(), `card ${id}`).not.toBe('')
     }
   })
 
-  it('survives junk without throwing', () => {
-    for (const junk of [null, undefined, '', 42, {}]) expect(isHeading(junk)).toBe(false)
+  /* The 25 recipes whose steps were scrambled, cut short or carried
+     another page's text, as found in the 2026-11-12 audit. */
+  it('repairs the damaged step sets', () => {
+    expect(content[344].steps).toHaveLength(7)               // was 7 shown as 4
+    expect(content[324].steps).toHaveLength(7)
+    expect(content[310].steps).toHaveLength(6)               // FINAL STEP split out
+    expect(content[96].steps[0].text).toMatch(/completely smooth and thick\.$/)
+    const beef = content[80].steps.map(s => s.text).join(' ')
+    expect(beef).not.toMatch(/STORAGE|Thank You/i)            // storage guide no longer glued on
+  })
+
+  it('titles steps only where the book prints a title', () => {
+    expect(content[374].steps.map(s => s.title)).toEqual([
+      'MARINATE THE CHICKEN', 'COOK THE CHICKEN',
+      'REST THE CHICKEN (KEEP WHOLE FOR STORAGE)', 'STORE FOR THE WEEK',
+    ])
+    expect(content[2].steps.every(s => !s.title)).toBe(true)
+  })
+
+  it('takes the with-sauce macros only where the book prints both rows', () => {
+    const withSauce = C.filter(([, c]) => c.withSauce)
+    expect(withSauce).toHaveLength(8)
+    for (const [id, c] of withSauce) {
+      expect(c.batch, `card ${id}`).toBe(true)
+      expect(c.withSauce).toHaveLength(4)
+    }
+    expect(content[374].withSauce).toEqual([339, 42, 14, 13])
+  })
+
+  it('links only to the three video sites', () => {
+    for (const [id, c] of C) {
+      for (const [k, u] of Object.entries(c.videos || {})) {
+        expect(['youtube', 'tiktok', 'instagram'], `card ${id}`).toContain(k)
+        expect(u).toMatch(/^https:\/\/(www\.)?(youtube\.com|youtu\.be|tiktok\.com|instagram\.com)\//)
+      }
+    }
+  })
+
+  it('tags the 17 batch proteins, and the content agrees', () => {
+    const tagged = recipes.filter(r => r.tags.includes('batch')).map(r => r.id).sort((a, b) => a - b)
+    const batch = C.filter(([, c]) => c.batch).map(([id]) => Number(id)).sort((a, b) => a - b)
+    expect(tagged).toHaveLength(17)
+    expect(batch).toEqual(tagged)
   })
 })
 
@@ -121,18 +139,16 @@ describe('ingredient headings, measured against all 4,949 lines', () => {
  * The prototype defaults servings to 4 and computes a prep time from the
  * calorie count. All three read as cookbook data and are not. */
 describe('no invented recipe content', () => {
-  it('prints no servings for the 88 recipes that have none', () => {
-    const noServings = recipes.find(r => {
-      const d = details.recipes[Object.keys(details.recipes)
-        .find(k => details.recipes[k].name === r.name)]
-      return d && d.servings == null
-    })
-    expect(metaLine({ source: 'jalal' }, { servings: null })).toBe("JALAL'S")
+  it('says what the recipe makes only when the book does', () => {
+    expect(metaLine({ source: 'jalal' }, {})).toBe("JALAL'S")
     expect(metaLine({ source: 'jalal' }, null)).toBe("JALAL'S")
-    expect(metaLine({ source: 'mealprep' }, { servings: 4 })).toBe('MEAL PREP · 4 SERV')
-    /* and the default the prototype uses never appears */
-    expect(metaLine({ source: 'jalal' }, { servings: null })).not.toContain('4')
-    expect(noServings === undefined || true).toBe(true)
+    expect(metaLine({ source: 'mealprep' }, { makes: '5 SERVINGS' })).toBe('MEAL PREP · 5 SERVINGS')
+    expect(metaLine({ source: 'jalal' }, { makes: 'MAKES 3 WRAPS' })).toBe("JALAL'S · MAKES 3 WRAPS")
+    expect(metaLine({ source: 'mealprep' }, { batch: true, makes: '8 SERVINGS' }))
+      .toBe('MEAL PREP · BATCH PROTEIN · 8 SERVINGS')
+    /* Chicken Fajita Rice prints no count, so none is shown. */
+    expect(content[3].makes).toBeUndefined()
+    expect(metaLine(recipeById[3], content[3])).toBe("JALAL'S")
   })
 
   it('has no fabricator left in the source', () => {
@@ -142,14 +158,79 @@ describe('no invented recipe content', () => {
     expect(SRC).not.toMatch(/servings\s*\|\|\s*\d/)
   })
 
-  it('renders step text exactly as the book holds it', async () => {
-    const r = recipeById[1]
-    const key = Object.keys(details.recipes).find(k => details.recipes[k].name === r.name)
-    const real = details.recipes[key]
-    await open(r)
+  it('renders every line of the recipe exactly as the book holds it', async () => {
+    const c = content[1]
+    await open(recipeById[1])
     const text = dialog().textContent
-    for (const step of real.steps) expect(text).toContain(step)
-    for (const ing of real.ingredients) expect(text).toContain(ing)
+    for (const s of c.steps) expect(text).toContain(s.text)
+    for (const ing of c.groups.flatMap(g => g.items)) expect(text).toContain(ing)
+    expect(text).toContain(c.intro)
+  })
+
+  it('shows no notes, serving ideas or sauce switch where the book has none', async () => {
+    /* Korean BBQ Beef Bowls: no notes box in the book. */
+    expect(content[144].notes).toBeUndefined()
+    await open(recipeById[144])
+    expect(dialog().querySelector('[data-notes]')).toBe(null)
+    expect(dialog().querySelector('[data-serve]')).toBe(null)
+    expect(dialog().querySelector('[data-storage-link]')).toBe(null)
+    expect(dialog().textContent).not.toContain('WITH SAUCE')
+  })
+})
+
+describe('the new parts of the sheet', () => {
+  it("groups the ingredients under the book's part names, with counts", async () => {
+    await open(recipeById[144])
+    const groups = [...dialog().querySelectorAll('[data-ingredient-group]')]
+    expect(groups).toHaveLength(4)
+    expect(groups[0].textContent).toMatch(/^Korean BBQ Beef13/)
+    expect(dialog().textContent).toContain('28 ITEMS')
+    expect(dialog().querySelector('[data-meta]').textContent).toBe('MEAL PREP · 5 SERVINGS')
+  })
+
+  it("shows the cook's notes and the three video links", async () => {
+    await open(recipeById[2])
+    const notes = dialog().querySelector('[data-notes]')
+    expect(notes.textContent).toContain('Make sure you TURN OFF the heat before adding honey and BBQ sauce.')
+    const links = [...dialog().querySelectorAll('[data-videos] a')]
+    expect(links.map(a => a.textContent)).toEqual(['YouTube', 'TikTok', 'Instagram'])
+    for (const a of links) {
+      expect(a.getAttribute('target')).toBe('_blank')
+      expect(a.getAttribute('rel')).toContain('noopener')
+    }
+  })
+
+  it("switches a batch protein's macros between without and with sauce", async () => {
+    await open(recipeById[374])
+    const kcal = () => [...dialog().querySelectorAll('div')]
+      .find(d => d.style.gridTemplateColumns === 'repeat(4,1fr)').children[0].textContent
+    expect(kcal()).toBe('286KCAL')
+    const btn = label => [...dialog().querySelectorAll('button')].find(b => b.textContent === label)
+    expect(btn('WITHOUT SAUCE').getAttribute('aria-pressed')).toBe('true')
+    act(() => { btn('WITH SAUCE').click() })
+    expect(kcal()).toBe('339KCAL')
+    expect(btn('WITH SAUCE').getAttribute('aria-pressed')).toBe('true')
+    act(() => { btn('WITHOUT SAUCE').click() })
+    expect(kcal()).toBe('286KCAL')
+  })
+
+  it('shows titled steps, serving ideas and the storage guide on a batch protein', async () => {
+    await open(recipeById[374])
+    expect([...dialog().querySelectorAll('[data-step-title]')].map(e => e.textContent))
+      .toContain('MARINATE THE CHICKEN')
+    expect(dialog().querySelector('[data-serve]').textContent).toContain('Sesame soy drizzle')
+    act(() => { dialog().querySelector('[data-storage-link]').click() })
+    const sheets = document.querySelectorAll('[role="dialog"]')
+    expect(sheets).toHaveLength(2)
+    const guide = sheets[1]
+    expect(guide.getAttribute('aria-label')).toBe('Meal prep guides')
+    expect(guide.querySelector('[data-guide="storage"] button').getAttribute('aria-expanded')).toBe('true')
+    expect(guide.textContent).toContain('Air Fryer (Best Overall)')
+
+    /* Escape closes the guide and goes back to the recipe. */
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) })
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+    expect(dialog().getAttribute('aria-label')).toBe('Korean BBQ Chicken')
   })
 })
 
@@ -177,8 +258,9 @@ describe('the sheet renders the handoff values', () => {
     expect(name.style.fontSize).toBe('var(--pq-size-sheet)')
     expect(name.style.letterSpacing).toBe('-0.01em')
 
-    const meta = [...d.querySelectorAll('div')].find(e => e.textContent === "JALAL'S")
+    const meta = d.querySelector('[data-meta]')
     expect(meta, 'no mono meta line').toBeTruthy()
+    expect(meta.textContent).toBe("JALAL'S · MAKES 3-4 SPICY WRAPS")
     expect(meta.style.fontFamily).toBe('var(--pq-mono)')
   })
 
@@ -187,7 +269,7 @@ describe('the sheet renders the handoff values', () => {
     const strip = [...dialog().querySelectorAll('div')]
       .find(d => d.style.gridTemplateColumns === 'repeat(4,1fr)')
     expect(strip).toBeTruthy()
-    expect(strip.style.borderBottom).toContain('var(--pq-rule-cell)')
+    expect(strip.parentElement.style.borderBottom).toContain('var(--pq-rule-cell)')
     const cells = [...strip.children]
     expect(cells).toHaveLength(4)
     for (const c of cells) expect(c.style.borderRight).toContain('var(--pq-rule-row)')
@@ -225,21 +307,22 @@ describe('the sheet renders the handoff values', () => {
  * grows to its content, the column overflows, and the action row is
  * pushed below the fold where nothing reveals it. The sheet still looks
  * right at four ingredients, which is why this is a test. */
-describe('a 36-ingredient recipe does not push the actions off the sheet', () => {
+describe('a 33-ingredient recipe does not push the actions off the sheet', () => {
   const longest = (() => {
-    let best = null, n = -1
-    for (const [, d] of Object.entries(details.recipes)) {
-      if (d.ingredients.length > n) { n = d.ingredients.length; best = d }
+    let best = null
+    for (const [id, c] of Object.entries(content)) {
+      const n = c.groups.reduce((t, g) => t + g.items.length, 0)
+      if (!best || n > best.n) best = { id: Number(id), n }
     }
     return best
   })()
 
   it('found a genuinely long list to test with', () => {
-    expect(longest.ingredients.length).toBe(36)
+    expect(longest.n).toBe(33)
   })
 
   it('keeps the panel at 88% and scrolls the body, not the panel', async () => {
-    const r = recipes.find(x => x.name === longest.name) || recipeById[1]
+    const r = recipeById[longest.id]
     await open(r)
     const panel = dialog()
     expect(panel.style.maxHeight).toBe('88%')
@@ -258,7 +341,7 @@ describe('a 36-ingredient recipe does not push the actions off the sheet', () =>
   })
 
   it('still shows both actions with the longest list loaded', async () => {
-    const r = recipes.find(x => x.name === longest.name) || recipeById[1]
+    const r = recipeById[longest.id]
     await open(r)
     const labels = [...dialog().querySelectorAll('button')].map(b => b.textContent)
     expect(labels).toContain('I ATE THIS TODAY')

@@ -1,6 +1,6 @@
 // PrepIQ recipe catalog — every entry is a real recipe from the source books:
-// - Jalal's Cookbook V3 (136 recipes)
-// - The Meal Prep Cookbook V5 (124 recipes)
+// - Jalal's Cookbook V3 (137 recipes)
+// - The Meal Prep Cookbook V5 (125 recipes)
 // Names verbatim from the books (title-cased); macros read verbatim from each
 // recipe's PDF page (tools/extract-macros.mjs); tags derived mechanically:
 // high-protein: protein>=40 · under-400/500: cal<400/500 · low-fat: fat<=10
@@ -57,14 +57,14 @@ export const recipes = [
   { id:56, name:"Loaded Nachos", cal:347, protein:36, carbs:25, fat:15, source:"jalal", tags:['under-400','under-500'], image:"/recipes/56.webp" },
   { id:58, name:"Korean BBQ Chicken Rice Bowls", cal:484, protein:49, carbs:50, fat:10, source:"mealprep", tags:['high-protein','under-500','low-fat','chicken','rice-bowls'], image:"/recipes/58.webp" },
   { id:60, name:"High Protein Pesto Pasta", cal:548, protein:62, carbs:45, fat:13, source:"jalal", tags:['high-protein','pasta'], image:"/recipes/60.webp" },
-  { id:61, name:"Honey Chipotle Chicken", cal:272, protein:37, carbs:13, fat:8, source:"mealprep", tags:['under-400','under-500','low-fat','chicken'], image:"/recipes/61.webp" },
+  { id:61, name:"Honey Chipotle Chicken", cal:272, protein:37, carbs:13, fat:8, source:"mealprep", tags:['batch','under-400','under-500','low-fat','chicken'], image:"/recipes/61.webp" },
   { id:65, name:"Peri Peri Chicken Mac n Cheese", cal:572, protein:57, carbs:55, fat:13, source:"mealprep", tags:['high-protein','chicken','pasta'], image:"/recipes/65.webp" },
   { id:69, name:"Tuna Pasta Bake", cal:340, protein:40, carbs:30, fat:6, source:"jalal", tags:['high-protein','under-400','under-500','low-fat','seafood','pasta'], image:"/recipes/69.webp" },
   { id:71, name:"Beef Bulgogi Kimchi Fried Rice", cal:494, protein:55, carbs:42, fat:9, source:"mealprep", tags:['high-protein','under-500','low-fat','beef','rice-bowls'], image:"/recipes/71.webp" },
   { id:72, name:"Double Smash Burger", cal:550, protein:52, carbs:30, fat:20, source:"jalal", tags:['high-protein','handheld'], image:"/recipes/72.webp" },
-  { id:74, name:"Taco Ground Beef", cal:323, protein:44, carbs:4, fat:15, source:"mealprep", tags:['high-protein','under-400','under-500','beef','handheld'], image:"/recipes/74.webp" },
+  { id:74, name:"Taco Ground Beef", cal:323, protein:44, carbs:4, fat:15, source:"mealprep", tags:['batch','high-protein','under-400','under-500','beef','handheld'], image:"/recipes/74.webp" },
   { id:76, name:"Healthy Spaghetti Bolognese", cal:526, protein:51, carbs:49, fat:16, source:"jalal", tags:['high-protein','beef','pasta'], image:"/recipes/76.webp" },
-  { id:80, name:"Beef Shawarma", cal:384, protein:37, carbs:4, fat:23, source:"mealprep", tags:['under-400','under-500','beef'], image:"/recipes/80.webp" },
+  { id:80, name:"Beef Shawarma", cal:384, protein:37, carbs:4, fat:23, source:"mealprep", tags:['batch','under-400','under-500','beef'], image:"/recipes/80.webp" },
   { id:83, name:"High Protein Fried Rice", cal:519, protein:58, carbs:46, fat:11.5, source:"jalal", tags:['high-protein','rice-bowls'], image:"/recipes/83.webp" },
   { id:93, name:"Cheesecake French Toast", cal:446, protein:35, carbs:45, fat:14, source:"jalal", tags:['under-500'], image:"/recipes/93.webp" },
   { id:95, name:"Original Overnight Oats", cal:400, protein:38, carbs:48, fat:6, source:"jalal", tags:['under-500','low-fat'], image:"/recipes/95.webp" },
@@ -92,7 +92,7 @@ export const recipes = [
   { id:143, name:"Garlic Shrimp Fried Rice", cal:503, protein:46, carbs:47, fat:13, source:"mealprep", tags:['high-protein','seafood','rice-bowls'], image:"/recipes/143.webp" },
   { id:144, name:"Korean BBQ Beef Bowls", cal:557, protein:56, carbs:66, fat:8, source:"mealprep", tags:['high-protein','low-fat','beef','rice-bowls'], image:"/recipes/144.webp" },
   { id:149, name:"Butter Chicken Pasta Meal Prep", cal:422, protein:41, carbs:43, fat:10, source:"jalal", tags:['high-protein','under-500','low-fat','chicken','pasta'], image:"/recipes/149.webp" },
-  { id:155, name:"Chicken Shawarma", cal:277, protein:38, carbs:5, fat:12, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/155.webp" },
+  { id:155, name:"Chicken Shawarma", cal:277, protein:38, carbs:5, fat:12, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/155.webp" },
   { id:169, name:"Chilli Peanut Chicken Noodles", cal:597, protein:54, carbs:48, fat:19, source:"mealprep", tags:['high-protein','chicken','pasta'], image:"/recipes/169.webp" },
   { id:174, name:"Beef Chilli", cal:587, protein:61, carbs:64, fat:10, source:"mealprep", tags:['high-protein','low-fat','beef'], image:"/recipes/174.webp" },
   { id:175, name:"Creamy Lemon Garlic Shrimp Linguine", cal:490, protein:51, carbs:45, fat:11, source:"mealprep", tags:['high-protein','under-500','seafood'], image:"/recipes/175.webp" },
@@ -100,9 +100,9 @@ export const recipes = [
   { id:189, name:"Chinese Beef Stir Fry", cal:487, protein:49, carbs:39, fat:13.5, source:"jalal", tags:['high-protein','under-500','beef'], image:"/recipes/189.webp" },
   { id:191, name:"Fresh Salmon Bowl", cal:800, protein:60, carbs:67, fat:24, source:"jalal", tags:['high-protein','seafood','rice-bowls'], image:"/recipes/191.webp" },
   { id:203, name:"Cheesy Beef Bolognese Tacos", cal:249, protein:24, carbs:21, fat:8, source:"jalal", tags:['under-400','under-500','low-fat','beef','handheld'], image:"/recipes/203.webp" },
-  { id:204, name:"Teriyaki Ground Beef", cal:339, protein:41, carbs:13, fat:14, source:"mealprep", tags:['high-protein','under-400','under-500','beef'], image:"/recipes/204.webp" },
+  { id:204, name:"Teriyaki Ground Beef", cal:339, protein:41, carbs:13, fat:14, source:"mealprep", tags:['batch','high-protein','under-400','under-500','beef'], image:"/recipes/204.webp" },
   { id:209, name:"Chimichurri Garlic Steak Bites & Cheesy Mashed Potatoes", cal:560, protein:63, carbs:41, fat:15, source:"mealprep", tags:['high-protein','beef'], image:"/recipes/209.webp" },
-  { id:217, name:"Garlic Herb Cajun Chicken", cal:246, protein:37, carbs:0, fat:11, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/217.webp" },
+  { id:217, name:"Garlic Herb Cajun Chicken", cal:246, protein:37, carbs:0, fat:11, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/217.webp" },
   { id:221, name:"High Protein Creamy Chicken", cal:507, protein:62.5, carbs:48.5, fat:7, source:"jalal", tags:['high-protein','low-fat','chicken'], image:"/recipes/221.webp" },
   { id:222, name:"High Protein Alfredo Pasta", cal:542, protein:65, carbs:47, fat:12, source:"jalal", tags:['high-protein','pasta'], image:"/recipes/222.webp" },
   { id:223, name:"High Protein Mac & Cheese Burritos", cal:427, protein:43, carbs:45, fat:9, source:"jalal", tags:['high-protein','under-500','low-fat','pasta','handheld'], image:"/recipes/223.webp" },
@@ -256,17 +256,19 @@ export const recipes = [
   { id:371, name:"Cheesy Beef Loaded Fries", cal:471, protein:54, carbs:35, fat:11, source:"mealprep", tags:['high-protein','under-500','beef'], image:"/recipes/371.webp" },
   { id:372, name:"Cheesy BBQ Chicken & Crispy Potatoes", cal:484, protein:47, carbs:39, fat:15, source:"mealprep", tags:['high-protein','under-500','chicken'], image:"/recipes/372.webp" },
   { id:373, name:"One-Pan Tomato Chicken", cal:440, protein:40, carbs:44, fat:10, source:"mealprep", tags:['high-protein','under-500','low-fat','chicken'], image:"/recipes/373.webp" },
-  { id:374, name:"Korean BBQ Chicken", cal:286, protein:39, carbs:9, fat:10, source:"mealprep", tags:['under-400','under-500','low-fat','chicken'], image:"/recipes/374.webp" },
-  { id:375, name:"Bang Bang Chicken", cal:304, protein:38, carbs:5, fat:14, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/375.webp" },
-  { id:376, name:"Tandoori Chicken", cal:267, protein:38, carbs:1, fat:12, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/376.webp" },
-  { id:377, name:"Orange Chicken", cal:260, protein:37, carbs:10, fat:8, source:"mealprep", tags:['under-400','under-500','low-fat','chicken'], image:"/recipes/377.webp" },
-  { id:378, name:"Orange Pepper Chicken", cal:256, protein:37, carbs:9, fat:8, source:"mealprep", tags:['under-400','under-500','low-fat','chicken'], image:"/recipes/378.webp" },
-  { id:379, name:"Chipotle Ground Beef", cal:267, protein:38, carbs:5, fat:10, source:"mealprep", tags:['under-400','under-500','low-fat','beef'], image:"/recipes/379.webp" },
-  { id:380, name:"Chilli Lime Chicken", cal:249, protein:38, carbs:8, fat:8, source:"mealprep", tags:['under-400','under-500','low-fat','chicken'], image:"/recipes/380.webp" },
-  { id:381, name:"Honey Chilli Crisp Chicken", cal:305, protein:37, carbs:5, fat:14, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/381.webp" },
-  { id:382, name:"Korean Ground Beef", cal:295, protein:36, carbs:17, fat:10, source:"mealprep", tags:['under-400','under-500','low-fat','beef'], image:"/recipes/382.webp" },
-  { id:383, name:"Garlic Herb Chicken", cal:285, protein:37, carbs:2, fat:14, source:"mealprep", tags:['under-400','under-500','chicken'], image:"/recipes/383.webp" },
-  { id:384, name:"Nacho Ground Beef", cal:339, protein:41, carbs:13, fat:14, source:"mealprep", tags:['high-protein','under-400','under-500','beef'], image:"/recipes/384.webp" },
+  { id:374, name:"Korean BBQ Chicken", cal:286, protein:39, carbs:9, fat:10, source:"mealprep", tags:['batch','under-400','under-500','low-fat','chicken'], image:"/recipes/374.webp" },
+  { id:375, name:"Bang Bang Chicken", cal:304, protein:38, carbs:5, fat:14, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/375.webp" },
+  { id:376, name:"Tandoori Chicken", cal:267, protein:38, carbs:1, fat:12, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/376.webp" },
+  { id:377, name:"Orange Chicken", cal:260, protein:37, carbs:10, fat:8, source:"mealprep", tags:['batch','under-400','under-500','low-fat','chicken'], image:"/recipes/377.webp" },
+  { id:378, name:"Orange Pepper Chicken", cal:256, protein:37, carbs:9, fat:8, source:"mealprep", tags:['batch','under-400','under-500','low-fat','chicken'], image:"/recipes/378.webp" },
+  { id:379, name:"Chipotle Ground Beef", cal:267, protein:38, carbs:5, fat:10, source:"mealprep", tags:['batch','under-400','under-500','low-fat','beef'], image:"/recipes/379.webp" },
+  { id:380, name:"Chilli Lime Chicken", cal:249, protein:38, carbs:8, fat:8, source:"mealprep", tags:['batch','under-400','under-500','low-fat','chicken'], image:"/recipes/380.webp" },
+  { id:381, name:"Honey Chilli Crisp Chicken", cal:305, protein:37, carbs:5, fat:14, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/381.webp" },
+  { id:382, name:"Korean Ground Beef", cal:295, protein:36, carbs:17, fat:10, source:"mealprep", tags:['batch','under-400','under-500','low-fat','beef'], image:"/recipes/382.webp" },
+  { id:383, name:"Garlic Herb Chicken", cal:285, protein:37, carbs:2, fat:14, source:"mealprep", tags:['batch','under-400','under-500','chicken'], image:"/recipes/383.webp" },
+  { id:384, name:"Nacho Ground Beef", cal:339, protein:41, carbs:13, fat:14, source:"mealprep", tags:['batch','high-protein','under-400','under-500','beef'], image:"/recipes/384.webp" },
+  { id:385, name:"Chicken Shawarma Rice Bowls (Thighs)", cal:552, protein:46, carbs:48, fat:19, source:"mealprep", tags:['high-protein','chicken','rice-bowls'], image:"/recipes/385.webp" },
+  { id:386, name:"Breakfast Pizza (Low Carb)", cal:376, protein:30, carbs:28, fat:16, source:"jalal", tags:['under-400','under-500'], image:"/recipes/386.webp" },
 ]
 
 export const recipeById = Object.fromEntries(recipes.map(r => [r.id, r]))
@@ -276,6 +278,7 @@ export const filterRecipes = (recipes, { query = '', filter = 'all', favorites =
     if (query && !r.name.toLowerCase().includes(query.toLowerCase())) return false
     if (filter === 'jalal') return r.source === 'jalal'
     if (filter === 'mealprep') return r.source === 'mealprep'
+    if (filter === 'batch') return r.tags.includes('batch')
     if (filter === 'high-protein') return r.tags.includes('high-protein')
     if (filter === 'under-500') return r.tags.includes('under-500')
     if (filter === 'low-fat') return r.tags.includes('low-fat')

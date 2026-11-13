@@ -3,6 +3,7 @@ import Card, { CARD_ROW_RULE } from './Card'
 import Thumb from './Thumb'
 import ScreenHeader from './ScreenHeader'
 import RecipeSheet from './RecipeSheet'
+import GuidesSheet from './GuidesSheet'
 import DayChips from './DayChips'
 import { useAppStore } from '../store/useAppStore'
 import { recipes } from '../data/recipes'
@@ -28,12 +29,14 @@ const MONO = { fontFamily: 'var(--pq-mono)' }
 
 /* Every value here exists in the catalog — checked against it rather
    than copied from the prototype and hoped for. Counts at the time of
-   writing: high-protein 198, under-500 131, chicken 123, low-fat 95,
-   rice-bowls 66, pasta 52, seafood 14; jalal 136, mealprep 124. */
+   writing: high-protein 199, under-500 132, chicken 124, low-fat 95,
+   rice-bowls 67, pasta 52, seafood 14; jalal 137, mealprep 125; batch 17
+   (the Meal Prep book's batch proteins, pp.240-273). */
 const FILTERS = [
   { label: 'ALL',          test: () => true },
   { label: "JALAL'S",      test: r => r.source === 'jalal' },
   { label: 'MEAL PREP',    test: r => r.source === 'mealprep' },
+  { label: 'BATCH',        test: r => r.tags.includes('batch') },
   { label: 'HIGH PROTEIN', test: r => r.tags.includes('high-protein') },
   { label: 'UNDER 500',    test: r => r.tags.includes('under-500') },
   { label: 'LOW FAT',      test: r => r.tags.includes('low-fat') },
@@ -66,6 +69,7 @@ export default function Recipes({ surface = 'phone' }) {
   const PAGE = PAGES[surface] || PAGES.phone
   const [shown, setShown] = useState(PAGE)
   const [sheetRecipe, setSheetRecipe] = useState(null)
+  const [guidesOpen, setGuidesOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -153,6 +157,49 @@ export default function Recipes({ surface = 'phone' }) {
         })}
       </div>
 
+      {/* ── Meal prep guides ────────────────────────────────────────
+          The Meal Prep book's tips, storage guide, batch intro and
+          master grocery list. They belong with the recipes, so they live
+          here rather than in a sixth tab. Hidden while searching, so a
+          search shows results straight away. */}
+      {!query.trim() && (
+        <div style={{ padding: '10px var(--pq-gutter) 0' }}>
+          <button
+            data-guides-card
+            onClick={() => setGuidesOpen(true)}
+            style={{
+              width: '100%', minHeight: 64, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '12px 14px', textAlign: 'left', fontFamily: 'var(--pq-sans)',
+              background: 'var(--pq-panel)', border: 'var(--pq-card-border)',
+              borderRadius: 'var(--pq-r-card)',
+            }}>
+            <span aria-hidden="true" style={{
+              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+              background: 'var(--pq-accent-grad)', color: 'var(--pq-on-accent-ink)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+              </svg>
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 15, fontWeight: 600, color: 'var(--pq-text)' }}>
+                Meal prep guides
+              </span>
+              <span style={{ display: 'block', fontSize: 12, color: 'var(--pq-text-3)', marginTop: 2, lineHeight: 1.4 }}>
+                Storage &amp; reheating, tips, batch cooking, master grocery list
+              </span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+              stroke="var(--pq-text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* ── Adding to ───────────────────────────────────────────────
           The day the + on each row adds to. The number under each day
           is how many meals it holds, so the week fills up in view. */}
@@ -208,7 +255,17 @@ export default function Recipes({ surface = 'phone' }) {
                     <span style={{
                       ...MONO, display: 'block', fontSize: 'var(--pq-size-eyebrow)',
                       color: 'var(--pq-text-muted)', marginTop: 3,
-                    }}>{r.cal} KCAL · {r.protein}P · {r.carbs}C · {r.fat}F</span>
+                    }}>
+                      {r.cal} KCAL · {r.protein}P · {r.carbs}C · {r.fat}F
+                      {r.tags.includes('batch') && (
+                        <span data-batch-tag style={{
+                          display: 'inline-block', marginLeft: 6, padding: '1px 7px',
+                          borderRadius: 'var(--pq-r-chip)', verticalAlign: 1,
+                          background: 'var(--pq-accent-tint)', color: 'var(--pq-accent)',
+                          fontSize: 9.5, fontWeight: 600, letterSpacing: 'var(--pq-track-label)',
+                        }}>BATCH</span>
+                      )}
+                    </span>
                   </span>
                 </button>
                 {/* ONE TAP: ON THE DAY. A + that becomes a tick, and the
@@ -283,6 +340,7 @@ export default function Recipes({ surface = 'phone' }) {
       )}
 
       <RecipeSheet recipe={sheetRecipe} onClose={() => setSheetRecipe(null)} />
+      {guidesOpen && <GuidesSheet onClose={() => setGuidesOpen(false)} />}
     </div>
   )
 }
