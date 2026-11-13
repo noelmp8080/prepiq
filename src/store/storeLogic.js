@@ -389,7 +389,9 @@ export const lsKey = (uid, name) => `prepiq_${scopeOf(uid)}_${name}`
 /* grocery_hidden IS adopted, unlike the other two grocery keys:
    "I never need anchovies" is a preference about the person, not state
    about one shop on one day, so it should survive signing in. */
-export const ADOPTABLE = ['goals', 'weekplan', 'favorites', 'grocery_hidden']
+/* `planstart` travels with `weekplan`: the start date is what the plan's
+   day order was rotated to, and one without the other reorders a week. */
+export const ADOPTABLE = ['goals', 'weekplan', 'planstart', 'favorites', 'grocery_hidden']
 export const NEVER_ADOPTED = ['grocery', 'grocery_excluded']
 export const adoptedMarker = uid => `prepiq_anon_adopted_${uid}`
 
@@ -450,6 +452,7 @@ export function hydrateLocal(uid, date, defaults = {}) {
     goals:           loadLS(lsKey(uid, 'goals'), defaults.goals),
     mealLog:         loadLS(lsKey(uid, `log_${date}`), []),
     weekPlan:        loadLS(lsKey(uid, 'weekplan'), defaults.weekPlan),
+    planStart:       loadLS(lsKey(uid, 'planstart'), null),
     favorites:       arrayToSet(loadLS(lsKey(uid, 'favorites'), [])),
     groceryChecks:   readChecks(loadLS(lsKey(uid, 'grocery'), null), CHECKS_VERSION),
     groceryExcluded: readChecks(loadLS(lsKey(uid, 'grocery_excluded'), null), EXCLUDED_VERSION),
@@ -863,4 +866,110 @@ export function danglingPlanIds(plan, recipeById = {}) {
     })
   })
   return out
+}
+
+/* ── A PLAN CAN START ON A DAY YOU CHOOSE ─────────────────────────────
+ *
+ * Asked for by the owner: "I want to start my diet next week and start
+ * meal prepping now, and the app won't let me pick a future date."
+ *
+ * The plan stays seven labelled days. What a start date adds is ONE
+ * calendar anchor, `planStart` (YYYY-MM-DD, local), and two rules:
+ *
+ *   1. THE START DAY IS PLAN DAY 0. Choosing a Wednesday rotates the
+ *      week so Wed is first — the meals stay with their labels, the
+ *      plan just begins where the diet does. After that, todayIndex's
+ *      label match keeps working for every repeat of the week.
+ *   2. BEFORE THE START, NO PLAN DAY IS TODAY. planToday is -1, the
+ *      plan's dates run forward from the start, and Today/Track say the
+ *      plan has not begun rather than presenting day 1 as today. The
+ *      grocery list defaults to day 1 — that is the shop you prep for.
+ *
+ * Once the start date is reached it changes nothing further: the week
+ * behaves exactly as it did before this existed.
+ */
+
+/** Is `start` a real YYYY-MM-DD date? Anything else is "no start". */
+export function isISODate(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  return todayISO(fromISO(s)) === s
+}
+
+/** Has the plan not started yet? Strings compare correctly for ISO dates. */
+export function planIsUpcoming(start, today = todayISO()) {
+  return isISODate(start) && start > today
+}
+
+/** Plan day 0's weekday becomes `start`'s weekday.
+ *
+ *  Returns the rotated plan and `shift`, the old index that is now 0, so
+ *  the caller can carry grocery keys across. A plan whose labels do not
+ *  include that weekday is returned unchanged with shift 0. */
+export function rotatePlanToStart(plan = [], start) {
+  if (!Array.isArray(plan) || !plan.length || !isISODate(start)) return { plan, shift: 0 }
+  const shift = todayIndex(plan, fromISO(start))
+  const label = fromISO(start).toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()
+  if (!String(plan[shift]?.day || '').toLowerCase().startsWith(label) || shift === 0) {
+    return { plan, shift: 0 }
+  }
+  return { plan: [...plan.slice(shift), ...plan.slice(0, shift)], shift }
+}
+
+/** Move `dayIndex:itemId` keys along with a rotation, so a ticked item
+ *  stays ticked on the same day after the week is reordered. */
+export function shiftDayKeys(keys = new Set(), shift = 0, length = 7) {
+  if (!shift || !length) return keys
+  const out = new Set()
+  for (const k of keys) {
+    if (!isDayKey(k)) continue
+    const [d, id] = k.split(':').map(Number)
+    out.add(dayKey((d - shift + length) % length, id))
+  }
+  return out
+}
+
+/** Which plan index is today, given an optional start date. -1 while
+ *  the plan has not begun. */
+export function planTodayIndex(weekPlan = [], start, date = new Date()) {
+  if (planIsUpcoming(start, todayISO(date))) return -1
+  return todayIndex(weekPlan, date)
+}
+
+/** The calendar date of each plan day. Before the start, they run
+ *  forward from it; after, they are this week's, as planDates gives. */
+export function planDatesWithStart(length, todayIdx, start, now = new Date()) {
+  if (todayIdx < 0 && isISODate(start)) {
+    const s = fromISO(start)
+    return Array.from({ length }, (_, i) =>
+      todayISO(new Date(s.getFullYear(), s.getMonth(), s.getDate() + i)))
+  }
+  return planDates(length, Math.max(0, todayIdx), now)
+}
+
+/** Whole days from `today` to `start`. */
+export function daysUntil(start, today = todayISO()) {
+  if (!isISODate(start)) return 0
+  return Math.round((fromISO(start) - fromISO(today)) / 86_400_000)
+}
+
+export const longDate = iso => fromISO(iso).toLocaleDateString('en-US',
+  { weekday: 'short', month: 'short', day: 'numeric' })
+
+export function addDaysISO(iso, n) {
+  const d = fromISO(iso)
+  return todayISO(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n))
+}
+
+/** Next Monday, strictly after today. */
+export function nextMonday(today = todayISO()) {
+  const dow = fromISO(today).getDay()            // 0 Sun … 6 Sat
+  return addDaysISO(today, ((8 - dow) % 7) || 7)
+}
+
+/** "STARTS IN 5 DAYS" / "STARTS TOMORROW" — the line under the header. */
+export function startsInLabel(start, today = todayISO()) {
+  const n = daysUntil(start, today)
+  if (n <= 0) return 'STARTED'
+  if (n === 1) return 'STARTS TOMORROW'
+  return `STARTS IN ${n} DAYS`
 }

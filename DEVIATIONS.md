@@ -1327,6 +1327,45 @@ Screens as built: `docs/design/paper-and-ink/`.
 
 ---
 
+## 31. Swipe between recipes, and tap the dish for the full photo
+
+Owner request: swipe left on an open recipe to go to the next one, and tap
+the dish to see a large photo that fits the phone.
+
+- **Swipe is opt-in per screen.** `RecipeSheet` takes `list` + `onNavigate`.
+  Recipes passes its current filtered, searched list, so a swipe walks the
+  order on screen. Today, Plan and Track pass nothing and their sheet is
+  unchanged.
+- **Left = next, right = previous**, the way a page turns. The first 10px of
+  movement decide the gesture: mostly sideways is a swipe, anything else is
+  left to the browser, and the wrapper is `touch-action: pan-y`, so the
+  recipe still scrolls. 60px commits. The ends of the list drag with
+  resistance and spring back.
+- **A swipe is never also a tap.** A sideways gesture swallows the click
+  that follows it, so a swipe that starts on a day chip does not add the
+  meal to that day.
+- **A position row** (`2 OF 140 · SWIPE FOR MORE`, with ‹ › arrows at the
+  44px floor) sits under the header when there is a list. Without it the
+  gesture is undiscoverable. ← and → keys do the same on desktop.
+- **The photo opens in `PhotoViewer`**, portalled to `<body>` because the
+  sheet panel animates with a transform and would otherwise become the
+  containing block for `position: fixed`. `object-fit: contain` in a
+  `100dvh` box, so the whole dish shows at the largest size the screen
+  allows. Any tap or Escape closes it; Escape backs out one layer, not the
+  sheet. Only a recipe whose photo loads gets the button; the initials tile
+  opens nothing.
+- **Structure change asserted:** the sheet's header/body/actions now sit
+  inside the swipe wrapper, which carries `flex: 1; min-height: 0` so the
+  body still scrolls instead of growing. `recipeSheet.test.jsx` checks the
+  wrapper as well as the three sections.
+
+Tests: `src/tests/recipeSwipe.test.jsx` (13) and `e2e/recipeSwipe.spec.js`
+(3, real touch input through the DevTools protocol on an iPhone-sized
+viewport: swipe both ways, vertical drag still scrolls, photo fits the
+screen).
+
+---
+
 ## Baselines
 
 Recorded so drift is visible later.
